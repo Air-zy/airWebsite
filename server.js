@@ -11,8 +11,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 // routes 
 const routeMap = {
   '/home': 'index.html',
-  '/api/projects': 'projects.html',
 };
+
+
+// TODO add this to route map bruh.
+let lastairsiteGet = 0;
+app.all(`/api/projects`, async (req, res) => {
+  const now = Date.now();
+  if (now > lastairsiteGet) {
+    console.log("refetching projects")
+    lastairsiteGet = now + 30 * 1000;
+    //projects = await firedbAirsiteGet();
+  }
+  res.status(200).send(projects)
+})
 
 // handler func for all mapped routes:
 function sendMappedFile(req, res, next) {
