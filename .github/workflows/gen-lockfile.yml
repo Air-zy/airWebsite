@@ -1,0 +1,25 @@
+name: Generate package-lock.json
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'package.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+      - '!package-lock.json'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install (lockfile‑only)
+        run: npm install --package-lock-only
+
+      - name: Commit lockfile
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'package-lock.json'
+          message: 'chore: add generated package-lock.json'
