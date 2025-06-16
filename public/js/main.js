@@ -182,7 +182,7 @@ function handleSections() {
 
 async function reloadProjects() {
   try {
-    const projectsFetch = await fetch('https://airzy.glitch.me/api/projects');
+    const projectsFetch = await fetch('/api/projects');
     if (!projectsFetch.ok) {
       throw new Error('Failed to fetch data');
     }
