@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Wave Function Collapse Demo</title>
+  <style>
+    body { font-family: sans-serif; }
+    canvas { border: 1px solid #333; margin: 10px; }
+    label { margin-right: 1em; }
+  </style>
+</head>
+<body>
+  <h1>Wave Function Collapse Demo</h1>
+
+  <!-- Sample Drawing Section -->
+  <div>
+    <h2>Sample Drawing</h2>
+    <canvas id="sampleCanvas" width="200" height="200"></canvas>
+    <br>
+    <input type="color" id="drawColor" value="#000000">
+    <button id="clearSample">Clear</button>
+    <p>Click on the grid to paint cells.</p>
+  </div>
+
+  <!-- Settings Section -->
+  <div>
+    <h2>Settings</h2>
+    <label>Tile Size (in cells): 
+      <input type="number" id="tileSize" value="2" min="1">
+    </label>
+    <label>Output Grid Width (tiles): 
+      <input type="number" id="outputWidth" value="20" min="1">
+    </label>
+    <label>Output Grid Height (tiles): 
+      <input type="number" id="outputHeight" value="20" min="1">
+    </label>
+    <button id="runWFC">Run Wave Function Collapse</button>
+  </div>
+
+  <!-- Output Section -->
+  <div>
+    <h2>Output</h2>
+    <canvas id="outputCanvas" width="400" height="400"></canvas>
+  </div>
+
+  <script>
+    // ---------- Sample Drawing Setup ----------
+    const sampleCanvas = document.getElementById('sampleCanvas');
+    const sampleCtx = sampleCanvas.getContext('2d');
+    // We use a grid on the sample canvas—each cell is drawn as a block.
+    const sampleCellSize = 20; // each drawn cell is 20x20 pixels
+    const sampleCols = sampleCanvas.width / sampleCellSize;
+    const sampleRows = sampleCanvas.height / sampleCellSize;
+    let sampleGrid = [];
+
+    function initSampleGrid() {
+      sampleGrid = [];
+      for (let i = 0; i < sampleRows; i++) {
+        let row = [];
+        for (let j = 0; j < sampleCols; j++) {
+          row.push('#ffffff'); // start with white
+        }
+        sampleGrid.push(row);
+      }
+    }
+
+    function drawSampleGrid() {
+      for (let i = 0; i < sampleRows; i++) {
+        for (let j = 0; j < sampleCols; j++) {
+          sampleCtx.fillStyle = sampleGrid[i][j];
+          sampleCtx.fillRect(j * sampleCellSize, i * sampleCellSize, sampleCellSize, sampleCellSize);
+          sampleCtx.strokeStyle = '#ddd';
+          sampleCtx.strokeRect(j * sampleCellSize, i * sampleCellSize, sampleCellSize, sampleCellSize);
+        }
+      }
+    }
+
+    initSampleGrid();
+    drawSampleGrid();
+
+    // Draw on the sample canvas when the user clicks
+    const drawColorInput = document.getElementById('drawColor');
+    sampleCanvas.addEventListener('click', function(event) {
+      const rect = sampleCanvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const j = Math.floor(x / sampleCellSize);
+      const i = Math.floor(y / sampleCellSize);
+      sampleGrid[i][j] = drawColorInput.value;
+      drawSampleGrid();
+    });
+
+    document.getElementById('clearSample').addEventListener('click', function() {
+      initSampleGrid();
+      drawSampleGrid();
+    });
+
+    // ---------- Pattern Extraction and Compatibility ----------
+    // Extract all overlapping patterns (tiles) of given size from the sample grid.
+    function extractPatterns(tileSize) {
+      const patterns = {};
+      // For every possible top-left cell of a tile:
+      for (let i = 0; i <= sampleRows - tileSize; i++) {
+        for (let j = 0; j <= sampleCols - tileSize; j++) {
+          let pattern = [];
+          for (let di = 0; di < tileSize; di++) {
+            let row = [];
+            for (let dj = 0; dj < tileSize; dj++) {
+              row.push(sampleGrid[i + di][j + dj]);
+            }
+            pattern.push(row);
+          }
+          const key = JSON.stringify(pattern);
+          if (patterns[key]) {
+            patterns[key].count++;
+          } else {
+            patterns[key] = { pattern: pattern, count: 1 };
+          }
+        }
+      }
+      // Convert to an array of unique patterns.
+      const patternArray = [];
+      for (let key in patterns) {
+        patternArray.push({ key: key, pattern: patterns[key].pattern, count: patterns[key].count });
+      }
+      return patternArray;
+    }
+
+    // Compute which patterns can neighbor each other.
+    // For each pattern, we list (for each direction) the indices of patterns that are compatible.
+    // Directions: up, right, down, left.
+    function computeCompatibility(patterns, tileSize) {
+      const compatibility = [];
+      for (let i = 0; i < patterns.length; i++) {
+        compatibility[i] = { up: [], right: [], down: [], left: [] };
+      }
+      for (let i = 0; i < patterns.length; i++) {
+        for (let j = 0; j < patterns.length; j++) {
+          // For a neighbor above: if pattern j is above pattern i, then pattern j’s bottom row must equal pattern i’s top row.
+          let canBeAbove = true;
+          for (let k = 0; k < tileSize; k++) {
+            if (patterns[j].pattern[tileSize - 1][k] !== patterns[i].pattern[0][k]) {
+              canBeAbove = false;
+              break;
+            }
+          }
+          if (canBeAbove) compatibility[i].up.push(j);
+
+          // For a neighbor below: pattern j’s top row must equal pattern i’s bottom row.
+          let canBeBelow = true;
+          for (let k = 0; k < tileSize; k++) {
+            if (patterns[j].pattern[0][k] !== patterns[i].pattern[tileSize - 1][k]) {
+              canBeBelow = false;
+              break;
+            }
+          }
+          if (canBeBelow) compatibility[i].down.push(j);
+
+          // For a neighbor to the left: pattern j’s right column must equal pattern i’s left column.
+          let canBeLeft = true;
+          for (let k = 0; k < tileSize; k++) {
+            if (patterns[j].pattern[k][tileSize - 1] !== patterns[i].pattern[k][0]) {
+              canBeLeft = false;
+              break;
+            }
+          }
+          if (canBeLeft) compatibility[i].left.push(j);
+
+          // For a neighbor to the right: pattern j’s left column must equal pattern i’s right column.
+          let canBeRight = true;
+          for (let k = 0; k < tileSize; k++) {
+            if (patterns[j].pattern[k][0] !== patterns[i].pattern[k][tileSize - 1]) {
+              canBeRight = false;
+              break;
+            }
+          }
+          if (canBeRight) compatibility[i].right.push(j);
+        }
+      }
+      return compatibility;
+    }
+
+    // ---------- Wave Function Collapse Algorithm ----------
+    // This simplified version sets up an output grid where each cell holds a list of possible pattern indices.
+    // It then repeatedly collapses the cell with the lowest number of options and propagates constraints.
+    function runWFC(tileSize, outWidth, outHeight, patterns, compatibility) {
+      const numPatterns = patterns.length;
+      // Initialize the output grid.
+      const grid = [];
+      for (let i = 0; i < outHeight; i++) {
+        const row = [];
+        for (let j = 0; j < outWidth; j++) {
+          const options = [];
+          for (let p = 0; p < numPatterns; p++) {
+            options.push(p);
+          }
+          row.push({ collapsed: false, options: options });
+        }
+        grid.push(row);
+      }
+
+      // Get neighboring cells along with the relative direction from the neighbor’s perspective.
+      function getNeighbors(i, j) {
+        const neighbors = [];
+        if (i > 0) neighbors.push({ i: i - 1, j: j, direction: 'up' });     // neighbor is above; from its view, cell below is collapsed.
+        if (i < outHeight - 1) neighbors.push({ i: i + 1, j: j, direction: 'down' });
+        if (j > 0) neighbors.push({ i: i, j: j - 1, direction: 'left' });
+        if (j < outWidth - 1) neighbors.push({ i: i, j: j + 1, direction: 'right' });
+        return neighbors;
+      }
+
+      // A weighted random pick among options based on the frequency (count) of the pattern.
+      function weightedRandom(options) {
+        let total = 0;
+        for (let idx of options) {
+          total += patterns[idx].count;
+        }
+        let r = Math.random() * total;
+        for (let idx of options) {
+          r -= patterns[idx].count;
+          if (r <= 0) return idx;
+        }
+        return options[options.length - 1];
+      }
+
+      // Propagate constraints from a recently collapsed cell.
+      // For a neighbor in a given direction, we require that its candidate pattern x
+      // be such that, from x’s perspective, the already-collapsed neighbor (in the opposite position)
+      // is allowed. For example, if the neighbor is above (direction "up" from it),
+      // then from x’s perspective (with the collapsed cell below), x must allow that cell below.
+      const queue = [];
+      function propagate() {
+        while (queue.length > 0) {
+          const { i, j } = queue.shift();
+          const cell = grid[i][j];
+          const neighbors = getNeighbors(i, j);
+          for (let n of neighbors) {
+            const ni = n.i, nj = n.j, direction = n.direction;
+            const neighborCell = grid[ni][nj];
+            if (neighborCell.collapsed) continue;
+            const newOptions = [];
+            // For each candidate option in the neighbor...
+            for (let candidate of neighborCell.options) {
+              let valid = false;
+              // Check against the collapsed cell’s options.
+              for (let option of cell.options) {
+                let compList;
+                // Note: from the neighbor’s perspective, the collapsed cell lies in the opposite direction.
+                if (direction === 'up') {
+                  // Neighbor is above the collapsed cell, so from neighbor's view the collapsed cell is below.
+                  compList = compatibility[candidate].down;
+                } else if (direction === 'down') {
+                  compList = compatibility[candidate].up;
+                } else if (direction === 'left') {
+                  compList = compatibility[candidate].right;
+                } else if (direction === 'right') {
+                  compList = compatibility[candidate].left;
+                }
+                if (compList.includes(option)) { valid = true; break; }
+              }
+              if (valid) newOptions.push(candidate);
+            }
+            if (newOptions.length < neighborCell.options.length) {
+              neighborCell.options = newOptions;
+              queue.push({ i: ni, j: nj });
+              if (neighborCell.options.length === 0) {
+                console.error("No options left at", ni, nj);
+                return false;
+              }
+            }
+          }
+        }
+        return true;
+      }
+
+      // Main loop: repeatedly collapse the cell with the fewest options.
+      while (true) {
+        // Find the uncollapsed cell with minimal entropy (fewest options).
+        let minEntropy = Infinity, minI = -1, minJ = -1;
+        for (let i = 0; i < outHeight; i++) {
+          for (let j = 0; j < outWidth; j++) {
+            const cell = grid[i][j];
+            if (!cell.collapsed && cell.options.length < minEntropy) {
+              minEntropy = cell.options.length;
+              minI = i;
+              minJ = j;
+            }
+          }
+        }
+        // If every cell is collapsed, we’re done.
+        if (minEntropy === Infinity) break;
+        const cell = grid[minI][minJ];
+        if (cell.options.length === 0) {
+          console.error("Collapse failed at", minI, minJ);
+          return null;
+        }
+        // Collapse the cell by choosing one option (weighted by pattern frequency).
+        const chosen = weightedRandom(cell.options);
+        cell.options = [chosen];
+        cell.collapsed = true;
+        queue.push({ i: minI, j: minJ });
+        if (!propagate()) {
+          console.error("Propagation failed, restarting...");
+          return null;
+        }
+      }
+      return grid;
+    }
+
+    // ---------- Render the Output ----------
+    const outputCanvas = document.getElementById('outputCanvas');
+    const outputCtx = outputCanvas.getContext('2d');
+    // Render the final output grid by drawing each tile’s pattern.
+    function renderOutput(grid, tileSize, patterns) {
+      const outHeight = grid.length;
+      const outWidth = grid[0].length;
+      const cellScale = 20; // each cell in a tile will be drawn as 20x20 pixels
+      // Adjust canvas size so that each output tile (tileSize cells) is drawn correctly.
+      outputCanvas.width = outWidth * tileSize * cellScale;
+      outputCanvas.height = outHeight * tileSize * cellScale;
+      for (let i = 0; i < outHeight; i++) {
+        for (let j = 0; j < outWidth; j++) {
+          const cell = grid[i][j];
+          if (cell.collapsed) {
+            const pattern = patterns[cell.options[0]].pattern;
+            for (let di = 0; di < tileSize; di++) {
+              for (let dj = 0; dj < tileSize; dj++) {
+                outputCtx.fillStyle = pattern[di][dj];
+                outputCtx.fillRect(
+                  (j * tileSize + dj) * cellScale,
+                  (i * tileSize + di) * cellScale,
+                  cellScale,
+                  cellScale
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ---------- Run WFC on Button Click ----------
+    document.getElementById('runWFC').addEventListener('click', function() {
+      const tileSize = parseInt(document.getElementById('tileSize').value);
+      const outWidth = parseInt(document.getElementById('outputWidth').value);
+      const outHeight = parseInt(document.getElementById('outputHeight').value);
+      const patterns = extractPatterns(tileSize);
+      if (patterns.length === 0) {
+        alert("Not enough sample data for the chosen tile size.");
+        return;
+      }
+      const compatibility = computeCompatibility(patterns, tileSize);
+      const grid = runWFC(tileSize, outWidth, outHeight, patterns, compatibility);
+      if (grid) {
+        renderOutput(grid, tileSize, patterns);
+      } else {
+        alert("Wave Function Collapse failed. Try a different sample or settings.");
+      }
+    });
+  </script>
+</body>
+</html>

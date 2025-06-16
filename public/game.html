@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Data</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      
+      font-family: "Montserrat";
+      margin: 0;
+      padding: 20px;
+      background-color: #111;
+      color: #eee;
+    }
+    h2 {
+      text-align: center;
+    }
+    #winrateChart {
+      max-width: 100vw;
+      height: 80vh !important;
+      margin: 0 auto 40px auto;
+      display: block;
+    }
+    #gameData {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    #infoData {
+      padding: 40px;
+    }
+    .entry {
+      font-size: 0.9em;
+      background-color: #1c1c1c;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      width: 200px;
+      text-align: left;
+      box-shadow: 0 0 5px rgba(255,255,255,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .entry .row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .entry .row div {
+      display: flex;
+      justify-content: space-between;
+      /*width: 100%;*/
+    }
+    .entry .label {
+      /*font-weight: bold;*/
+      width: 30%;
+    }
+    .entry .value {
+      width: 25%;
+      text-align: right;
+    }
+    .entry .rank {
+      width: 40%;
+      color: grey;
+      text-align: right;
+    }
+    
+    /* rah */
+    
+    #jsonOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #jsonOverlayContent {
+      background: #222;
+      color: #fff;
+      padding: 20px;
+      min-width: 60vw;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    }
+    #jsonOverlayContent button {
+      margin-top: 10px;
+      background: #444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #jsonOverlayContent span {
+      display: flex;
+      justify-content: space-between;
+    }
+    .slot-entry {
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background-color: #1b1b1b;
+      
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      gap: 8px;
+      font-size: 0.8em;
+    }
+    .itemlist {
+      border: 1px solid gray;
+      padding: 8px;
+      margin: 8px 0;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      flex-wrap: wrap;
+      max-height: 70px;
+      align-content: flex-start;
+      max-width: fit-content;
+    }
+    #itemChart {
+      max-width: 100%;
+      max-height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Game Player Data</h2>
+  <p>Players with 0 wins and losses are ignored</p>
+  <canvas id="winrateChart"></canvas>
+  <p id="infoData"> </p>
+  <div id="gameData"></div>
+  <div id="jsonOverlay" style="display: none;">
+    <div id="jsonOverlayContent">
+      <span>
+        <p id="jsonTitle">header</p>
+        <button onclick="closeOverlay()">Close</button>
+      </span>
+      <div id="jsonDataDisplay">
+        <p>favorite Items <span style="color: grey;">amt*(1/globalAmt)*slotLvl</span></p>
+        <canvas id="itemChart"></canvas>
+        <div id="plrInfo">
+        </div>
+        <p>player slots</p>
+        <div id="slotContainer"></div>
+      </div>
+    </div>
+  </div>
+  
+  <canvas id="bellShapeChart"></canvas>
+  <div style="width: 90%">
+    <label for="totalGamesSlider">Minimum requirement Total Games Played</label>
+    <input type="range" id="totalGamesSlider" min="0" max="1000" value="1" step="1" style="width:100%">
+    <span id="sliderValue">1</span>
+  </div>
+  <div style="width: 90%">
+    <label for="eloSlider">Minimum Elo requirement</label>
+    <input type="range" id="eloSlider" min="400" max="1400" value="400" step="1" style="width:100%">
+    <span id="eloSliderValue">400</span>
+  </div>
+  
+  <h3>
+    ITEM FREQUENCY CHART
+  </h3>
+  <canvas id="itemFrequencyChart"></canvas>
+  
+  
+  <script>
+    // chart helper funcs
+    const chartInstances = {};
+    const animationCooldown = 400; // 1 second between animations
+
+    function updateChartWithThrottle(chart) {
+      const id = chart.canvas.id;
+      const now = Date.now();
+      const instance = chartInstances[id] || { lastUpdate: 0 };
+
+      const shouldAnimate = (now - instance.lastUpdate) > animationCooldown;
+
+      // Dynamically set animation duration before update
+      chart.options.animation = {
+        duration: shouldAnimate ? 400 : 0,
+        easing: shouldAnimate ? 'easeOutQuart' : 'linear',
+      };
+
+      chart.update();
+
+      chartInstances[id] = { chart, lastUpdate: now };
+    }
+
+    function addData(chart, label, newData) {
+      chart.data.labels.push(label);
+      chart.data.datasets.forEach((dataset, idx) => {
+        dataset.data.push(Array.isArray(newData) ? newData[idx] : newData);
+      });
+      updateChartWithThrottle(chart);
+    }
+
+    function removeData(chart) {
+      chart.data.labels.pop();
+      chart.data.datasets.forEach((dataset) => {
+        dataset.data.pop();
+      });
+      updateChartWithThrottle(chart);
+    }
+
+    function setChartData(chart, labels, datasetData) {
+      chart.data.labels = labels;
+      chart.data.datasets.forEach((dataset, i) => {
+        dataset.data = Array.isArray(datasetData[i]) ? datasetData[i] : datasetData;
+      });
+      updateChartWithThrottle(chart);
+    }
+
+    //
+    
+    async function getNameFromUID(userId) {
+      try {
+        const response = await fetch(`/api/roblox-user/${userId}`);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        const data = await response.json();
+        return data.name;
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        return null;
+      }
+    }
+    
+    function hslToRgb(h, s, l) {
+      s /= 100;
+      l /= 100;
+
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+      const m = l - c / 2;
+
+      let r = 0, g = 0, b = 0;
+
+      if (0 <= h && h < 60) {
+        r = c; g = x; b = 0;
+      } else if (60 <= h && h < 120) {
+        r = x; g = c; b = 0;
+      } else if (120 <= h && h < 180) {
+        r = 0; g = c; b = x;
+      } else if (180 <= h && h < 240) {
+        r = 0; g = x; b = c;
+      } else if (240 <= h && h < 300) {
+        r = x; g = 0; b = c;
+      } else if (300 <= h && h < 360) {
+        r = c; g = 0; b = x;
+      }
+
+      // Convert to RGB [0, 255] scale
+      r = Math.round((r + m) * 255);
+      g = Math.round((g + m) * 255);
+      b = Math.round((b + m) * 255);
+
+      return { r, g, b };
+    }
+
+    function rgbToHsl(r, g, b) {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+
+      let h = 0, s = 0, l = (max + min) / 2;
+
+      if (delta !== 0) {
+        s = delta / (1 - Math.abs(2 * l - 1));
+        if (max === r) {
+          h = (g - b) / delta;
+        } else if (max === g) {
+          h = (b - r) / delta + 2;
+        } else if (max === b) {
+          h = (r - g) / delta + 4;
+        }
+        h *= 60;
+        if (h < 0) h += 360;
+      }
+
+      s = s * 100;
+      l = l * 100;
+
+      return { h, s, l };
+    }
+
+    function getItemColor(itemId) {
+      const hue = (itemId / window.__itemFrequency.size) * 360;
+      return `hsl(${hue}, 70%, 60%)`;
+    }
+
+    function combineColors(data) {
+      let totalWeight = 0;
+      let totalR = 0;
+      let totalG = 0;
+      let totalB = 0;
+
+      data.forEach(item => {
+        const itemId = item[0];
+        const weight = 1 + item[1];
+        const color = getItemColor(itemId);
+
+        const hueMatch = color.match(/hsl\((\d+(\.\d+)?),/);
+        if (hueMatch) {
+          const hue = parseFloat(hueMatch[1]);
+          const { r, g, b } = hslToRgb(hue, 100, 50);
+
+          totalR += r * weight;
+          totalG += g * weight;
+          totalB += b * weight;
+          totalWeight += weight;
+        }
+      });
+
+      // Calculate the average RGB value
+      const avgR = totalWeight > 0 ? totalR / totalWeight : 0;
+      const avgG = totalWeight > 0 ? totalG / totalWeight : 0;
+      const avgB = totalWeight > 0 ? totalB / totalWeight : 0;
+
+      // Convert average RGB back to HSL
+      const { h, s, l } = rgbToHsl(avgR, avgG, avgB);
+      return `hsl(${h}, ${60}%, ${80}%)`;
+    }
+
+
+    
+    function getItemName(itemId) {
+       if (window.__itemsData[itemId-1]) { // -1 cuz roblox
+         return window.__itemsData[itemId-1].Name
+       } else {
+         return itemId
+       }
+    }
+    
+    function getItemValue(itemId) {
+       if (window.__itemsData[itemId-1]) { // -1 cuz roblox
+         return Object.keys( window.__itemsData[itemId-1] )
+       } else {
+         return itemId
+       }
+    }
+
+    function getBestFitLine(data) {
+      const n = data.length;
+      const sumX = data.reduce((sum, p) => sum + p.x, 0);
+      const sumY = data.reduce((sum, p) => sum + p.y, 0);
+      const sumXY = data.reduce((sum, p) => sum + p.x * p.y, 0);
+      const sumX2 = data.reduce((sum, p) => sum + p.x * p.x, 0);
+
+      const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      const intercept = (sumY - slope * sumX) / n;
+
+      const minX = Math.min(...data.map(p => p.x));
+      const maxX = Math.max(...data.map(p => p.x));
+
+      return [
+        { x: minX, y: slope * minX + intercept },
+        { x: maxX, y: slope * maxX + intercept }
+      ];
+    }
+    
+    let itemsChartInstance = null;
+    function visualizefrequencyData() {
+      const itemFrequency = new Map();
+      const totalGamesThreshold = document.getElementById('totalGamesSlider').value;
+      const eloThreshold = document.getElementById('eloSlider').value;
+      
+      for (const values of Object.values(window.__plrData)) {
+        const slots = values?.[2];
+        const totalGames = values[0] + values[1];
+        if (values[3] < eloThreshold || values[3] == undefined) continue;
+        if (totalGames < totalGamesThreshold) continue;
+        if (!Array.isArray(slots)) continue;
+        
+        slots.forEach(slot => {
+          const itemList = slot[3];
+          itemList.forEach(itemId => {
+            itemFrequency.set(itemId, (itemFrequency.get(itemId) || 0) + 1);
+          });
+        });
+      }
+      
+      const itemFreqData = Array.from(itemFrequency.entries())
+        .sort((a, b) => b[1] - a[1])
+
+      const itemLabels = itemFreqData.map(([itemId]) => itemId);
+      const itemCounts = itemFreqData.map(([_, count]) => count);
+
+      const itemCtx = document.getElementById('itemFrequencyChart').getContext('2d');
+      
+      if (!itemsChartInstance) {
+        itemsChartInstance = new Chart(itemCtx, {
+          type: 'bar',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'Item Freq',
+              data: [],
+              backgroundColor: [],
+              borderColor: [],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            /*animation: {
+              duration: 0,
+            },*/
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return `Item ID: ${context.label}, Count: ${context.raw}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                title: { display: true, text: 'Count' },
+              },
+              y: {
+                title: { display: true, text: 'ITEM ID' },
+                ticks: {
+                  color: 'white',
+                  autoSkip: false,
+                }
+              }
+            },
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+            indexAxis: 'y'
+          }
+        });
+      }
+
+      setChartData(itemsChartInstance, itemLabels.map(itemid => getItemName(itemid)+` | ${itemid}`), [itemCounts]);
+      itemsChartInstance.data.datasets[0].backgroundColor = itemLabels.map(itemId => getItemColor(itemId));
+      itemsChartInstance.data.datasets[0].borderColor = itemLabels.map(itemId => getItemColor(itemId));
+      itemsChartInstance.update();
+
+    }
+    
+    let bellCurveChartInstance = null;
+    function visualizeBellCurve() {
+      const eloScores = [];
+      const plrData = window.__plrData;
+
+      // Get the slider value
+      const totalGamesThreshold = document.getElementById('totalGamesSlider').value;
+      const eloThreshold = document.getElementById('eloSlider').value;
+      
+      let minElo = 10000;
+      for (const [userId, values] of Object.entries(plrData)) {
+        const elo = values[3];
+        const wins = values[0];
+        const losses = values[1];
+        const totalGames = wins + losses;
+        if (elo < minElo) minElo = elo;
+
+        if (elo < eloThreshold) continue;
+        if (elo !== undefined && totalGames > 0 && totalGames >= totalGamesThreshold) {
+          eloScores.push(elo);
+        }
+      }
+
+      const mean = eloScores.reduce((acc, score) => acc + score, 0) / eloScores.length;
+      const stddev = Math.sqrt(eloScores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / eloScores.length);
+
+      const binCount = Math.max(1, Math.floor(eloScores.length));
+      const bins = Array(binCount).fill(1);
+      //const minElo = Math.min(...eloScores);
+      const maxElo = Math.max(...eloScores);
+      const binWidth = (maxElo - minElo) / binCount;
+
+      // Bin Elo scores
+      eloScores.forEach(score => {
+        const binIndex = Math.min(Math.floor((score - minElo) / binWidth), binCount - 1);
+        bins[binIndex]++;
+      });
+
+      const itemLabels = Array(binCount).fill().map((_, i) => {
+        return Math.floor(minElo + (i * binWidth)) + " - " + Math.floor(minElo + ((i + 1) * binWidth));
+      });
+
+      const ctx = document.getElementById('bellShapeChart').getContext('2d');
+
+      if (!bellCurveChartInstance) {
+        bellCurveChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: [],
+            datasets: [{
+              label: 'elo distribution',
+              data: [],
+              backgroundColor: 'rgba(0, 255, 0, 0.6)',
+              borderColor: 'rgba(0, 255, 0, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            /*animation: {
+              duration: 0,
+            },*/
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return `ELO: ${context.label}, DENSITY: ${context.raw}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                title: { display: true, text: 'ELO' },
+                beginAtZero: true,
+                //max: bellCurveMAX,
+                //min: bellCurveMIN
+              },
+              y: {
+                title: { display: true, text: 'DENSITY' },
+                beginAtZero: true,
+                max: 40
+              }
+            }
+          }
+        });
+      }
+
+      setChartData(bellCurveChartInstance, itemLabels, [bins]);
+      bellCurveChartInstance.update();
+    }
+
+
+    function formItemFreqFromPlrSlots(slots) {
+      const itemFrequency = new Map();
+      slots.forEach(slot => {
+        const itemList = slot[3];
+        itemList.forEach(itemId => {
+          itemFrequency.set(itemId, (itemFrequency.get(itemId) || 0) + 1);
+        });
+      });
+      return itemFrequency;
+    }
+    
+    function calcSlotUniqueness(items) {
+      let uniquenessScore = 0;
+      let amt = 1
+      const freqMap = window.__itemFrequency;
+
+      items.forEach(id => {
+        const freq = freqMap.get(id) || 1;
+        uniquenessScore += 1 / freq;
+        amt += 1
+      });
+
+      return uniquenessScore/amt*1000
+    }
+    
+    function calcPlayerUniqueness(plrData) {
+      const slotsData = plrData?.[2];
+      let max = 0;
+      slotsData.forEach((slot) => {
+        const slotUNQ = calcSlotUniqueness(slot[3]);
+        if (slotUNQ > max) {
+          max = slotUNQ;
+        }
+      });
+      return max;
+    }
+
+    
+    function getFavorites(slotsData) {
+      const userfreqMap = formItemFreqFromPlrSlots(slotsData);
+      const itemFrequency = {};
+      slotsData.forEach((slot, idx) => {
+        const items = slot[3];
+        if (Array.isArray(items)) {
+          items.forEach(itemId => {
+            const freq = userfreqMap.get(itemId) || 1;
+            //itemFrequency[itemId] = (itemFrequency[itemId] || 0) + freq*slot[4];
+            const freq2 = 1 + 1 / (window.__itemFrequency.get(itemId) || 1);
+            itemFrequency[itemId] = (itemFrequency[itemId] || 0) + freq*freq2*slot[4];
+          });
+        }
+      });
+      
+      const sortedItems = Object.entries(itemFrequency)
+        .sort((a, b) => b[1] - a[1])
+
+      const talentItems = sortedItems.filter(item => getItemValue(item[0]).includes("isTalent")).slice(0, 3);
+      const abilityItems = sortedItems.filter(item => getItemValue(item[0]).includes("isAbility")).slice(0, 3);
+      const toolItems = sortedItems.filter(item => 
+        getItemValue(item[0]).includes("Tool") && 
+        !getItemValue(item[0]).includes("isTalent") && 
+        !getItemValue(item[0]).includes("isAbility")
+      ).slice(0, 3);
+
+      return [...toolItems, ...abilityItems, ...talentItems];
+    }
+    
+    function getColorOfPlr(userId) {
+      const plrData = window.__plrData?.[userId];
+      const slotsData = plrData?.[2];
+      return combineColors(getFavorites(slotsData))
+    }
+    
+    let itemChartInstance = null;
+    function showPlayerData(userId) {
+      document.getElementById('jsonTitle').innerHTML = `
+        <a href="https://www.roblox.com/users/${userId}" target="_blank"><strong>${userId}</strong></a>
+      `;
+
+      getNameFromUID(userId)
+        .then(usrname => {
+          document.getElementById('jsonTitle').innerHTML = `
+            <a href="https://www.roblox.com/users/${userId}" target="_blank"><strong>${usrname}</strong></a>
+          `;
+        })
+        .catch(error => {
+          console.log('Error:', error);
+        });
+      
+        const plrData = window.__plrData?.[userId];
+        //const keyBinds = window.__KeybindDSv5?.[userId];
+        const slotsData = plrData?.[2];
+
+        //console.log(keyBinds);
+
+        const sortPlayersBy = (sortCallback) => {
+            let allPlayersData = Object.values(window.__plrData);
+
+            allPlayersData = allPlayersData.sort(sortCallback);
+
+            //console.log(allPlayersData);
+            return allPlayersData;
+        };
+
+        const getPlayerRank = (sortCallback) => {
+            const sortedPlayers = sortPlayersBy(sortCallback);
+            return sortedPlayers.findIndex(player => player === plrData) + 1;
+        };
+
+        const eloSortCallback = (a, b) => {
+            const aValue = Number(a[3]) || 0;
+            const bValue = Number(b[3]) || 0;
+            return bValue - aValue;
+        };
+
+        const winsSortCallback = (a, b) => {
+            const aValue = Number(a[0]) || 0;
+            const bValue = Number(b[0]) || 0;
+            return bValue - aValue;
+        };
+
+        const lossesSortCallback = (a, b) => {
+            const aValue = Number(a[1]) || 0;
+            const bValue = Number(b[1]) || 0;
+            return bValue - aValue;
+        };
+      
+        function getWinrate(wins, losses) {
+          const totalGames = wins + losses;
+          return totalGames > 0 ? (wins / totalGames) : 0;
+        }
+      
+        const winrateCallback = (a, b) => {
+            const aValue = getWinrate(a[0], a[1]);
+            const bValue = getWinrate(b[0], b[1]);
+            return bValue - aValue;
+        };
+      
+        const plrWinrate = getWinrate(plrData[0],plrData[1])
+        const plrInfo = document.getElementById('plrInfo');
+        const entryHTML = `
+            <div class="entry" id="entry-${userId}">
+                <div class="row">
+                    <div class="label">Elo:</div>
+                    <div class="value">${plrData[3]}</div>
+                    <div class="rank">Top #${getPlayerRank(eloSortCallback)}</div>
+                </div>
+
+                <div class="row">
+                    <div class="label">Wins:</div>
+                    <div class="value">${plrData[0]}</div>
+                    <div class="rank">Top #${getPlayerRank(winsSortCallback)}</div>
+                </div>
+
+                <div class="row">
+                    <div class="label">Losses:</div>
+                    <div class="value">${plrData[1]}</div>
+                    <div class="rank">Top #${getPlayerRank(lossesSortCallback)}</div>
+                </div>
+                
+                <div class="row">
+                    <div class="label">Winrate:</div>
+                    <div class="value">${(plrWinrate * 100).toFixed(1)}</div>
+                    <div class="rank">Top #${getPlayerRank(winrateCallback)}</div>
+                </div>
+            </div>
+        `;
+
+      plrInfo.innerHTML = entryHTML;
+      
+      
+      const container = document.getElementById('slotContainer');
+      container.innerHTML = ''; // clear previous content
+
+      if (!slotsData || !Array.isArray(slotsData)) {
+        container.textContent = 'No valid slots data found.';
+        return;
+      }
+
+      
+      const finalItems = getFavorites(slotsData);
+      
+      const itemChartData = {
+        labels: finalItems.map(item => getItemName(item[0])),
+        datasets: [{
+          label: 'Item Frequency',
+          data: finalItems.map(item => item[1]),
+          backgroundColor: finalItems.map(item => getItemColor(item[0])),
+          borderColor: 'black',
+          borderWidth: 0,
+        }]
+      };
+
+      if (itemChartInstance) {
+        itemChartInstance.data = itemChartData;
+        itemChartInstance.update();
+      } else {
+        const ctx = document.getElementById('itemChart').getContext('2d');
+        itemChartInstance = new Chart(ctx, {
+          type: 'doughnut',
+          data: itemChartData,
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  color: 'white'
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(tooltipItem) {
+                    return `${tooltipItem.label}: ${tooltipItem.raw}`;
+                  }
+                }
+              }
+            },
+            maintainAspectRatio: true,
+            aspectRatio: 1,
+          }
+        });
+      }
+      
+      slotsData.forEach((slot, idx) => {
+        const slotDiv = document.createElement('div');
+        slotDiv.classList.add('slot-entry');
+        slotDiv.innerHTML = `
+          <div>Slot ${idx + 1}</div>
+          <div>Level: ${slot[1]} (Progress: ${slot[4]}/${slot[1]})</div>
+          <div>Exp: ${slot[0]}</div>
+          <div>Lives: ${slot[5]}</div>
+          <div>Item IDs:</div>
+          <div class="itemlist">
+            ${Array.isArray(slot[3]) 
+              ? slot[3].map(id => `<span style="padding: 4px 10px 4px 4px">${id}: ${getItemName(id)}</span>`).join('')
+              : '<span>None</span>'}
+          </div>
+          <div>Inventory: ${
+            Array.isArray(slot[6])
+              ? slot[6].map(item => `[${item[0]}, ${item[1]}]`).join(', ')
+              : 'None'
+          }</div>
+          <div>Position: [${slot[2]?.join(', ')}]</div>
+          <div>Seed: ${slot[7]}</div>
+          <div>Date: ${slot[9]}</div>
+          <div>Uniqueness Score: ${calcSlotUniqueness(slot[3]).toFixed(2)}</div>
+        `;
+        container.appendChild(slotDiv);
+      });
+
+      document.getElementById('jsonOverlay').style.display = 'flex';
+    }
+
+    function closeOverlay() {
+      document.getElementById('jsonOverlay').style.display = 'none';
+    }
+
+    function formItemFreq(plrData) {
+      const itemFrequency = new Map();
+      for (const values of Object.values(plrData)) {
+        const slots = values?.[2];
+        const totalGames = values[0] + values[1];
+        const elo = values[3]
+        if (elo < 801 || values[3] == undefined) continue;
+        if (!Array.isArray(slots)) continue;
+
+        slots.forEach(slot => {
+          const itemList = slot[3];
+          const progression = slot[4];
+          itemList.forEach(itemId => {
+            itemFrequency.set(itemId, (itemFrequency.get(itemId) || 0) + 1/progression);
+          });
+        });
+      }
+      console.log(itemFrequency)
+      return itemFrequency;
+    }
+    
+    function formData(data) {
+      const gameDataElement = document.getElementById('gameData');
+      const infoElement = document.getElementById('infoData');
+      const plrData = data.PlrDataDSv3;
+      window.__itemsData = data._Global.Items
+      window.__Dmgs = data._Global.Dmgs
+      window.__plrData = plrData;
+      window.__KeybindDSv5 = data["KeybindDSv5"]
+      window.__itemFrequency = formItemFreq(plrData);
+      
+      console.log(window.__itemsData)
+      console.log(data._Global)
+      
+      if (!plrData) {
+        gameDataElement.innerHTML = "<p>PlrDataDSv3 not found in the data.</p>";
+        return;
+      }
+
+      const chartData = [];
+      const playerEntries = [];
+
+      let eloAmt = 0
+      let totalElo = 0
+      
+      let eloAmt2 = 0
+      let totalElo2 = 0
+      
+      for (const [userId, values] of Object.entries(plrData)) {
+        if (Array.isArray(values) && values.length >= 4) {
+          const wins = values[0];
+          const losses = values[1];
+          const elo = values[3];
+
+          const totalGames = wins + losses;
+          const winrate = totalGames > 0 ? (wins / totalGames) : 0;
+
+          if (totalGames > 0) {
+            eloAmt += 1;
+            totalElo += elo;
+          }
+          if (wins > 0) {
+            eloAmt2 += 1;
+            totalElo2 += elo;
+            
+            const uniqueness = calcPlayerUniqueness(values)
+            const efficiency = elo * (1+winrate/2) / 100;
+            playerEntries.push({
+              userId,
+              wins,
+              losses,
+              winrate,
+              elo,
+              efficiency,
+              uniqueness
+            });
+
+            chartData.push({
+              y: winrate * 100,
+              x: elo,
+              label: userId
+            });
+          }
+        }
+      }
+
+      playerEntries.sort((a, b) => b.uniqueness - a.uniqueness);
+      gameDataElement.innerHTML = '';
+
+      infoElement.innerText = `
+      AverageELO: ${(totalElo/eloAmt).toFixed(2)}
+      n: ${eloAmt}
+      
+      top-${eloAmt2}-Average: ${(totalElo2/eloAmt2).toFixed(2)}
+      `;
+      
+      playerEntries.forEach(entry => {
+        const entryHTML = `
+          <div class="entry" id="entry-${entry.userId}">
+            <button style="color:${getColorOfPlr(entry.userId)}" onclick="showPlayerData('${entry.userId}')"><strong>${entry.userId}</strong></button>
+
+            <div class="row">
+              <div class="label">Elo:</div>
+              <div class="value">${entry.elo}</div>
+            </div>
+            
+            <div class="row">
+              <div class="label">Wins:</div>
+              <div class="value">${entry.wins}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Losses:</div>
+              <div class="value">${entry.losses}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Winrate:</div>
+              <div class="value">${(entry.winrate * 100).toFixed(1)}%</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Efficiency:</div>
+              <div class="value">${(entry.efficiency).toFixed(1)}</div>
+            </div>
+            
+             <div class="row">
+              <div class="label">Uniqueness:</div>
+              <div class="value">${(entry.uniqueness).toFixed(1)}</div>
+            </div>
+          </div>
+        `;
+        gameDataElement.innerHTML += entryHTML;
+      });
+
+      const ctx = document.getElementById('winrateChart').getContext('2d');
+      const regressionLine = getBestFitLine(chartData);
+
+      const chart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Winrate vs Elo',
+              data: chartData,
+              parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+              backgroundColor: 'rgba(0, 200, 255, 0.8)',
+              pointRadius: 6,
+              pointHoverRadius: 8,
+            },
+            {
+              label: 'Trend Line',
+              data: regressionLine,
+              parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+              type: 'line',
+              borderColor: 'orange',
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.raw.label || '';
+                  if (label) {
+                    return `User: ${label}, Winrate: ${context.raw.y.toFixed(1)}%, Elo: ${context.raw.x}`;
+                  }
+                  return `Winrate: ${context.raw.y.toFixed(1)}%, Elo: ${context.raw.x}`;
+                }
+              }
+            }
+          },
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const userId = chart.data.datasets[0].data[index].label;
+              const target = document.getElementById(`entry-${userId}`);
+              if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.style.boxShadow = '0 0 100px 2px rgba(255,0,0,1)';
+                setTimeout(() => {
+                  target.style.boxShadow = '0 0 5px rgba(255,255,255,0.05)';
+                }, 1500);
+              }
+            }
+          },
+          scales: {
+            y: {
+              title: { display: true, text: 'Winrate (%)' },
+              min: 0,
+              max: 100,
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)' // Light grid lines
+              }
+            },
+            x: {
+              title: { display: true, text: 'Elo' },
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)' // Light grid lines
+              }
+            }
+          },
+          maintainAspectRatio: true,
+          aspectRatio: window.innerWidth / window.innerHeight,
+        }
+      });
+    
+      visualizefrequencyData();
+      visualizeBellCurve();
+    }
+
+    fetch('api/gam3DB')
+      .then(response => response.json())
+      .then(formData)
+      .catch(error => {
+        document.getElementById('gameData').innerHTML = `<p>Error: ${error.message}</p>`;
+      });
+    
+    document.getElementById('totalGamesSlider').addEventListener('input', function() {
+      document.getElementById('sliderValue').textContent = this.value;
+      visualizeBellCurve();
+      visualizefrequencyData();
+    });
+    document.getElementById('eloSlider').addEventListener('input', function() {
+      document.getElementById('eloSliderValue').textContent = this.value;
+      visualizeBellCurve();
+      visualizefrequencyData();
+    });
+    
+  </script>
+</body>
+</html>

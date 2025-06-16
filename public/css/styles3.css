@@ -1,0 +1,52 @@
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background: url('https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/dark-mosaic.png?v=1722650442024');
+  background-color: black;
+  margin-top: 40px; /* cuz of the navigation tab thing */
+  overflow-x: hidden; /* no horizontal */
+}
+
+.text-box2 {
+  border: 1px solid #444444;
+  /*user-select: none;*/
+  background-color: rgba(10, 10, 10);
+  color: #ffffff;
+  font-family: 'Montserrat';
+  font-size: 14px;
+  padding: 40px;
+  border-radius: 5px;
+  position: absolute;
+  white-space: pre-wrap;
+  grid-area: content;
+}
+
+.selectable {
+  user-select: text; /* This allows text selection */
+  cursor: text; /* This changes cursor to text cursor */
+}
+
+
+.wrapper {
+  height: 100%;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-areas:
+    ". content ."
+    ". content ."
+}
+
+input[type="text"], button {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #333333;
+    color: white;
+    border-style: none;
+    border-width: 1px;
+    border-color: black;
+    padding: 4px;
+    margin-right: 10px;
+}

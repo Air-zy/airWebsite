@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Leaderboards Image</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      background: #111; color: #eee;
+      font-family: "Montserrat", sans-serif;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh;
+    }
+    #boards {
+      display: flex; gap: 20px;
+      padding: 20px; background: #111;
+    }
+    #boards table {
+      border-collapse: collapse;
+      width: 160px;
+      font-size: 0.75em;
+    }
+    #boards th, #boards td {
+      border: 1px solid #333;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    #boards th {
+      background: #222;
+      position: sticky; top: 0;
+    }
+    #boards td.player {
+      text-align: left;
+    }
+    #leaderImg {
+      max-width: 100%; max-height: 100%;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="loading-txt">loading...</h1>
+  <div id="boards"></div>
+
+  <img id="leaderImg" alt="Leaderboards">
+
+  <script>
+    const nameCache = {};
+    function log(msg, ...args) {
+      console.log(`[Leaderboards] ${msg}`, ...args);
+    }
+
+    async function getNameFromUID(userId) {
+      if (nameCache[userId]) {
+        log("Cache hit for userId:", userId);
+        return nameCache[userId];
+      }
+      log("Fetching username for:", userId);
+      try {
+        const res = await fetch(`/api/roblox-user/${userId}`);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const js = await res.json();
+        nameCache[userId] = js.name;
+        log("Got username:", userId, js.name);
+        return js.name;
+      } catch (err) {
+        log("Failed to fetch username for:", userId, err);
+        nameCache[userId] = userId;
+        return userId;
+      }
+    }
+
+    function getWinrate(w, l) {
+      return (w + l) ? w / (w + l) : 0;
+    }
+
+    function renderTable(container, title, list, key, fmt, nameMap) {
+      const tbl = document.createElement('table');
+      tbl.innerHTML = `
+        <thead>
+          <tr><th colspan="3">${title}</th></tr>
+          <tr><th>#</th><th>Player</th><th>${title}</th></tr>
+        </thead>
+        <tbody>
+          ${list.slice(0,30).map((p,i) => `
+            <tr>
+              <td>${i+1}</td>
+              <td class="player">${nameMap[p.id]||p.id}</td>
+              <td>${fmt(p[key])}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+      container.appendChild(tbl);
+    }
+
+    (async () => {
+      log("leader generation…");
+
+      const gameRes = await fetch('api/gam3DB');
+      const gameData = await gameRes.json();
+      const plr = gameData.PlrDataDSv3;
+      log("plrs raw data:", Object.keys(plr).length);
+
+      const arr = Object.entries(plr)
+        .filter(([_,v]) => Array.isArray(v) && v.length >= 4)
+        .map(([id,v]) => {
+          const wins = v[0], losses = v[1], elo = v[3];
+          const wr  = getWinrate(wins, losses);
+          const eff = elo * (1 + wr/2) / 100;
+          return { id: parseInt(id,10), wins, elo, eff };
+        });
+      log("plrs loaded:", arr.length);
+
+      const byElo  = [...arr].sort((a,b)=>b.elo  - a.elo);
+      const byWins = [...arr].sort((a,b)=>b.wins - a.wins);
+      const byEff  = [...arr].sort((a,b)=>b.eff  - a.eff);
+
+      const idSet = new Set();
+      [byElo,byWins,byEff].forEach(list =>
+        list.slice(0,30).forEach(p => idSet.add(p.id))
+      );
+      const idsToFetch = Array.from(idSet);
+      log("unique user IDs to fetch:", idsToFetch.length);
+
+      log("fetching usernames in parallel…");
+      const nameMap = {};
+      await Promise.all(idsToFetch.map(async id => {
+        nameMap[id] = await getNameFromUID(id);
+      }));
+      log("finished username fetching!");
+
+      const container = document.getElementById('boards');
+      renderTable(container, 'ELO',  byElo,  'elo',  x=>x,           nameMap);
+      renderTable(container, 'Wins', byWins, 'wins', x=>x,           nameMap);
+      renderTable(container, 'Efficiency', byEff, 'eff',  x=>x.toFixed(2), nameMap);
+      document.getElementById('loading-txt')?.remove();
+
+      log("starting snapshot…");
+      const canvas = await html2canvas(container, { backgroundColor: '#111' });
+      log("snapshot complete!");
+
+      const img = document.getElementById('leaderImg');
+      img.src = canvas.toDataURL('image/jpeg', 0.9);
+      img.style.display = 'block';
+
+      container.remove();
+      log("img ready");
+    })().catch(err => {
+      console.error("Error generating leaderboards:", err);
+    });
+  </script>
+</body>
+</html>
