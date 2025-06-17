@@ -1,81 +1,85 @@
-// minify all js html cs from a directory and puts it on another
-const fs = require('fs').promises;
-const path = require('path');
-const { Buffer } = require('buffer');
-const minifyHtml = require('@minify-html/node');
-const { minify: minifyJs } = require('terser');
-const CleanCSS = require('clean-css');
+// minify all js html cs from a dir and puts it on another dir
+import fs from 'fs/promises';
+import path from 'path';
+import { minify as minifyHtml } from 'html-minifier-terser';
+import { minify as minifyJs } from 'terser';
+import CleanCSS from 'clean-css';
 
 const defaultHtmlOptions = {
-  keep_spaces_between_attributes: false,
-  keep_comments: false,
-  // docs: https://www.npmjs.com/package/@minify-html/node
+  removeComments: true,
+  collapseWhitespace: true,
+  minifyJS: true,
+  minifyCSS: true,
 };
 
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
-async function processFile(filePath, srcDir, outDir, htmlOptions) {
+async function processFile(filePath, srcDir, outDir) {
   const relPath = path.relative(srcDir, filePath);
   const destPath = path.join(outDir, relPath);
   await ensureDir(path.dirname(destPath));
 
   const ext = path.extname(filePath).toLowerCase();
-  const content = await fs.readFile(filePath);
-
   try {
-    if (ext === '.html') {
-      const minifiedBuffer = minifyHtml.minify(Buffer.from(content), htmlOptions);
-      await fs.writeFile(destPath, Buffer.from(minifiedBuffer));
+    let content;
+
+    if (ext === '.html' || ext === '.htm') {
+      const input = await fs.readFile(filePath, 'utf8');
+      content = await minifyHtml(input, defaultHtmlOptions);
+      
+      content = `<!-- minified by avy <3 -->\n${content}`;
+      await fs.writeFile(destPath, content, 'utf8');
       console.log(`Minified HTML: ${relPath}`);
+
     } else if (ext === '.js') {
-      const code = content.toString('utf-8');
-      const result = await minifyJs(code);
-      if (result.code == null) throw new Error(`Terser failed for ${relPath}`);
-      await fs.writeFile(destPath, Buffer.from(result.code, 'utf-8'));
+      const input = await fs.readFile(filePath, 'utf8');
+      const { code } = await minifyJs(input);
+      
+      content = `// minified by avy <3\n${code}`;
+      await fs.writeFile(destPath, content, 'utf8');
       console.log(`Minified JS: ${relPath}`);
+
     } else if (ext === '.css') {
-      const code = content.toString('utf-8');
-      const output = new CleanCSS({}).minify(code);
+      const input = await fs.readFile(filePath, 'utf8');
+      const output = new CleanCSS().minify(input);
       if (output.errors.length) {
-        console.error(`CleanCSS errors in ${relPath}:`, output.errors);
+        console.error(`CSS minify errors in ${relPath}:`, output.errors);
       }
-      await fs.writeFile(destPath, Buffer.from(output.styles, 'utf-8'));
+      
+      content = `/* minified by avy <3 */\n${output.styles}`;
+      await fs.writeFile(destPath, content, 'utf8');
       console.log(`Minified CSS: ${relPath}`);
+
     } else {
       await fs.copyFile(filePath, destPath);
-      console.log(`Copied (no minify): ${relPath}`);
+      console.log(`Copied: ${relPath}`);
     }
   } catch (err) {
     console.error(`Error processing ${relPath}:`, err);
   }
 }
 
-async function walkDirectory(dir, srcDir, outDir, htmlOptions) {
+async function walkDirectory(dir, srcDir, outDir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      await walkDirectory(fullPath, srcDir, outDir, htmlOptions);
+      await walkDirectory(fullPath, srcDir, outDir);
     } else if (entry.isFile()) {
-      await processFile(fullPath, srcDir, outDir, htmlOptions);
+      await processFile(fullPath, srcDir, outDir);
     }
   }
 }
 
-async function startMinify({ src = 'src', dest = 'dist', htmlOptions = {} } = {}) {
-  const htmlOpts = Object.assign({}, defaultHtmlOptions, htmlOptions);
+export async function startMinify({ src = 'src', dest = 'dist' } = {}) {
   const srcDir = path.resolve(src);
   const outDir = path.resolve(dest);
-
-  // rm current dest directory n remake
   await fs.rm(outDir, { recursive: true, force: true });
   await ensureDir(outDir);
 
-  console.log(`Starting minification: from ${srcDir} to ${outDir}`);
-  await walkDirectory(srcDir, srcDir, outDir, htmlOpts);
-  console.log('Minification complete.');
+  console.log(`Minifying from ${srcDir} to ${outDir}`);
+  await walkDirectory(srcDir, srcDir, outDir);
+  console.log('Done.');
 }
-
-module.exports = { startMinify };
