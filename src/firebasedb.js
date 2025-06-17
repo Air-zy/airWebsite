@@ -23,6 +23,41 @@ async function firedbAirsiteGet() {
   return snap.data();
 }
 
+async function _safeSet2(documentRef, data2, maxRetries = 3) {
+  const numOfProjs = Object.keys(data2).length;
+   
+  if (numOfProjs <= 0) {
+    console.log("no projects exist... not saving bruh");
+    return;
+  }
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await documentRef.set(data2);
+      console.log("updated projects (" + numOfProjs + ")" + ` successfully written on attempt ${attempt}`);
+      return; // success
+    } catch (error) {
+      console.error(`Error on attempt ${attempt}:`, error);
+
+      if (attempt === maxRetries || error.code !== 4) {
+        throw error;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+}
+
+async function firedbAirsiteSave(projects) {
+  if (!airsiteRef) {
+    airsiteRef = firedb.doc("airsite");
+  }
+  if (airsiteRef) {
+    await _safeSet2(airsiteRef, projects);
+  }
+}
+
+
 async function firedbAnimeMapGet() {
   if (!animeRef) animeRef = firedb.doc('anime');
   const snap = await animeRef.get();
@@ -47,4 +82,5 @@ module.exports = {
   firedbAnimeMapGet,
   firedbActivityGet,
   firedbRobloxGet,
+  firedbAirsiteSave
 };

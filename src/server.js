@@ -24,9 +24,10 @@ app.get('/home', require('./routes/home.js'));
 app.get('/api/projects', require('./routes/api_projects.js'));
 
 app.post('/validate-me', require('./routes/validate_me.js'));
+app.post('/api/project-edit', require('./routes/api_project_edit.js'));
 
 app.use((req, res) => {
-  res.status(404).send('Not found LOL');
+  res.status(404).send('Not found LOL 🥀💔');
 });
 
 const { version } = require('../package.json');

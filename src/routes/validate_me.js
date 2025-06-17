@@ -1,5 +1,4 @@
-const ipUtils = require('./ip_utils.js');
-const { ipv4ToDecimal, getIPData, isValidIPv4, bitset, getIP } = ipUtils;
+const { ipv4ToDecimal, getIPData, isValidIPv4, bitset, getIP } = require('./ip_utils.js');
 
 
 module.exports = (req, res) => {

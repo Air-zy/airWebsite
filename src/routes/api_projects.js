@@ -1,13 +1,11 @@
 const { firedbAirsiteGet } = require('../firebasedb.js');
-let projects = {};
+const { getProjects } = require('./ip_utils.js');
+
+
 let lastairsiteGet = 0;
-
-(async () => {
-  projects = await firedbAirsiteGet();
-})();
-
 module.exports = async (req, res) => {
   const now = Date.now();
+  let projects = getProjects();
   if (now > lastairsiteGet) {
     console.log("refetching projects")
     lastairsiteGet = now + 30 * 1000;

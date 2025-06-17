@@ -1,11 +1,13 @@
-const { firedbAdressGet } = require('../firebasedb.js');
+const { firedbAdressGet, firedbAirsiteGet } = require('../firebasedb.js');
 
 let updatedCurrentAdresses = null;
+let projects = null;
 
 (async () => {
   updatedCurrentAdresses = await firedbAdressGet();
+  projects = await firedbAirsiteGet();
+  console.log("[FIRE DB] all init data loaded")
 })();
-
 
 let adressesLoaded = true;
 
@@ -60,10 +62,19 @@ function getIPData(decimalIP) {
   return updatedCurrentAdresses[decimalIP]
 }
 
+function getIPData(decimalIP) {
+  return updatedCurrentAdresses[decimalIP]
+}
+
+function getProjects() {
+  return projects;
+}
+
 module.exports = {
   getIP,
   ipv4ToDecimal,
   bitset,
   isValidIPv4,
-  getIPData
+  getIPData,
+  getProjects
 };
