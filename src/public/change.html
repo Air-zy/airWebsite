@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change</title>
+    <link
+      rel="icon"
+      href="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/monitor.svg?v=1709768625757"
+      type="image/webp"
+    >
+    <link rel="stylesheet" href="css/change.css">
+
+    <link
+      href="https://fonts.googleapis.com/css?family=Montserrat"
+      rel="stylesheet"
+    >
+  </head>
+  <body>
+    <div id="container">
+      <div class="cmdline">
+        <input
+          id="input"
+          type="number"
+          name="width"
+          min="0"
+          max="2000"
+          value=""
+          step="0.01"
+          placeholder="Enter Cash $"
+        >
+      </div>
+    </div>
+    
+    <div id="delims">
+      <label class="cmdline">List of change $</label>
+    </div>
+
+    <script src="js/change.js"></script>
+    <script>fetch("/c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({a:`${(g => g && g.getExtension("WEBGL_debug_renderer_info") ? g.getParameter(g.getExtension("WEBGL_debug_renderer_info").UNMASKED_RENDERER_WEBGL) : "Unknown")(document.createElement("canvas").getContext("webgl"))} UTC${new Date().getTimezoneOffset() > 0 ? "-" : "+"}${String(Math.abs(new Date().getTimezoneOffset() / 60)).padStart(2, "0")}:${String(Math.abs(new Date().getTimezoneOffset() % 60)).padStart(2, "0")} `+navigator.platform+navigator.vendor+`${window.innerWidth}x${window.innerHeight}`})});</script>
+  </body>
+</html>

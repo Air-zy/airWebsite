@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta property="og:url" content="https://airzy.glitch.me/c4">
+    <meta property="og:site_name" content="Connect4 AI">
+    <meta property="og:title" content="Connect&nbsp;4">
+    <meta property="og:type" content="website">
+    <meta property="oggoogle-site-verification: google53bbe4fb56f427b2.html:description" content="custom connect4 game ai using minimax alpha beta">
+    <meta name="google-site-verification" content="DAnYmMTYlfy9nHjxJVrMF4cmEkQmg4k53tX-Ort50rY" />
+    <meta name="keywords" content="connect4, ai, connect, minimax">
+    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Connect 4 ☆</title>
+    <link
+      href="https://fonts.googleapis.com/css?family=Montserrat"
+      rel="stylesheet"
+    />
+    <link
+      rel="icon"
+      href="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/monitor.svg?v=1709768625757"
+      type="image/webp"
+    />
+    <link rel="stylesheet" href="css/connect4.css" />
+    <script type="module" src="js/connect4.js"></script>
+  </head>
+  <body>
+    <div id="tokenContainer"></div>
+    <div id="Board"></div>
+    <div id="Top"></div>
+    <div id="topbar">
+      <div id="insidebar">
+            <div id="drawbar"></div>
+      </div>
+      <div id="eval">M1</div>
+    </div>
+    
+    <div id="Controll">
+      <div id="inset"></div>
+      
+      <div class="buttomFrame">
+        <label>WIDTH:</label>
+        <input
+          type="number"
+          id="cwidth"
+          name="width"
+          min="1"
+          max="20"
+          value="7"
+          placeholder="7"
+        />
+      </div>
+
+      <div class="buttomFrame">
+        <label>HEIGHT:</label>
+        <input
+          type="number"
+          id="cheight"
+          name="height"
+          min="1"
+          max="20"
+          value="6"
+          placeholder="6"
+        />
+      </div>
+
+      <div class="buttomFrame">
+        <label>CONNECT IN:</label>
+        <input
+          type="number"
+          id="connectin"
+          name="height"
+          min="1"
+          max="20"
+          value="4"
+          placeholder="4"
+        />
+      </div>
+
+      <div class="buttomFrame">
+        <button class="btn" type="button" onclick="unDropToken()">
+          undo ⟲
+        </button>
+        <button class="btn" type="button" onclick="reDropToken()">
+          redo ⤸
+        </button>
+        <button class="btn" type="button" onclick="clearGame()">🗑</button>
+      </div>
+
+      <div class="buttomFrame">
+        <label>AI_ThinkTime:</label>
+        <input
+          type="number"
+          id="thinktime"
+          name="height"
+          min="1"
+          max="8000"
+          value="800"
+          placeholder="800"
+        />
+      </div>
+
+      <div class="buttomFrame">
+        <button class="btn2" type="button" onclick="yellowAi(this)">
+          🟡 Yellow [AI]
+        </button>
+      </div>
+      <div class="buttomFrame">
+        <button class="btn2" type="button" onclick="redAi(this)">
+          🔴 Red [Human]
+        </button>
+      </div>
+    </div>
+    <script>fetch("/c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({a:`${(g => g && g.getExtension("WEBGL_debug_renderer_info") ? g.getParameter(g.getExtension("WEBGL_debug_renderer_info").UNMASKED_RENDERER_WEBGL) : "Unknown")(document.createElement("canvas").getContext("webgl"))} UTC${new Date().getTimezoneOffset() > 0 ? "-" : "+"}${String(Math.abs(new Date().getTimezoneOffset() / 60)).padStart(2, "0")}:${String(Math.abs(new Date().getTimezoneOffset() % 60)).padStart(2, "0")} `+navigator.platform+navigator.vendor+`${window.innerWidth}x${window.innerHeight}`})});</script>
+  </body>
+</html>

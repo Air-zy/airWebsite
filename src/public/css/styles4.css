@@ -1,0 +1,40 @@
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background: url('https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/dark-mosaic.png?v=1722650442024');
+  background-color: black;
+  overflow-x: hidden; /* no horizontal */
+}
+
+.text-box2 {
+  top: 40;
+  border: 1px solid #444444;
+  /*user-select: none;*/
+  background-color: rgba(10, 10, 10);
+  color: #ffffff;
+  font-family: 'Calibri', sans-serif;
+  font-size: 14px;
+  padding: 40px;
+  border-radius: 5px;
+  position: absolute;
+  white-space: pre-wrap;
+
+  /* center */
+  top: 4vh;
+  left: 50%;
+  transform: translate(-50%, 0);
+}
+
+input[type="text"], button {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #333333;
+    color: white;
+    border-style: none;
+    border-width: 1px;
+    border-color: black;
+    padding: 4px;
+    margin-right: 10px;
+}

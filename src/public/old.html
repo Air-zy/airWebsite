@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home ☆</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Londrina+Outline&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+
+    <link rel="icon" href="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/monitor.svg?v=1709768625757" type="image/webp">
+    <link rel="stylesheet" href="css/global_styles.css" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <canvas id="canvas" width="100" height="100"></canvas>
+    <script src="js/script.js"></script>
+    
+    <div class="letter" id="letterA" onmouseover="breakApart('letterA')">A</div>
+    <div class="letter" id="letterI" onmouseover="breakApart('letterI')">I</div>
+    <div class="letter" id="letterR" onmouseover="breakApart('letterR')">R</div>
+    <div class="letter" id="letterZ" onmouseover="breakApart('letterZ')">Z</div>
+    <div class="letter" id="letterY" onmouseover="breakApart('letterY')">Y</div>
+    
+    <script src="js/global_controll.js"></script>
+  </body>
+</html>
+
+<body>
+    <div id="draggable-box"></div>
+    <div id="draggable-text"></div>
+</body>
+
+<nav class="tab-container">
+  <div class="tab" onclick="openTab('tab1', this)">
+    <div class="underline"></div>
+  </div>
+  <div class="tab" onclick="openTab('tab2', this)">
+    <div class="underline"></div>
+  </div>
+  <div class="tab" onclick="openTab('tab3', this)">
+    <div class="underline"></div>
+  </div>
+  <div class="tab" onclick="openTab('tab4', this)">
+    <div class="underline"></div>
+  </div>
+  
+  <div class="social-media-icons">
+    <a id="github-link" href="?" target="_blank" class="social-icon">
+      <img src="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/pngegg.png?v=1722652346577" alt="Github">
+    </a>
+    <a id="youtube-link" href="?" target="_blank" class="social-icon">
+      <img src="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/icons8-youtube-50.png?v=1722651701285" alt="Youtube">
+    </a>
+    <a id="twitter-link" href="?" target="_blank" class="social-icon">
+      <img src="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/icons8-twitterx-50%20(1).png?v=1722651809407" alt="Twitter">
+    </a>
+  </div>
+
+</nav>
+
+<div class="info-button-container">
+  <div class="info-button" onclick="toggleInfo()">i</div>
+  <div class="info-text">Built by me | Hosted by Glitch</div>
+</div>
