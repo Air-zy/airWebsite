@@ -4,8 +4,7 @@
   "description": "mywebsite",
   "main": "server.js",
   "scripts": {
-    "preinstall": "if [ ! -f package-lock.json ]; then npm install --package-lock-only; fi",
-    "start": "node server.js"
+    "build": "node server.js"
   },
   "dependencies": {
     "express": "^5.0.1",
