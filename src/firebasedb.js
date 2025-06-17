@@ -1,95 +1,44 @@
-const { initializeApp, applicationDefault, cert } = require('firebase-admin/app');
-const { getFirestore, Timestamp, FieldValue, Filter } = require('firebase-admin/firestore');
+// firestoreHelpers.js
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
-// init Firebase Admin SDK
+// parse & init synchronously
 const serviceAccount = JSON.parse(process.env.firebaseJsonKey);
-const firebaseApp = initializeApp({
-  credential: cert(serviceAccount)
-});
+initializeApp({ credential: cert(serviceAccount) });
 
 const firedb = getFirestore().collection('tokenUsage');
 
-if (firebaseApp) {
-  console.log("[FIREBASE] ready");
-} else {
-  console.error("[FIREBASE ERR] failed");
-}
+// cached refs
+let addrRef, airsiteRef, animeRef, activityRef, robloxRef;
 
-// cached doc references
-let aTuringRef;
-let aTuringRef2;
-let aTuringRef3;
-let aTuringRef4;
-let aTuringRef5;
-
-// to get 'adresses' data
 async function firedbAdressGet() {
-  try {
-    if (!aTuringRef) {
-      aTuringRef = firedb.doc("adresses");
-    }
-    const snapshot = await aTuringRef.get();
-    return snapshot.data();
-  } catch (err) {
-    console.error("[FIREBASE ERR] firedbAdressGet", err);
-    throw err;
-  }
+  if (!addrRef) addrRef = firedb.doc('adresses');
+  const snap = await addrRef.get();
+  return snap.data();
 }
 
-// to get 'airsite' d-data!
 async function firedbAirsiteGet() {
-  try {
-    if (!aTuringRef2) {
-      aTuringRef2 = firedb.doc("airsite");
-    }
-    const snapshot = await aTuringRef2.get();
-    return snapshot.data();
-  } catch (err) {
-    console.error("[FIREBASE ERR] firedbAirsiteGet", err);
-    throw err;
-  }
+  if (!airsiteRef) airsiteRef = firedb.doc('airsite');
+  const snap = await airsiteRef.get();
+  return snap.data();
 }
 
-// to get 'anime' dataa
 async function firedbAnimeMapGet() {
-  try {
-    if (!aTuringRef3) {
-      aTuringRef3 = firedb.doc("anime");
-    }
-    const snapshot = await aTuringRef3.get();
-    return snapshot.data();
-  } catch (err) {
-    console.error("[FIREBASE ERR] firedbAnimeMapGet", err);
-    throw err;
-  }
+  if (!animeRef) animeRef = firedb.doc('anime');
+  const snap = await animeRef.get();
+  return snap.data();
 }
 
-// to get 'activity' daata
 async function firedbActivityGet() {
-  try {
-    if (!aTuringRef4) {
-      aTuringRef4 = firedb.doc("activity");
-    }
-    const snapshot = await aTuringRef4.get();
-    return snapshot.data();
-  } catch (err) {
-    console.error("[FIREBASE ERR] firedbActivityGet", err);
-    throw err;
-  }
+  if (!activityRef) activityRef = firedb.doc('activity');
+  const snap = await activityRef.get();
+  return snap.data();
 }
 
-// to get 'rblx' data
 async function firedbRobloxGet() {
-  try {
-    if (!aTuringRef5) {
-      aTuringRef5 = firedb.doc("rblx");
-    }
-    const snapshot = await aTuringRef5.get();
-    return snapshot.data();
-  } catch (err) {
-    console.error("[FIREBASE ERR] firedbRobloxGet", err);
-    throw err;
-  }
+  if (!robloxRef) robloxRef = firedb.doc('rblx');
+  const snap = await robloxRef.get();
+  return snap.data();
 }
 
 module.exports = {

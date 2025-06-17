@@ -1,7 +1,7 @@
 const { firedbAirsiteGet } = require('../firebasedb.js');
 let projects = {};
 let lastairsiteGet = 0;
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   const now = Date.now();
   if (now > lastairsiteGet) {
     console.log("refetching projects")
