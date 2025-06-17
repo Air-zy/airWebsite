@@ -619,5 +619,5 @@ function openChat() {
 }
 
 if (window.location.pathname === '/') {
-  window.location.replace('/home');
+  window.history.replaceState(null, '', '/home');
 }

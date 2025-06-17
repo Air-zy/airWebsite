@@ -56,12 +56,14 @@ function bitset(num, pos) {
     return num | (1 << pos);
 }
 
+function getIPData(decimalIP) {
+  return updatedCurrentAdresses[decimalIP]
+}
+
 module.exports = {
   getIP,
   ipv4ToDecimal,
   bitset,
-  get updatedCurrentAdresses() {
-    return updatedCurrentAdresses;
-  },
-  isValidIPv4
+  isValidIPv4,
+  getIPData
 };
