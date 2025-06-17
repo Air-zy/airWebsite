@@ -1,9 +1,9 @@
 // minify all js html cs from a dir and puts it on another dir
-import fs from 'fs/promises';
-import path from 'path';
-import { minify as minifyHtml } from 'html-minifier-terser';
-import { minify as minifyJs } from 'terser';
-import CleanCSS from 'clean-css';
+const fs = require('fs/promises');
+const path = require('path');
+const { minify: minifyHtml } = require('html-minifier-terser');
+const { minify: minifyJs } = require('terser');
+const CleanCSS = require('clean-css');
 
 const defaultHtmlOptions = {
   removeComments: true,
@@ -73,7 +73,7 @@ async function walkDirectory(dir, srcDir, outDir) {
   }
 }
 
-export async function startMinify({ src = 'src', dest = 'dist' } = {}) {
+async function startMinify({ src = 'src', dest = 'dist' } = {}) {
   const srcDir = path.resolve(src);
   const outDir = path.resolve(dest);
   await fs.rm(outDir, { recursive: true, force: true });
@@ -83,3 +83,5 @@ export async function startMinify({ src = 'src', dest = 'dist' } = {}) {
   await walkDirectory(srcDir, srcDir, outDir);
   console.log('Done.');
 }
+
+module.exports = { startMinify };
