@@ -4,53 +4,24 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// configs
+const PRODUCTION_PUBLIC_DIRECTORY = path.join(__dirname, './compacted_public')
 
 const { startMinify } = require('./minify.js');
 startMinify({
   src: path.join(__dirname, './public'),
-  dest: path.join(__dirname, './mini_public')
+  dest: PRODUCTION_PUBLIC_DIRECTORY
 });
 
 
 // static files from "public" dir
-app.use(express.static(path.join(__dirname, './mini_public')));
+app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
 
 // routes 
-const routeMap = {
-  '/home': 'index.html',
-};
+app.get('/home', require('./routes/home.js'));
+app.get('/api/projects', require('./routes/api_projects.js'));
 
-
-// TODO add this to route map bruh.
-let lastairsiteGet = 0;
-app.all(`/api/projects`, async (req, res) => {
-  const now = Date.now();
-  if (now > lastairsiteGet) {
-    console.log("refetching projects")
-    lastairsiteGet = now + 30 * 1000;
-    //projects = await firedbAirsiteGet();
-  }
-  res.status(200).send(projects)
-})
-
-// handler func for all mapped routes:
-function sendMappedFile(req, res, next) {
-  const file = routeMap[req.path];
-  if (file) {
-    const fullPath = path.join(__dirname, 'public', file);
-    res.sendFile(fullPath, err => {
-      if (err) {
-        next(err);
-      }
-    });
-  } else {
-    next();
-  }
-}
-
-const paths = Object.keys(routeMap);
-app.get(paths, sendMappedFile);
 
 app.use((req, res) => {
   res.status(404).send('Not found LOL');
