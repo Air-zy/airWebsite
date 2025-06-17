@@ -1,2 +1,0 @@
-// minified by avy <3
-var textBox2=document.querySelector(".text-box2");function make(e,n,a){return`\n    <div class="line">\n      <a href="${n}" class="link" target="_blank">${e}</a>\n      <p class="desc">${a}</p>\n    </div>\n  `}var text=`${make("Connect 4 AI","/c4","a customizable connect4 grid with ai")}\n\n${make("Coin Sorter","/change","week1 - challenge from frostwolf (from SAIT prog club)")}\n\n${make("Journal Web App","/journal","week4 - challenge from saladstik (from SAIT prog club)")}\n`;textBox2.innerHTML=text;
