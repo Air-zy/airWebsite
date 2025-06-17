@@ -48,7 +48,7 @@ app.use((req, res) => {
   res.status(404).send('Not found LOL');
 });
 
-const { server_version } = require('./package.json');
+const { version } = require('./package.json');
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}, Version ${server_version}`);
+  console.log(`Server running on port ${PORT}, Version ${version}`);
 });
