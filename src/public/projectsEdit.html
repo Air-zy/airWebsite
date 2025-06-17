@@ -5,15 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edit Projects</title>
   <style>
-    /* Brutalist minimal style */
+    /* Dark modern brutalist minimal style without borders, using shadows */
     :root {
       color-scheme: dark;
     }
     body {
-      font-family: monospace, Arial, sans-serif;
-      margin: 20px;
-      background-color: #fff;
-      color: #000;
+      font-family: system-ui, monospace, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #121212;
+      color: #e0e0e0;
+      display: flex;
+      justify-content: center;
+    }
+    #main {
+      width: 100%;
+      max-width: 800px;
     }
     h1 {
       text-align: center;
@@ -31,25 +38,26 @@
       font-family: inherit;
       font-size: 14px;
       padding: 6px;
-      border: 1px solid #000;
-      background: none;
-      color: inherit;
+      border: none;
+      background: #1e1e1e;
+      color: #e0e0e0;
       cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.7);
     }
-    input[type="text"], input[type="url"], input[type="number"] {
-      background: #f5f5f5;
-      color: #000;
+    input::placeholder {
+      color: #888;
     }
-    button:hover, input:focus {
-      outline: 1px solid #000;
+    input:focus, button:hover {
+      outline: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.8);
     }
     button.delete {
-      border-color: #dc3545;
       color: #dc3545;
+      background: #1e1e1e;
     }
     button.save-all {
-      border-color: #28a745;
       color: #28a745;
+      background: #1e1e1e;
     }
     #edit-container {
       display: flex;
@@ -57,9 +65,10 @@
       gap: 16px;
     }
     .project-edit {
-      border: 1px solid #000;
+      background: #1e1e1e;
       padding: 12px;
-      background: #fafafa;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+      position: relative;
     }
     .project-edit label {
       display: block;
@@ -74,25 +83,36 @@
       box-sizing: border-box;
       margin-top: 4px;
       padding: 4px;
-      border: 1px solid #000;
-      background: #fff;
-      color: #000;
+      border: none;
+      background: #2a2a2a;
+      color: #e0e0e0;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.7);
     }
     .project-edit textarea {
       resize: vertical;
       min-height: 60px;
     }
+    /* Simple scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #444;
+    }
   </style>
 </head>
 <body>
-  <h1>Edit Projects</h1>
-  <div id="controls">
-    <input type="text" id="auth-key" placeholder="Auth Key">
-    <button id="add-new">Add New Project</button>
-    <button id="save-all" class="save-all">Save All Changes</button>
+  <div id="main">
+    <h1>Edit Projects</h1>
+    <div id="controls">
+      <button id="add-new" type="button">Add New Project</button>
+      <button id="save-all" class="save-all" type="button">Save All Changes</button>
+    </div>
+    <div id="edit-container"></div>
   </div>
-  <div id="edit-container"></div>
-
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       loadProjects();
@@ -104,10 +124,7 @@
       const container = document.getElementById('edit-container');
       container.innerHTML = '';
       try {
-        const authKey = document.getElementById('auth-key').value.trim();
-        const headers = {};
-        if (authKey) headers['Authorization'] = authKey;
-        const response = await fetch('/api/projects', { headers });
+        const response = await fetch('/api/projects');
         if (!response.ok) throw new Error('Failed to fetch projects');
         const projects = await response.json();
         Object.entries(projects).forEach(([key, proj]) => {
@@ -115,8 +132,8 @@
         });
       } catch (err) {
         console.error(err);
-        const container = document.getElementById('edit-container');
-        container.innerHTML = '<p style="color:red;">Error loading projects: ' + err.message + '</p>';
+        const containerInner = document.getElementById('edit-container');
+        containerInner.innerHTML = '<p style="color:#dc3545;">Error loading projects: ' + err.message + '</p>';
       }
     }
 
@@ -136,7 +153,7 @@
       deleteBtn.type = 'button';
       deleteBtn.classList.add('delete');
       deleteBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete project "' + (isNew ? '(new)' : key) + '"?')) {
+        if (confirm('Delete project "' + (isNew ? '(new)' : key) + '"?')) {
           card.remove();
         }
       });
@@ -198,7 +215,7 @@
       card.appendChild(rankLabel);
       card.appendChild(rankInput);
 
-      // Views (readonly for existing, 0 for new)
+      // Views (readonly)
       const viewsLabel = document.createElement('label');
       viewsLabel.textContent = 'Views';
       const viewsInput = document.createElement('input');
@@ -208,7 +225,7 @@
       card.appendChild(viewsLabel);
       card.appendChild(viewsInput);
 
-      // Text (array of lines)
+      // Description/Text
       const textLabel = document.createElement('label');
       textLabel.textContent = 'Description/Text (one line per entry)';
       const textArea = document.createElement('textarea');
@@ -216,7 +233,7 @@
       card.appendChild(textLabel);
       card.appendChild(textArea);
 
-      // Tags (comma-separated)
+      // Tags
       const tagsLabel = document.createElement('label');
       tagsLabel.textContent = 'Tags (comma-separated)';
       const tagsInput = document.createElement('input');
@@ -296,8 +313,9 @@
           stats: { views }
         };
       }
+      // Prompt for auth key here
+      const authKey = prompt('Enter Auth Key:', '');
       try {
-        const authKey = document.getElementById('auth-key').value.trim();
         const headers = { 'Content-Type': 'application/json' };
         if (authKey) headers['Authorization'] = authKey;
         const response = await fetch('/api/projects-update', {
