@@ -57,6 +57,41 @@ async function firedbAirsiteSave(projects) {
   }
 }
 
+async function _safeSet3(documentRef, animedata) {
+  try {
+    console.log("saving animeMap... ", typeof(animedata))
+    await documentRef.set(animedata);
+  } catch(err) {
+    console.log("animeMap ERR: ", err)
+  }
+}
+
+async function commitAnime(animeMap) {
+  if (!animeRef) {
+    animeRef = firedb.doc("anime");
+  }
+
+  if (animeRef) {
+    const animeObj = Object.fromEntries(animeMap);
+    //const jsonData = JSON.stringify(animeObj);
+    //const compressedData = bzip2.compress(jsonData);
+    const compressedData = zlib.gzipSync(JSON.stringify(animeObj));
+    const base64CompressedData = compressedData.toString('base64');
+
+    const originalSize = Buffer.byteLength(JSON.stringify(animeObj));  // sz of the original anime object
+    const compressedSize = Buffer.byteLength(base64CompressedData);          // sz of the gzipped data
+    
+    function formatSizeToMB(size) {
+      const sizeInMB = size / (1024 * 1024);  // bytes to MB
+      return sizeInMB.toFixed(2).toLocaleString();  // fixd to 2 decimal places and formatted with commas
+    }
+
+    console.log(`animeData | Original size: ${formatSizeToMB(originalSize)} MB`);
+    console.log(`animeData | Compressed size: ${formatSizeToMB(compressedSize)} MB`);
+    
+    await _safeSet3(animeRef, {base64CompressedData});
+  }
+}
 
 async function firedbAnimeMapGet() {
   if (!animeRef) animeRef = firedb.doc('anime');
@@ -77,6 +112,7 @@ async function firedbRobloxGet() {
 }
 
 module.exports = {
+  commitAnime,
   firedbAdressGet,
   firedbAirsiteGet,
   firedbAnimeMapGet,

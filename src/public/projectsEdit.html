@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Projects</title>
+  <style>
+    /* Brutalist minimal style */
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      font-family: monospace, Arial, sans-serif;
+      margin: 20px;
+      background-color: #fff;
+      color: #000;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: normal;
+    }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    input, button {
+      font-family: inherit;
+      font-size: 14px;
+      padding: 6px;
+      border: 1px solid #000;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+    input[type="text"], input[type="url"], input[type="number"] {
+      background: #f5f5f5;
+      color: #000;
+    }
+    button:hover, input:focus {
+      outline: 1px solid #000;
+    }
+    button.delete {
+      border-color: #dc3545;
+      color: #dc3545;
+    }
+    button.save-all {
+      border-color: #28a745;
+      color: #28a745;
+    }
+    #edit-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .project-edit {
+      border: 1px solid #000;
+      padding: 12px;
+      background: #fafafa;
+    }
+    .project-edit label {
+      display: block;
+      margin-top: 8px;
+      font-weight: normal;
+    }
+    .project-edit input[type="text"],
+    .project-edit input[type="url"],
+    .project-edit input[type="number"],
+    .project-edit textarea {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 4px;
+      padding: 4px;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+    }
+    .project-edit textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Edit Projects</h1>
+  <div id="controls">
+    <input type="text" id="auth-key" placeholder="Auth Key">
+    <button id="add-new">Add New Project</button>
+    <button id="save-all" class="save-all">Save All Changes</button>
+  </div>
+  <div id="edit-container"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadProjects();
+      document.getElementById('add-new').addEventListener('click', createNewProjectForm);
+      document.getElementById('save-all').addEventListener('click', handleSaveAll);
+    });
+
+    async function loadProjects() {
+      const container = document.getElementById('edit-container');
+      container.innerHTML = '';
+      try {
+        const authKey = document.getElementById('auth-key').value.trim();
+        const headers = {};
+        if (authKey) headers['Authorization'] = authKey;
+        const response = await fetch('/api/projects', { headers });
+        if (!response.ok) throw new Error('Failed to fetch projects');
+        const projects = await response.json();
+        Object.entries(projects).forEach(([key, proj]) => {
+          createProjectEditCard(key, proj, false);
+        });
+      } catch (err) {
+        console.error(err);
+        const container = document.getElementById('edit-container');
+        container.innerHTML = '<p style="color:red;">Error loading projects: ' + err.message + '</p>';
+      }
+    }
+
+    function createProjectEditCard(key, proj, isNew) {
+      const container = document.getElementById('edit-container');
+      const card = document.createElement('div');
+      card.classList.add('project-edit');
+      if (!isNew) {
+        card.dataset.key = key;
+      } else {
+        card.dataset.new = 'true';
+      }
+
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.type = 'button';
+      deleteBtn.classList.add('delete');
+      deleteBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to delete project "' + (isNew ? '(new)' : key) + '"?')) {
+          card.remove();
+        }
+      });
+      card.appendChild(deleteBtn);
+
+      // Key
+      const keyLabel = document.createElement('label');
+      keyLabel.textContent = 'Key (identifier)';
+      const keyInput = document.createElement('input');
+      keyInput.type = 'text';
+      keyInput.value = isNew ? '' : key;
+      keyInput.readOnly = !isNew;
+      keyInput.placeholder = isNew ? 'e.g., my-new-project' : '';
+      card.appendChild(keyLabel);
+      card.appendChild(keyInput);
+
+      // Title
+      const titleLabel = document.createElement('label');
+      titleLabel.textContent = 'Title';
+      const titleInput = document.createElement('input');
+      titleInput.type = 'text';
+      titleInput.value = proj.title || '';
+      card.appendChild(titleLabel);
+      card.appendChild(titleInput);
+
+      // URL
+      const urlLabel = document.createElement('label');
+      urlLabel.textContent = 'URL';
+      const urlInput = document.createElement('input');
+      urlInput.type = 'url';
+      urlInput.value = proj.url || '';
+      card.appendChild(urlLabel);
+      card.appendChild(urlInput);
+
+      // Image URL
+      const imgLabel = document.createElement('label');
+      imgLabel.textContent = 'Image URL';
+      const imgInput = document.createElement('input');
+      imgInput.type = 'url';
+      imgInput.value = proj.img || '';
+      card.appendChild(imgLabel);
+      card.appendChild(imgInput);
+
+      // Alt text
+      const altLabel = document.createElement('label');
+      altLabel.textContent = 'Image Alt Text';
+      const altInput = document.createElement('input');
+      altInput.type = 'text';
+      altInput.value = proj.alt || '';
+      card.appendChild(altLabel);
+      card.appendChild(altInput);
+
+      // Rank
+      const rankLabel = document.createElement('label');
+      rankLabel.textContent = 'Rank (number)';
+      const rankInput = document.createElement('input');
+      rankInput.type = 'number';
+      rankInput.value = proj.rank != null ? proj.rank : '';
+      card.appendChild(rankLabel);
+      card.appendChild(rankInput);
+
+      // Views (readonly for existing, 0 for new)
+      const viewsLabel = document.createElement('label');
+      viewsLabel.textContent = 'Views';
+      const viewsInput = document.createElement('input');
+      viewsInput.type = 'number';
+      viewsInput.value = proj.stats && proj.stats.views != null ? proj.stats.views : 0;
+      viewsInput.readOnly = true;
+      card.appendChild(viewsLabel);
+      card.appendChild(viewsInput);
+
+      // Text (array of lines)
+      const textLabel = document.createElement('label');
+      textLabel.textContent = 'Description/Text (one line per entry)';
+      const textArea = document.createElement('textarea');
+      textArea.value = Array.isArray(proj.text) ? proj.text.join('\n') : '';
+      card.appendChild(textLabel);
+      card.appendChild(textArea);
+
+      // Tags (comma-separated)
+      const tagsLabel = document.createElement('label');
+      tagsLabel.textContent = 'Tags (comma-separated)';
+      const tagsInput = document.createElement('input');
+      tagsInput.type = 'text';
+      tagsInput.value = Array.isArray(proj.tags) ? proj.tags.join(', ') : '';
+      card.appendChild(tagsLabel);
+      card.appendChild(tagsInput);
+
+      container.appendChild(card);
+    }
+
+    function createNewProjectForm() {
+      const container = document.getElementById('edit-container');
+      // Prevent multiple new forms
+      const existingNew = container.querySelector('[data-new]');
+      if (existingNew) return;
+
+      const proj = { title: '', url: '', img: '', alt: '', rank: '', text: [], tags: [], stats: { views: 0 } };
+      createProjectEditCard('', proj, true);
+      const newCard = container.querySelector('[data-new]');
+      if (newCard) {
+        const keyInput = newCard.querySelector('input[type="text"]');
+        if (keyInput) keyInput.focus();
+      }
+    }
+
+    async function handleSaveAll() {
+      const container = document.getElementById('edit-container');
+      const cards = Array.from(container.querySelectorAll('.project-edit'));
+      const projectsObj = {};
+      const keysSet = new Set();
+      for (const card of cards) {
+        const keyInput = card.querySelector('input[type="text"]');
+        const key = keyInput.value.trim();
+        if (!key) {
+          alert('Every project must have a non-empty key.');
+          keyInput.focus();
+          return;
+        }
+        if (keysSet.has(key)) {
+          alert('Duplicate key found: ' + key);
+          keyInput.focus();
+          return;
+        }
+        keysSet.add(key);
+        const labelElements = card.querySelectorAll('label');
+        const map = {};
+        labelElements.forEach(labelEl => {
+          const text = labelEl.textContent.trim();
+          const next = labelEl.nextElementSibling;
+          if (next) map[text] = next;
+        });
+        const titleVal = map['Title']?.value.trim() || '';
+        const url = map['URL']?.value.trim() || '';
+        const img = map['Image URL']?.value.trim() || '';
+        const alt = map['Image Alt Text']?.value.trim() || '';
+        let rankVal = null;
+        const rankInput = map['Rank (number)'];
+        if (rankInput && rankInput.value !== '') rankVal = Number(rankInput.value);
+        let views = 0;
+        const viewsInput = map['Views'];
+        if (viewsInput) views = Number(viewsInput.value) || 0;
+        let textLines = [];
+        const textArea = map['Description/Text (one line per entry)'];
+        if (textArea) textLines = textArea.value.split('\n').map(line => line.trim()).filter(line => line);
+        let tagsArr = [];
+        const tagsInput = map['Tags (comma-separated)'];
+        if (tagsInput) tagsArr = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+        projectsObj[key] = {
+          title: titleVal,
+          url,
+          img,
+          alt,
+          rank: rankVal,
+          text: textLines,
+          tags: tagsArr,
+          stats: { views }
+        };
+      }
+      try {
+        const authKey = document.getElementById('auth-key').value.trim();
+        const headers = { 'Content-Type': 'application/json' };
+        if (authKey) headers['Authorization'] = authKey;
+        const response = await fetch('/api/projects-update', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(projectsObj)
+        });
+        if (!response.ok) throw new Error('Failed to save projects');
+        alert('All projects saved successfully.');
+        loadProjects();
+      } catch (err) {
+        console.error(err);
+        alert('Error saving projects: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

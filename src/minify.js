@@ -29,7 +29,7 @@ async function processFile(filePath, srcDir, outDir) {
       const input = await fs.readFile(filePath, 'utf8');
       content = await minifyHtml(input, defaultHtmlOptions);
       
-      content = `<!-- minified by avy <3 -->\n${content}`;
+      content = `<!-- minified by avy \u2764\uFE0F -->\n${content}`;
       await fs.writeFile(destPath, content, 'utf8');
       console.log(`Minified HTML: ${relPath}`);
 
@@ -37,7 +37,7 @@ async function processFile(filePath, srcDir, outDir) {
       const input = await fs.readFile(filePath, 'utf8');
       const { code } = await minifyJs(input);
       
-      content = `// minified by avy <3\n${code}`;
+      content = `// minified by avy \u2764\uFE0F\n${code}`;
       await fs.writeFile(destPath, content, 'utf8');
       console.log(`Minified JS: ${relPath}`);
 
@@ -48,7 +48,7 @@ async function processFile(filePath, srcDir, outDir) {
         console.error(`CSS minify errors in ${relPath}:`, output.errors);
       }
       
-      content = `/* minified by avy <3 */\n${output.styles}`;
+      content = `/* minified by avy \u2764\uFE0F */\n${output.styles}`;
       await fs.writeFile(destPath, content, 'utf8');
       console.log(`Minified CSS: ${relPath}`);
 

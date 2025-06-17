@@ -1,17 +1,20 @@
-const { firedbAdressGet, firedbAirsiteGet } = require('../firebasedb.js');
+const { firedbAdressGet, firedbAirsiteGet, firedbAnimeMapGet } = require('../firebasedb.js');
 
 let updatedCurrentAdresses = null;
+let compressedAnimeMap = null;
 let projects = null;
 
 (async () => {
   updatedCurrentAdresses = await firedbAdressGet();
   projects = await firedbAirsiteGet();
+  compressedAnimeMap = await firedbAnimeMapGet()
   console.log("[FIRE DB] all init data loaded")
 })();
 
 let adressesLoaded = true;
 
 function getIP(req) {
+  console.log(req.headers)
   const ips = req.headers['x-forwarded-for'].split(',');
   if (req.headers['fastly-client-ip']) {
     const fastlyClientIP = req.headers['fastly-client-ip']
@@ -70,11 +73,16 @@ function getProjects() {
   return projects;
 }
 
+function getCompressedAnimeMap() {
+  return compressedAnimeMap;
+}
+
 module.exports = {
   getIP,
   ipv4ToDecimal,
   bitset,
   isValidIPv4,
   getIPData,
-  getProjects
+  getProjects,
+  getCompressedAnimeMap
 };
