@@ -4,7 +4,7 @@
   "description": "mywebsite",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
     "express": "^5.0.1",
