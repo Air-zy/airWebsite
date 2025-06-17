@@ -1,12 +1,10 @@
 // minify all js html cs from a directory and puts it on another
-
-import { promises as fs } from 'fs';
-import path from 'path';
-import { Buffer } from 'node:buffer';
-import { fileURLToPath } from 'node:url';
-import minifyHtml from '@minify-html/node';
-import { minify as minifyJs } from 'terser';
-import CleanCSS from 'clean-css';
+const fs = require('fs').promises;
+const path = require('path');
+const { Buffer } = require('buffer');
+const minifyHtml = require('@minify-html/node');
+const { minify: minifyJs } = require('terser');
+const CleanCSS = require('clean-css');
 
 const defaultHtmlOptions = {
   keep_spaces_between_attributes: false,
@@ -46,7 +44,6 @@ async function processFile(filePath, srcDir, outDir, htmlOptions) {
       await fs.writeFile(destPath, Buffer.from(output.styles, 'utf-8'));
       console.log(`Minified CSS: ${relPath}`);
     } else {
-      // Copy other files unchanged
       await fs.copyFile(filePath, destPath);
       console.log(`Copied (no minify): ${relPath}`);
     }
@@ -67,12 +64,12 @@ async function walkDirectory(dir, srcDir, outDir, htmlOptions) {
   }
 }
 
-export async function startMinify({ src = 'src', dest = 'dist', htmlOptions = {} } = {}) {
-  const htmlOpts = { ...defaultHtmlOptions, ...htmlOptions };
+async function startMinify({ src = 'src', dest = 'dist', htmlOptions = {} } = {}) {
+  const htmlOpts = Object.assign({}, defaultHtmlOptions, htmlOptions);
   const srcDir = path.resolve(src);
   const outDir = path.resolve(dest);
 
-  // remov current dest directory, then remak
+  // rm current dest directory n remake
   await fs.rm(outDir, { recursive: true, force: true });
   await ensureDir(outDir);
 
@@ -80,3 +77,5 @@ export async function startMinify({ src = 'src', dest = 'dist', htmlOptions = {}
   await walkDirectory(srcDir, srcDir, outDir, htmlOpts);
   console.log('Minification complete.');
 }
+
+module.exports = { startMinify };
