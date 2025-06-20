@@ -1,5 +1,8 @@
 const { commitAnime } = require('../firebasedb.js');
 
+function validatePass(pass, req) {
+  return (pass == process.env.animePass)
+}
 
 module.exports = (req, res) => {
   const { pass, animeMap } = req.body;
