@@ -17,6 +17,7 @@ startMinify({
 
 
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
+
 app.use(express.json());
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
