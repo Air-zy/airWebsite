@@ -14,19 +14,9 @@ let projects = null;
 let adressesLoaded = true;
 
 function getIP(req) {
-  console.log(req.headers)
-  const ips = req.headers['x-forwarded-for'].split(',');
-  if (req.headers['fastly-client-ip']) {
-    const fastlyClientIP = req.headers['fastly-client-ip']
-    const inIps = ips.some(item => item.trim() === fastlyClientIP.trim());
-    if (fastlyClientIP && inIps) {
-      if (isValidIPv4(fastlyClientIP)) {
-        return fastlyClientIP;
-      } else {
-        console.log(fastlyClientIP, "not valid ip")
-      }
-    }
-  }
+  const ipList = req.headers['x-forwarded-for']
+  console.log(ips)
+  const ips = ipList.split(',')
 
   for (let i = ips.length - 1; i >= 0; i--) {
     const ip = ips[i].trim();
