@@ -192,7 +192,7 @@ function pkcs7Unpad(paddedBytes) {
   return paddedBytes.subarray(0, paddedBytes.length - padLen);
 }
 
-export function encrypt(keyBytes, plaintextBytes) {
+function encrypt(keyBytes, plaintextBytes) {
   if (!(plaintextBytes instanceof Uint8Array)) plaintextBytes = Uint8Array.from(plaintextBytes);
   const expandedKey = keyExpansion(keyBytes);
   const padded = pkcs7Pad(plaintextBytes);
@@ -205,7 +205,7 @@ export function encrypt(keyBytes, plaintextBytes) {
   return ciphertext;
 }
 
-export function decrypt(keyBytes, ciphertextBytes) {
+function decrypt(keyBytes, ciphertextBytes) {
   if (!(ciphertextBytes instanceof Uint8Array)) ciphertextBytes = Uint8Array.from(ciphertextBytes);
   if (ciphertextBytes.length % 16 !== 0) {
     throw new Error("Ciphertext length must be multiple of 16");
@@ -218,4 +218,9 @@ export function decrypt(keyBytes, ciphertextBytes) {
     decrypted.set(dec, offset);
   }
   return pkcs7Unpad(decrypted);
+}
+
+module.exports = {
+  decrypt,
+  encrypt
 }
