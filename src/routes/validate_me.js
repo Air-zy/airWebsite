@@ -1,5 +1,13 @@
-const { ipv4ToDecimal, getIPData, isValidIPv4, bitset, getIP } = require('./ip_utils.js');
+const { ipv4ToDecimal, getIPData, bitset, getIP } = require('./ip_utils.js');
+const envDecrypt = require('./envDecrypt.js')
 
+const trustedDataToSend = {
+  valid: true,
+  message: envDecrypt(process.env.airKey, process.env.email),
+  cord: envDecrypt(process.env.airKey, process.env.discord),
+  cordN: envDecrypt(process.env.airKey, process.env.discordName),
+  loc: envDecrypt(process.env.airKey, process.env.location)
+}
 
 module.exports = (req, res) => {
   const ipAddress = getIP(req)
@@ -19,7 +27,7 @@ module.exports = (req, res) => {
       ipData.captcha = bitset(currentCaptcha, 2);
     }
     
-    res.json({ valid: true, message: process.env.email, cord: process.env.discord, cordN: process.env.discordName, loc: process.env.location });
+    res.json(trustedDataToSend);
   } else {
     res.json({ valid: false, message: "failed human validation." });
   }

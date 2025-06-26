@@ -1,6 +1,7 @@
 const { firedbAirsiteSave } = require('../firebasedb.js');
+const envDecrypt = require('./envDecrypt.js')
 
-const EXPECTED_TOKEN = process.env.airWebToken
+const EXPECTED_TOKEN = envDecrypt(process.env.airKey, process.env.airWebToken)
 
 module.exports = (req, res) => {
   if (req.body == undefined) {

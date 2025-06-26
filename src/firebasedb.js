@@ -1,13 +1,13 @@
 // firestoreHelpers.js
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
-
+const envDecrypt = require('./envDecrypt.js')
 // parse & init synchronously
-const serviceAccount = JSON.parse(process.env.firebaseJsonKey);
+const serviceAccount = JSON.parse(envDecrypt(process.env.airKey, process.env.firebaseJsonKey));
 initializeApp({ credential: cert(serviceAccount) });
 
 const firedb = getFirestore().collection('tokenUsage');
-
+console.log("[FIREDB] LOADED",firedb)
 // cached refs
 let addrRef, airsiteRef, animeRef, activityRef, robloxRef;
 
