@@ -22,5 +22,5 @@ module.exports = (req, res) => {
   }
   
   firedbAirsiteSave(req.body)
-  return res.status(200).json({ success: true, data: result });
+  return res.status(200).json({ success: true, data: req.body });
 }
