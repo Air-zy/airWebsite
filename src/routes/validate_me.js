@@ -1,4 +1,4 @@
-const { ipv4ToDecimal, getIPData, bitset, getIP } = require('./ip_utils.js');
+const { getIPData, bitset, getIP } = require('./ip_utils.js');
 const envDecrypt = require('../envDecrypt.js')
 
 const trustedDataToSend = {
@@ -10,13 +10,12 @@ const trustedDataToSend = {
 }
 
 module.exports = (req, res) => {
-  const ipAddress = getIP(req)
-  const IPv4 = ipv4ToDecimal(ipAddress);
-  
+  const ipDecimal = getIP(req)
   const behaviorData = req.body;
+
   const { sessionDuration } = behaviorData;
   
-  let ipData = getIPData(IPv4);
+  let ipData = getIPData(ipDecimal);
   if (sessionDuration > 500 && ipData) {
     
     if (ipData) {

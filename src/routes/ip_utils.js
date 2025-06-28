@@ -1,4 +1,5 @@
-const { firedbAdressGet, firedbAirsiteGet, firedbAnimeMapGet } = require('../firebasedb.js');
+const { firedbAdressGet, firedbAirsiteGet, firedbAnimeMapGet, firedbAdressesSave } = require('../firebasedb.js');
+const { ipLookup } = require('../ipLookup.js');
 
 let updatedCurrentAdresses = null;
 let compressedAnimeMap = null;
@@ -13,50 +14,26 @@ let projects = null;
 
 let adressesLoaded = true;
 
+
 function getIP(req) {
   const ipList = req.headers['x-forwarded-for']
   const ips = ipList.split(',')
-  console.log(ips)
-
   for (let i = ips.length - 1; i >= 0; i--) {
     const ip = ips[i].trim();
-    if (isValidIPv4(ip)) {
-      return ip; 
-    }
+    return ip; 
   }
-}
-
-function isValidIPv4(ip) {
-  const parts = ip.trim().split('.');
-  if (parts.length === 4) {
-    return parts.every(part => {
-      const num = Number(part);
-      return num >= 0 && num <= 255 && part == num;
-    });
-  }
-  return false;
-}
-
-function ipv4ToDecimal(ip) {
-  const octets = ip.split(".").map(Number);
-  return (
-    (octets[0] << 24) +
-    (octets[1] << 16) +
-    (octets[2] << 8) +
-    octets[3]
-  ) >>> 0;
 }
 
 function bitset(num, pos) {
     return num | (1 << pos);
 }
 
-function getIPData(decimalIP) {
-  return updatedCurrentAdresses[decimalIP]
+function getIPData(ipString) {
+  return updatedCurrentAdresses[ipString]
 }
 
-function getIPData(decimalIP) {
-  return updatedCurrentAdresses[decimalIP]
+function getIPData(ipString) {
+  return updatedCurrentAdresses[ipString]
 }
 
 function getProjects() {
@@ -67,12 +44,80 @@ function getCompressedAnimeMap() {
   return compressedAnimeMap;
 }
 
+let refererLookup = new Map();
+function referLookup(ipString, req) {
+  if (refererLookup.has(ipString)) {
+    return refererLookup.get(ipString);
+  }
+  let referer = req.headers['referer'];
+  if (Array.isArray(referer)) {
+    referer = referer.find(r => typeof r === 'string' && r.trim()) || undefined;
+  }
+
+  if (typeof referer === 'string' && referer.trim() !== '') {
+    refererLookup.set(ipString, referer);
+    return referer;
+  }
+  return null;
+}
+
+function formattedDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+
+  const paddedMinutes = minutes.toString().padStart(2, '0');
+  const paddedSeconds = seconds.toString().padStart(2, '0');
+
+  const formattedDate = `${month} ${day}, ${year} ${hours}:${paddedMinutes}:${paddedSeconds}`;
+  return formattedDate;
+}
+
+async function updateCurrentAdressses(ipString, userAgent, referer) {
+  const { region, city, ISP } = ipLookup(ipString)
+
+  let visits = 1;
+  if (updatedCurrentAdresses[ipString] && updatedCurrentAdresses[ipString].visits) {
+    visits = updatedCurrentAdresses[ipString].visits + 1;
+  }
+  let captcha = 0;
+  if (updatedCurrentAdresses[ipString] && updatedCurrentAdresses[ipString].captcha) {
+    captcha = updatedCurrentAdresses[ipString].captcha;
+  }
+  updatedCurrentAdresses[ipString] = {
+    "user-agent": userAgent,
+    city: city,
+    isp: ISP,
+    region: region,
+    visits: visits,
+    timestamp: formattedDate(),
+    "captcha": captcha,
+  };
+  
+  if (referer) {
+    const cleanReferer = referer.replace(/(^\w+:|^)\/\//, '');
+    if (!updatedCurrentAdresses[ipString]["referer"] || cleanReferer.startsWith("airzy.glitch.me")) {
+      updatedCurrentAdresses[ipString]["referer"] = referer;
+    } 
+  }
+
+  if (adressesLoaded == false) {
+    console.log("adresses not loaded... not saving bruh");
+    return
+  }
+  firedbAdressesSave(updatedCurrentAdresses)
+}
+
 module.exports = {
   getIP,
-  ipv4ToDecimal,
   bitset,
-  isValidIPv4,
   getIPData,
   getProjects,
-  getCompressedAnimeMap
+  getCompressedAnimeMap,
+  referLookup,
+  updateCurrentAdressses,
 };

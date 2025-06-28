@@ -35,13 +35,14 @@ app.get('/anime',      (req, res) => { return res.redirect('/anime.html');    })
 
 app.get('/api/projects', require('./routes/api_projects.js'));
 
+app.post('/c', require('./routes/c.js'));
 app.post('/validate-me', require('./routes/validate_me.js'));
 app.post('/api/project-edit', require('./routes/api_project_edit.js'));
 app.post('/api/get-anime', require('./routes/get_anime.js'));
 app.post('/api/commit-anime', require('./routes/commit_anime.js'));
 app.post('/api/projects-update', require('./routes/projects_update.js'));
 app.use((req, res) => {
-  res.status(404).send('Not found LOL 🥀💔');
+  res.status(404).send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });
 
 const { version } = require('../package.json');

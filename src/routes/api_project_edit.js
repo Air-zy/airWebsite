@@ -1,4 +1,4 @@
-const { ipv4ToDecimal, getIPData, bitset, getIP, getProjects } = require('./ip_utils.js');
+const { getIPData, bitset, getIP, getProjects } = require('./ip_utils.js');
 const { firedbAirsiteSave } = require('../firebasedb.js');
 
 let lastUpdate = 0;
@@ -15,9 +15,8 @@ let attemptedViewsToday = {}
 module.exports = (req, res) => {
   if (req && req.body) {
     
-    const ipAddress = getIP(req)
-    const IPv4 = ipv4ToDecimal(ipAddress);
-    let ipData = getIPData(IPv4);
+    const ipDecimal = getIP(req)
+    let ipData = getIPData(ipDecimal);
 
     if (ipData) {
       let currentCaptcha = 0
@@ -29,22 +28,22 @@ module.exports = (req, res) => {
       return res.status(400).send("Bad request. IP is not recognized.");
     }
     
-    if (attemptedViewsToday[IPv4]) {
+    if (attemptedViewsToday[ipDecimal]) {
     }else{
-      attemptedViewsToday[IPv4] = {}
+      attemptedViewsToday[ipDecimal] = {}
     }
     
     try {
       const type = req.body.type
       const value = req.body.value
       if (type == "view") {
-        if (attemptedViewsToday[IPv4][value]) { // already sent a view today
+        if (attemptedViewsToday[ipDecimal][value]) { // already sent a view today
           return;
         }
         let projects = getProjects();
         let selectedProject = projects[value]
         selectedProject.stats.views += 1
-        attemptedViewsToday[IPv4][value] = true
+        attemptedViewsToday[ipDecimal][value] = true
         attemptSaveProjectsList(projects)
       }
     } catch (error) {

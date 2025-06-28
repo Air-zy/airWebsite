@@ -23,6 +23,53 @@ async function firedbAirsiteGet() {
   return snap.data();
 }
 
+async function _safeSet(documentRef, data, maxRetries = 3) {
+  const numberOfIPs = Object.keys(updatedCurrentAdresses).length;
+   
+  if (numberOfIPs <= 0) {
+    console.log("no addresses exist... not saving bruh");
+    return;
+  }
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await documentRef.set(data);
+      console.log("updated adresses (" + numberOfIPs + ")" + ` successfully written on attempt ${attempt}`);
+      return; // success
+    } catch (error) {
+      console.error(`Error on attempt ${attempt}:`, error);
+
+      if (attempt === maxRetries || error.code !== 4) {
+        throw error;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+}
+
+let adrs_lastUpdate
+async function firedbAdressesSave(AddrData) {
+  const now = Date.now();
+  if (now > adrs_lastUpdate + 6000) {
+    // 1000 ms = 1 sec sooo 6 second is max update rate limit rah
+    adrs_lastUpdate = now;
+    
+    if (!addrRef) {
+      addrRef = firedb.doc("adresses");
+    }
+
+    try {
+    if (addrRef && addrRef != null) {
+      await _safeSet(addrRef, AddrData);
+    }
+    } catch (err) {
+      console.log("safeset ERR: ",err)
+    }
+  }
+}
+
+
 async function _safeSet2(documentRef, data2, maxRetries = 3) {
   const numOfProjs = Object.keys(data2).length;
    
@@ -118,5 +165,6 @@ module.exports = {
   firedbAnimeMapGet,
   firedbActivityGet,
   firedbRobloxGet,
-  firedbAirsiteSave
+  firedbAirsiteSave,
+  firedbAdressesSave
 };
