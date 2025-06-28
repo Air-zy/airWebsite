@@ -61,24 +61,8 @@ function referLookup(ipString, req) {
   return null;
 }
 
-function formattedDate() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-  const day = date.getDate();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-
-  const paddedMinutes = minutes.toString().padStart(2, '0');
-  const paddedSeconds = seconds.toString().padStart(2, '0');
-
-  const formattedDate = `${month} ${day}, ${year} ${hours}:${paddedMinutes}:${paddedSeconds}`;
-  return formattedDate;
-}
-
 async function updateCurrentAdressses(ipString, userAgent, referer) {
-  const { region, city, ISP } = ipLookup(ipString)
+  const { region, city, ISP } = await ipLookup(ipString)
 
   let visits = 1;
   if (updatedCurrentAdresses[ipString] && updatedCurrentAdresses[ipString].visits) {
@@ -94,14 +78,20 @@ async function updateCurrentAdressses(ipString, userAgent, referer) {
     isp: ISP,
     region: region,
     visits: visits,
-    timestamp: formattedDate(),
     "captcha": captcha,
   };
+
+  let user = updatedCurrentAdresses[ipString]
+  user.prevAt = user.lastAt || null;
+  user.lastAt = Date.now();
+  if (user.firstAt == null) {
+    user.firstAt = Date.now();
+  }
   
   if (referer) {
     const cleanReferer = referer.replace(/(^\w+:|^)\/\//, '');
-    if (!updatedCurrentAdresses[ipString]["referer"] || cleanReferer.startsWith("airzy.glitch.me")) {
-      updatedCurrentAdresses[ipString]["referer"] = referer;
+    if (!user["referer"] || cleanReferer.startsWith("airzy.glitch.me")) {
+      user["referer"] = referer;
     } 
   }
 

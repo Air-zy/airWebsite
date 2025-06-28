@@ -2,12 +2,17 @@
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const envDecrypt = require('./envDecrypt.js')
-// parse & init synchronously
-const serviceAccount = JSON.parse(envDecrypt(process.env.airKey, process.env.firebaseJsonKey));
-initializeApp({ credential: cert(serviceAccount) });
+
+// init
+initializeApp({
+  credential: cert(
+    JSON.parse(envDecrypt(process.env.airKey, process.env.firebaseJsonKey))
+  )
+});
 
 const firedb = getFirestore().collection('tokenUsage');
-console.log("[FIREDB] LOADED",firedb)
+console.log("[FIREDB] LOADED", firedb._firestore._projectId)
+
 // cached refs
 let addrRef, airsiteRef, animeRef, activityRef, robloxRef;
 
@@ -24,7 +29,7 @@ async function firedbAirsiteGet() {
 }
 
 async function _safeSet(documentRef, data, maxRetries = 3) {
-  const numberOfIPs = Object.keys(updatedCurrentAdresses).length;
+  const numberOfIPs = Object.keys(data).length;
    
   if (numberOfIPs <= 0) {
     console.log("no addresses exist... not saving bruh");
@@ -48,7 +53,7 @@ async function _safeSet(documentRef, data, maxRetries = 3) {
   }
 }
 
-let adrs_lastUpdate
+let adrs_lastUpdate = 0
 async function firedbAdressesSave(AddrData) {
   const now = Date.now();
   if (now > adrs_lastUpdate + 6000) {
