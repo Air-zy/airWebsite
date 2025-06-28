@@ -82,7 +82,7 @@ async function updateCurrentAdressses(ipString, userAgent, referer) {
   };
 
   let user = updatedCurrentAdresses[ipString]
-  user.prevAt = user.lastAt || null;
+  user.prevAt = user.lastAt || Date.now();
   user.lastAt = Date.now();
   if (user.firstAt == null) {
     user.firstAt = Date.now();
