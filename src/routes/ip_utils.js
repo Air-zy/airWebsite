@@ -15,8 +15,8 @@ let adressesLoaded = true;
 
 function getIP(req) {
   const ipList = req.headers['x-forwarded-for']
-  console.log(ips)
   const ips = ipList.split(',')
+  console.log(ips)
 
   for (let i = ips.length - 1; i >= 0; i--) {
     const ip = ips[i].trim();
