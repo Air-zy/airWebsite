@@ -23,7 +23,7 @@ app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
 // routes 
 app.get('/home',       (req, res) => { return res.redirect('/index.html');      });
-app.get('/c4',         (req, res) => { return res.redirect('/index.html');      });
+app.get('/c4',         (req, res) => { return res.redirect('/c4/connect4.html');});
 app.get('/avyTos',     (req, res) => { return res.redirect('/avyTOS.html');     });
 app.get('/avyprivacy', (req, res) => { return res.redirect('/avyPrivacy.html'); });
 app.get('/change',     (req, res) => { return res.redirect('/change.html');     });
