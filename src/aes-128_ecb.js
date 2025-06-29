@@ -192,32 +192,63 @@ function pkcs7Unpad(paddedBytes) {
   return paddedBytes.subarray(0, paddedBytes.length - padLen);
 }
 
-function encrypt(keyBytes, plaintextBytes) {
-  if (!(plaintextBytes instanceof Uint8Array)) plaintextBytes = Uint8Array.from(plaintextBytes);
-  const expandedKey = keyExpansion(keyBytes);
-  const padded = pkcs7Pad(plaintextBytes);
-  const ciphertext = new Uint8Array(padded.length);
-  for (let offset=0; offset<padded.length; offset+=16) {
-    const block = padded.subarray(offset, offset+16);
-    const enc = encryptBlock(block, expandedKey);
-    ciphertext.set(enc, offset);
-  }
-  return ciphertext;
+function xorBlocks(a, b) {
+  const out = new Uint8Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] ^ b[i];
+  return out;
 }
 
-function decrypt(keyBytes, ciphertextBytes) {
-  if (!(ciphertextBytes instanceof Uint8Array)) ciphertextBytes = Uint8Array.from(ciphertextBytes);
-  if (ciphertextBytes.length % 16 !== 0) {
-    throw new Error("Ciphertext length must be multiple of 16");
+function generateIV() {
+  const iv = new Uint8Array(16);
+  for (let i = 0; i < iv.length; i++) {
+    iv[i] = Math.floor(Math.random() * 256);
   }
+  return iv;
+}
+
+function encrypt(keyBytes, plaintextBytes) {
+  if (!(plaintextBytes instanceof Uint8Array)) plaintextBytes = Uint8Array.from(plaintextBytes);
+
+  const iv = generateIV();
   const expandedKey = keyExpansion(keyBytes);
-  const decrypted = new Uint8Array(ciphertextBytes.length);
-  for (let offset=0; offset<ciphertextBytes.length; offset+=16) {
-    const block = ciphertextBytes.subarray(offset, offset+16);
-    const dec = decryptBlock(block, expandedKey);
-    decrypted.set(dec, offset);
+  const padded      = pkcs7Pad(plaintextBytes);
+  const cipherTxt   = new Uint8Array(16 + padded.length);
+
+  cipherTxt.set(iv, 0);
+  let prev = iv;
+  for (let off = 0; off < padded.length; off += 16) {
+    const block = padded.subarray(off, off + 16);
+    const xored = xorBlocks(block, prev); // chain
+    const enc   = encryptBlock(xored, expandedKey);
+    cipherTxt.set(enc, 16 + off);
+    prev = enc;
   }
-  return pkcs7Unpad(decrypted);
+  return cipherTxt;
+}
+
+function decrypt(keyBytes, cipherBytes) {
+  if (!(cipherBytes instanceof Uint8Array)) cipherBytes = Uint8Array.from(cipherBytes);
+  if (cipherBytes.length < 32 || cipherBytes.length % 16 !== 0) {
+    throw new Error("cipherTxt must be at least one block plus IV (32 bytes) and a multiple of 16");
+  }
+
+  const expandedKey = keyExpansion(keyBytes);
+
+  const iv               = cipherBytes.subarray(0, 16);
+  const ciphertextBlocks = cipherBytes.subarray(16);
+  const plainTxt         = new Uint8Array(ciphertextBlocks.length);
+
+  let prevCipherBlock = iv;
+  for (let offset = 0; offset < ciphertextBlocks.length; offset += 16) {
+    const cipherBlock = ciphertextBlocks.subarray(offset, offset + 16);
+    const decrypted   = decryptBlock(cipherBlock, expandedKey);
+    // unchain
+    const plainBlock  = xorBlocks(decrypted, prevCipherBlock);
+    plainTxt.set(plainBlock, offset);
+    prevCipherBlock = cipherBlock;
+  }
+
+  return pkcs7Unpad(plainTxt);
 }
 
 module.exports = {
