@@ -1,7 +1,9 @@
-// firestoreHelpers.js
+const zlib = require('zlib');
+
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
-const envDecrypt = require('./envDecrypt.js')
+const { gunzipAsync, gzipAsync } = require('./gzipUtils.js');
+const envDecrypt = require('./envDecrypt.js');
 
 // init
 initializeApp({
@@ -17,9 +19,21 @@ console.log("[FIREDB] LOADED", firedb._firestore._projectId)
 let addrRef, airsiteRef, animeRef, activityRef, robloxRef;
 
 async function firedbAdressGet() {
-  if (!addrRef) addrRef = firedb.doc('adresses');
+  if (!addrRef) addrRef = firedb.doc('adresses2');
   const snap = await addrRef.get();
-  return snap.data();
+  const snapData = snap.data()
+  
+  if (snapData.b64addrData) {
+    const compressedBuffer = Buffer.from(snapData.b64addrData, 'base64')
+    const jsonString = (await gunzipAsync(compressedBuffer)).toString('utf8')
+    const AddrDataRestored = JSON.parse(jsonString)
+    console.log(AddrDataRestored)
+
+    return AddrDataRestored
+  } else {
+    console.log("addr Data b64addrData was not found")
+    return {}
+  }
 }
 
 async function firedbAirsiteGet() {
@@ -61,13 +75,15 @@ async function firedbAdressesSave(AddrData) {
     adrs_lastUpdate = now;
     
     if (!addrRef) {
-      addrRef = firedb.doc("adresses");
+      addrRef = firedb.doc("adresses2");
     }
 
     try {
-    if (addrRef && addrRef != null) {
-      await _safeSet(addrRef, AddrData);
-    }
+      if (addrRef && addrRef != null) {
+        const json = JSON.stringify(AddrData)
+        const b64addrData = await gzipAsync(json)
+        await _safeSet(addrRef, {b64addrData});
+      }
     } catch (err) {
       console.log("safeset ERR: ",err)
     }
