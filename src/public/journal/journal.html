@@ -9,7 +9,7 @@
       href="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/monitor.svg?v=1709768625757"
       type="image/webp"
     >
-    <link rel="stylesheet" href="css/journal.css">
+    <link rel="stylesheet" href="./journal.css">
 
     <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet" >
   </head>
@@ -73,7 +73,7 @@
       </div>
     </div>
 
-    <script src="js/journal.js"></script>
+    <script src="./journal.js"></script>
     <script>fetch("/c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({a:`${(g => g && g.getExtension("WEBGL_debug_renderer_info") ? g.getParameter(g.getExtension("WEBGL_debug_renderer_info").UNMASKED_RENDERER_WEBGL) : "Unknown")(document.createElement("canvas").getContext("webgl"))} UTC${new Date().getTimezoneOffset() > 0 ? "-" : "+"}${String(Math.abs(new Date().getTimezoneOffset() / 60)).padStart(2, "0")}:${String(Math.abs(new Date().getTimezoneOffset() % 60)).padStart(2, "0")} `+navigator.platform+navigator.vendor+`${window.innerWidth}x${window.innerHeight}`})});</script>
   </body>
 </html>
