@@ -37,6 +37,7 @@ app.get('/deepwoken',  (req, res) => { return res.redirect('/deepwoken.html');  
 app.get('/anime',      (req, res) => { return res.redirect('/anime.html');            });
 
 app.get('/api/projects',            require('./routes/api_projects.js')            );
+app.get('/uptime',                  require('./routes/uptime.js')                  );
 
 app.post('/c',                      require('./routes/c.js')                       );
 app.post('/validate-me',            require('./routes/validate_me.js')             );

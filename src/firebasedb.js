@@ -27,8 +27,7 @@ async function firedbAdressGet() {
     const compressedBuffer = Buffer.from(snapData.b64addrData, 'base64')
     const jsonString = (await gunzipAsync(compressedBuffer)).toString('utf8')
     const AddrDataRestored = JSON.parse(jsonString)
-    console.log(AddrDataRestored)
-
+    
     return AddrDataRestored
   } else {
     console.log("addr Data b64addrData was not found")
