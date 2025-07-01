@@ -19,7 +19,7 @@ function getSecondStackFrame() {
 }
 
 function envDecrypt(key, ciphertext) {
-  console.log("[AIR_SYSTEM REQUEST FOR] ", kgetSecondStackFrame())
+  console.log("[AIR_SYSTEM REQUEST FOR] ", getSecondStackFrame())
   if (key == null) {
     throw new Error("envDecrypt error: `key` is null or undefined");
   }
