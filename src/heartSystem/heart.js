@@ -18,7 +18,7 @@ async function _req(urls) {
     });
     console.log(`[HEART] GET ${url} → ${res.status}`);
   } catch (e) {
-    console.error([HEART] `GET ${url} failed:`, e.message);
+    console.error(`[HEART] GET ${url} failed:`, e.message);
   }
 }
 
