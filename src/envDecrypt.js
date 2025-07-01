@@ -10,12 +10,7 @@ function getSecondStackFrame() {
 
   if (!second) return null;
 
-  return {
-    functionName: second.getFunctionName() || '<anonymous>',
-    fileName:   second.getFileName(),
-    line:       second.getLineNumber(),
-    column:     second.getColumnNumber(),
-  };
+  return second.getFileName() + " " + second.getLineNumber() + ", " + second.getColumnNumber()
 }
 
 function envDecrypt(key, ciphertext) {
