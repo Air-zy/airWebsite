@@ -21,6 +21,7 @@ async function _req(urls) {
 }
 
 const urls = JSON.parse(envDecrypt(process.env.airKey, process.env.heartUrls)).url
+console.log("[Heart Urls]", urls)
 function startCycler() {
   stopCycler();
   i = -1;
