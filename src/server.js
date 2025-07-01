@@ -1,3 +1,5 @@
+console.trace("[AIR Server] v1.0.1")
+
 const dotenv = require('dotenv');
 dotenv.config();
 
