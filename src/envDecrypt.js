@@ -1,6 +1,7 @@
 const { decrypt } = require('./aes-128_ecb.js');
 
 function envDecrypt(key, ciphertext) {
+  console.log("[AIR_SYSTEM REQUEST FOR] ", key)
   if (key == null) {
     throw new Error("envDecrypt error: `key` is null or undefined");
   }
