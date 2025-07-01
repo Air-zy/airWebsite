@@ -18,6 +18,9 @@ startMinify({
   dest: PRODUCTION_PUBLIC_DIRECTORY
 });
 
+const { startCycler } = require('./heartSystem/heart.js');
+startCycler();
+
 
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
 app.use(express.json());
