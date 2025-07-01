@@ -28,7 +28,7 @@ function startCycler() {
   stopCycler();
   i = -1;
   _req(urls);
-  t = setInterval(() => _req(urls), 2e4);
+  t = setInterval(() => _req(urls), 4e4);
 }
 
 function stopCycler() {
