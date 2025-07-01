@@ -16,9 +16,9 @@ async function _req(urls) {
       headers: myHeaders,
       //signal: AbortSignal.timeout(15_000)
     });
-    console.log(`[HEART] GET ${url} → ${res.status}`);
+    console.log(`[HEART] GET ${url} → ${res.status}`,i);
   } catch (e) {
-    console.error(`[HEART] GET ${url} failed:`, e.message);
+    console.error(`[HEART] GET ${url} failed:`,i , e.message);
   }
 }
 
