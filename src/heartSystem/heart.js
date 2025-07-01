@@ -5,13 +5,13 @@ const { randomUserAgent } = require('./userAgents');
 let t, i;
 
 async function _req(urls) {
-  const url = urls[i = (i + 1) % urls.length];
+  i = (i + 1) % urls.length
+  const url = urls[i];
   try {
     const myHeaders = {
       'User-Agent': randomUserAgent(),
       'Accept': '*/*'
     }
-    console.log("headers", myHeaders)
     const res = await fetch(url, {
       headers: myHeaders,
       //signal: AbortSignal.timeout(15_000)
