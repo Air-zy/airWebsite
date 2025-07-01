@@ -20,13 +20,9 @@ async function _req(urls) {
   }
 }
 
-const urls = JSON.parse(envDecrypt(process.env.airKey, process.env.heartUrls)).url
-
-console.log("[Heart URLS]", envDecrypt(process.env.airKey, process.env.heartUrls))
+const urls = JSON.parse(envDecrypt(process.env.airKey, process.env.heartUrls)).urls
 
 function startCycler() {
-  console.log("[Heart URLS start cycle]", envDecrypt(process.env.airKey, process.env.heartUrls))
-
   stopCycler();
   i = -1;
   _req(urls);

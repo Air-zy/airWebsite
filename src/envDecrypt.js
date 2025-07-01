@@ -7,14 +7,12 @@ function getSecondStackFrame() {
   Error.captureStackTrace(err, getSecondStackFrame);
   const [caller, second] = err.stack;
   Error.prepareStackTrace = oldPrepare;
-
   if (!second) return null;
-
   return second.getFileName() + " " + second.getLineNumber() + ", " + second.getColumnNumber()
 }
 
 function envDecrypt(key, ciphertext) {
-  console.log("[AIR_SYSTEM REQUEST FOR] ", getSecondStackFrame())
+  console.log("[air req] ", getSecondStackFrame())
   if (key == null) {
     throw new Error("envDecrypt error: `key` is null or undefined");
   }
