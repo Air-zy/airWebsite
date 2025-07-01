@@ -1,7 +1,25 @@
 const { decrypt } = require('./aes-128_ecb.js');
 
+function getSecondStackFrame() {
+  const oldPrepare = Error.prepareStackTrace;
+  Error.prepareStackTrace = (_, frames) => frames;
+  const err = new Error();
+  Error.captureStackTrace(err, getSecondStackFrame);
+  const [caller, second] = err.stack;
+  Error.prepareStackTrace = oldPrepare;
+
+  if (!second) return null;
+
+  return {
+    functionName: second.getFunctionName() || '<anonymous>',
+    fileName:   second.getFileName(),
+    line:       second.getLineNumber(),
+    column:     second.getColumnNumber(),
+  };
+}
+
 function envDecrypt(key, ciphertext) {
-  console.log("[AIR_SYSTEM REQUEST FOR] ", key)
+  console.log("[AIR_SYSTEM REQUEST FOR] ", kgetSecondStackFrame())
   if (key == null) {
     throw new Error("envDecrypt error: `key` is null or undefined");
   }
