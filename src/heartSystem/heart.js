@@ -7,16 +7,18 @@ let t, i;
 async function _req(urls) {
   const url = urls[i = (i + 1) % urls.length];
   try {
+    const myHeaders = {
+      'User-Agent': randomUserAgent(),
+      'Accept': '*/*'
+    }
+    console.log("headers", myHeaders)
     const res = await fetch(url, {
-      headers: {
-        'User-Agent': randomUserAgent(),
-        'Accept': '*/*'
-      },
+      headers: myHeaders,
       //signal: AbortSignal.timeout(15_000)
     });
-    console.log(`GET ${url} → ${res.status}`);
+    console.log(`[HEART] GET ${url} → ${res.status}`);
   } catch (e) {
-    console.error(`GET ${url} failed:`, e.message);
+    console.error([HEART] `GET ${url} failed:`, e.message);
   }
 }
 
@@ -26,7 +28,7 @@ function startCycler() {
   stopCycler();
   i = -1;
   _req(urls);
-  t = setInterval(() => _req(urls), 1e4);
+  t = setInterval(() => _req(urls), 2e4);
 }
 
 function stopCycler() {
