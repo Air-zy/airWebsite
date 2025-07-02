@@ -5,18 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>API Request Visualizer</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
+    /* Enable dark color scheme */
+    :root { color-scheme: dark; }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #121212;
+      color: #e0e0e0;
+    }
     h1 { text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
-    th { cursor: pointer; background: #f4f4f4; }
+    table {
+      width: auto;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #333;
+      text-align: left;
+    }
+    th {
+      cursor: pointer;
+      background: #1f1f1f;
+    }
     th.sort-asc::after { content: " \25B2"; }
     th.sort-desc::after { content: " \25BC"; }
-    tr:nth-child(even) { background: #fafafa; }
+    tr:nth-child(even) { background: #1a1a1a; }
   </style>
 </head>
 <body>
-  <h1>API Request Visualizer</h1>
+  <h1>API request visual</h1>
   <table id="logs-table">
     <thead>
       <tr>
@@ -35,8 +57,24 @@
 
   <script>
     let logs = [];
-    let sortField = null;
-    let sortAsc = true;
+    // Default sort by newest timestamp
+    let sortField = 'time';
+    let sortAsc = false;
+
+    // Map each IP to a consistent pastel color
+    const ipColorCache = {};
+    function getColor(ip) {
+      if (!ipColorCache[ip]) {
+        // Simple hash to HSL
+        let hash = 0;
+        for (let i = 0; i < ip.length; i++) {
+          hash = ip.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = Math.abs(hash) % 360;
+        ipColorCache[ip] = `hsl(${hue}, 60%, 60%)`;
+      }
+      return ipColorCache[ip];
+    }
 
     async function fetchLogs() {
       try {
@@ -88,7 +126,7 @@
       }
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td>${r.ip}</td>
+          <td style="background: ${getColor(r.ip)}; color: #000">${r.ip}</td>
           <td>${r.time}</td>
           <td>${r.method}</td>
           <td>${r.path}</td>
@@ -113,6 +151,9 @@
           renderTable();
         });
       });
+      // Initialize sort indicator on default column
+      const defaultTh = document.querySelector('th[data-field="time"]');
+      if (defaultTh) defaultTh.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
     }
 
     window.addEventListener('DOMContentLoaded', () => {
