@@ -36,8 +36,9 @@ app.get('/coinsort',   (req, res) => { return res.redirect('/change.html');     
 app.get('/journal',    (req, res) => { return res.redirect('/journal/journal.html');  });
 app.get('/deepwoken',  (req, res) => { return res.redirect('/deepwoken.html');        });
 app.get('/anime',      (req, res) => { return res.redirect('/anime.html');            });
+app.get('/api',        (req, res) => { return res.redirect('/api.html');            });
 
-app.get('/api',                     require('./routes/api_logs.js')                );
+app.get('/api/logs',                require('./routes/api_logs.js')                );
 app.get('/api/projects',            require('./routes/api_projects.js')            );
 app.get('/uptime',                  require('./routes/uptime.js')                  );
 

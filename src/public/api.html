@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Request Visualizer</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+    th { cursor: pointer; background: #f4f4f4; }
+    th.sort-asc::after { content: " \25B2"; }
+    th.sort-desc::after { content: " \25BC"; }
+    tr:nth-child(even) { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <h1>API Request Visualizer</h1>
+  <table id="logs-table">
+    <thead>
+      <tr>
+        <th data-field="ip">IP Address</th>
+        <th data-field="time">Timestamp</th>
+        <th data-field="method">Method</th>
+        <th data-field="path">Path</th>
+        <th data-field="status">Status</th>
+        <th data-field="duration">Duration</th>
+      </tr>
+    </thead>
+    <tbody id="log-body">
+      <tr><td colspan="6">Loading...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    let logs = [];
+    let sortField = null;
+    let sortAsc = true;
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const text = await res.text();
+        logs = parseLines(text);
+        renderTable();
+      } catch (err) {
+        console.error('Failed to fetch logs', err);
+        document.getElementById('log-body').innerHTML = '<tr><td colspan="6">Error loading logs</td></tr>';
+      }
+    }
+
+    function parseLines(text) {
+      return text.trim().split('\n').map(line => {
+        const parts = line.trim().split(/\s+/);
+        return {
+          ip: parts[0],
+          time: parts[1],
+          method: parts[2],
+          path: parts[3],
+          status: +parts[4],
+          duration: parts[5]
+        };
+      });
+    }
+
+    function renderTable() {
+      let rows = [...logs];
+      if (sortField) {
+        rows.sort((a, b) => {
+          let vA = a[sortField];
+          let vB = b[sortField];
+          if (sortField === 'status') {
+            return sortAsc ? vA - vB : vB - vA;
+          }
+          if (sortField === 'time') {
+            return sortAsc ? new Date(vA) - new Date(vB) : new Date(vB) - new Date(vA);
+          }
+          vA = vA.toString(); vB = vB.toString();
+          return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        });
+      }
+
+      const tbody = document.getElementById('log-body');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6">No logs available</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.ip}</td>
+          <td>${r.time}</td>
+          <td>${r.method}</td>
+          <td>${r.path}</td>
+          <td>${r.status}</td>
+          <td>${r.duration}</td>
+        </tr>
+      `).join('');
+    }
+
+    function setupSorting() {
+      document.querySelectorAll('#logs-table thead th').forEach(th => {
+        th.addEventListener('click', () => {
+          const field = th.dataset.field;
+          if (sortField === field) {
+            sortAsc = !sortAsc;
+          } else {
+            sortField = field;
+            sortAsc = true;
+          }
+          document.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+          th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+          renderTable();
+        });
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setupSorting();
+      fetchLogs();
+    });
+  </script>
+</body>
+</html>
