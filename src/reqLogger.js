@@ -15,7 +15,8 @@ module.exports = (req, res, next) => {
         req.method,
         req.originalUrl,
         res.statusCode,
-        `${duration}ms`
+        `${duration}ms`,
+        req['user-agent']
     ].join(' ') + '\n';
 
     //process.stdout.write(line);

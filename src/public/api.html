@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>API Request Visualizer</title>
   <style>
-    /* Enable dark color scheme */
     :root { color-scheme: dark; }
 
     body {
@@ -29,9 +28,7 @@
       color: #e0e0e0;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #333;
-    }
+    button:hover { background-color: #333; }
     table {
       width: auto;
       border-collapse: collapse;
@@ -62,7 +59,7 @@
         <th data-field="method">Method</th>
         <th data-field="path">Path</th>
         <th data-field="status">Status</th>
-        <th data-field="duration">Duration</th>
+        <th data-field="userAgent">User-Agent</th>
         <th data-field="ago">Ago</th>
       </tr>
     </thead>
@@ -73,11 +70,9 @@
 
   <script>
     let logs = [];
-    // Default sort by newest timestamp
     let sortField = 'time';
     let sortAsc = false;
 
-    // Map each IP to a consistent pastel color
     const ipColorCache = {};
     function getColor(ip) {
       if (!ipColorCache[ip]) {
@@ -112,7 +107,7 @@
           method: parts[2],
           path: parts[3],
           status: +parts[4],
-          duration: parts[5]
+          userAgent: parts.slice(5).join(' ')  // Capture everything after status as user-agent
         };
       });
     }
@@ -120,7 +115,7 @@
     function computeAgo(timestamp) {
       const then = new Date(timestamp);
       const now = new Date();
-      let diff = Math.floor((now - then) / 1000); // seconds
+      let diff = Math.floor((now - then) / 1000);
       if (diff < 60) return diff + 's ago';
       diff = Math.floor(diff / 60);
       if (diff < 60) return diff + 'm ago';
@@ -148,6 +143,7 @@
         tbody.innerHTML = '<tr><td colspan="7">No logs available</td></tr>';
         return;
       }
+
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td style="background: ${getColor(r.ip)}; color: #000">${r.ip}</td>
@@ -155,7 +151,7 @@
           <td>${r.method}</td>
           <td>${r.path}</td>
           <td>${r.status}</td>
-          <td>${r.duration}</td>
+          <td>${r.userAgent}</td>
           <td>${computeAgo(r.time)}</td>
         </tr>
       `).join('');
