@@ -8,6 +8,7 @@ const { getIP } = require('./routes/ip_utils.js');
 module.exports = (req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
+    console.log("reqlogger:", req.headers['x-forwarded-for'])
     const duration = Date.now() - start;
     const line = [
         getIP(req),
