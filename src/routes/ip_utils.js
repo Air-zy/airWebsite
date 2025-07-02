@@ -18,11 +18,9 @@ let adressesLoaded = true;
 function getIP(req) {
   const ipList = req.headers['x-forwarded-for']
   if (ipList) {
-    const ips = ipList.split(',')
-    for (let i = ips.length - 1; i >= 0; i--) {
-      const ip = ips[i].trim();
-      return ip; 
-    }
+    const ips = ipList.split(',');
+    const firstIp = ips[0].trim();
+    return firstIp;
   }
 
   return req.connection?.remoteAddress ||
