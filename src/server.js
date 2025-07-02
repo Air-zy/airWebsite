@@ -20,10 +20,10 @@ const { startCycler } = require('./heartSystem/heart.js');
 startCycler();
 
 
+app.use(require('./reqLogger.js'));
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
 app.use(express.json());
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
-app.use(require('./reqLogger.js'));
 
 // routes 
 app.get('/home',       (req, res) => { return res.redirect('/index.html');            });
