@@ -23,6 +23,7 @@ startCycler();
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
 app.use(express.json());
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
+app.use(require('./reqLogger.js'));
 
 // routes 
 app.get('/home',       (req, res) => { return res.redirect('/index.html');            });
@@ -36,6 +37,7 @@ app.get('/journal',    (req, res) => { return res.redirect('/journal/journal.htm
 app.get('/deepwoken',  (req, res) => { return res.redirect('/deepwoken.html');        });
 app.get('/anime',      (req, res) => { return res.redirect('/anime.html');            });
 
+app.get('/api',                     require('./routes/api_logs.js')                );
 app.get('/api/projects',            require('./routes/api_projects.js')            );
 app.get('/uptime',                  require('./routes/uptime.js')                  );
 
@@ -45,6 +47,7 @@ app.post('/api/project-edit',       require('./routes/api_project_edit.js')     
 app.post('/api/get-anime',          require('./routes/get_anime.js')               );
 app.post('/api/commit-anime',       require('./routes/commit_anime.js')            );
 app.post('/api/projects-update',    require('./routes/projects_update.js')         );
+
 app.use((req, res) => {
   res.status(404).send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });
