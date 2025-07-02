@@ -6,21 +6,21 @@ const logStream = fs.createWriteStream(path.join(__dirname, config.log.file), { 
 const { getIP } = require('./routes/ip_utils.js');
 
 module.exports = (req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    const line = [
-        getIP(req),
-        new Date().toISOString(),
-        req.method,
-        req.originalUrl,
-        res.statusCode,
-        `${duration}ms`,
-        req['user-agent']
-    ].join(' ') + '\n';
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      const line = [
+          getIP(req),
+          new Date().toISOString(),
+          req.method,
+          req.originalUrl,
+          res.statusCode,
+          `${duration}ms`,
+          req.headers['user-agent']
+      ].join(' ') + '\n';
 
-    //process.stdout.write(line);
-    logStream.write(line);
-  });
-  next();
+      //process.stdout.write(line);
+      logStream.write(line);
+    });
+    next();
 };
