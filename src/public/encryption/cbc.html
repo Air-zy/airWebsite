@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>template</title>
+    <link rel="stylesheet" href="./main.css" > 
+  </head>
+  <body>
+    <div class="panel" id="aes-panel">
+      <h2>AES-128-CBC Encryption</h2>
+
+      <label for="aes-key">Key (Base64, 24 chars = 16 bytes):</label>
+      <input type="text" id="aes-key" placeholder="Paste or generate a key..." />
+      <button onclick="generateKey()">Generate Random Key</button>
+
+      <label for="aes-plaintext">Plaintext to Encrypt:</label>
+      <textarea id="aes-plaintext" placeholder="Type plaintext here..."></textarea>
+      <button onclick="runAesEncrypt()">Encrypt →</button>
+
+      <label for="aes-ciphertext">Ciphertext (Base64):</label>
+      <textarea id="aes-ciphertext" readonly placeholder="Ciphertext will appear here..."></textarea>
+
+      <label for="aes-ciphertext-in">Ciphertext to Decrypt (Base64):</label>
+      <textarea id="aes-ciphertext-in" placeholder="Paste base64 ciphertext here..."></textarea>
+      <button onclick="runAesDecrypt()">← Decrypt</button>
+
+      <label for="aes-decrypted">Decrypted Plaintext:</label>
+      <textarea id="aes-decrypted" readonly placeholder="Decrypted text will appear here..."></textarea>
+
+      <div id="aes-timing"></div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

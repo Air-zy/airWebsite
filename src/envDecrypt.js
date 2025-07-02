@@ -1,4 +1,4 @@
-const { decrypt } = require('./aes-128_ecb.js');
+const { decrypt } = require('./aes-128_cbc.js');
 
 function getSecondStackFrame() {
   const oldPrepare = Error.prepareStackTrace;
@@ -12,7 +12,7 @@ function getSecondStackFrame() {
 }
 
 function envDecrypt(key, ciphertext) {
-  console.log("[air req] ", getSecondStackFrame())
+  console.log("[env req] ", getSecondStackFrame())
   if (key == null) {
     throw new Error("envDecrypt error: `key` is null or undefined");
   }
