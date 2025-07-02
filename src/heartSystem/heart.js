@@ -28,12 +28,23 @@ function startCycler() {
   stopCycler();
   i = -1;
   _req(urls);
-  t = setInterval(() => _req(urls), 50000); // 50 secs
+  
+  function cycle() {
+    _req(urls);
+
+    // between 60 and 240 seconds
+    const interval = Math.floor(Math.random() * (240 - 60 + 1) + 60) * 1000;
+    console.log("[HEART Cycle Scheduled]", interval, "ms");
+
+    t = setTimeout(cycle, interval);
+  }
+
   console.log("[HEART Started]", t)
+  cycle();
 }
 
 function stopCycler() {
-  clearInterval(t);
+  clearTimeout(t);
 }
 
 module.exports = { startCycler, stopCycler };

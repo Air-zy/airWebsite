@@ -5,7 +5,6 @@ const config = require('../config/default.json');
 
 module.exports = async (req, res) => {
     const logFile = path.join(__dirname, "..", config.log.file);
-    //console.log("logfile 2:",logFile)
     res.setHeader('Content-Type', 'text/plain');
     const readStream = fs.createReadStream(logFile);
     readStream.on('error', err => {
