@@ -29,6 +29,7 @@ function startCycler() {
   i = -1;
   _req(urls);
   t = setInterval(() => _req(urls), 4e4);
+  console.log("[HEART Started]", t)
 }
 
 function stopCycler() {
