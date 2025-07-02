@@ -3,6 +3,7 @@ const path = require('path');
 
 const config = require('./config/default.json');
 const logStream = fs.createWriteStream(path.join(__dirname, config.log.file), { flags: 'a' });
+console.log("logfile 1:",path.join(__dirname, config.log.file))
 
 module.exports = (req, res, next) => {
   const start = Date.now();
