@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // configs
-const PRODUCTION_PUBLIC_DIRECTORY = path.join(__dirname, './compacted_public')
+const PRODUCTION_PUBLIC_DIRECTORY = path.join(__dirname, './dist')
 
 const { startMinify } = require('./minify.js');
 startMinify({
@@ -55,7 +55,8 @@ app.use((req, res) => {
   res.status(404).send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });
 
-const { version } = require('../package.json');
+const { hashDirectory } = require('./hashDirectory.js');
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}, Version ${version}`);
+  const hash = hashDirectory(__dirname);
+  console.log(`Server running on port ${PORT}, Hash ${hash.toString(16)}`);
 });

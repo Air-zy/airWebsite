@@ -18,7 +18,7 @@ module.exports = (req, res, next) => {
         `${duration}ms`
     ].join(' ') + '\n';
 
-    process.stdout.write(line);
+    //process.stdout.write(line);
     logStream.write(line);
   });
   next();
