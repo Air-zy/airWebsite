@@ -107,7 +107,8 @@
           method: parts[2],
           path: parts[3],
           status: +parts[4],
-          userAgent: parts.slice(5).join(' ')  // Capture everything after status as user-agent
+          duration: parts[5],
+          userAgent: parts.slice(6).join(' ')  // Capture everything after status as user-agent
         };
       });
     }
@@ -147,11 +148,12 @@
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td style="background: ${getColor(r.ip)}; color: #000">${r.ip}</td>
+          <td>${r.userAgent}</td>
           <td>${r.time}</td>
           <td>${r.method}</td>
           <td>${r.path}</td>
           <td>${r.status}</td>
-          <td>${r.userAgent}</td>
+          <td>${r.duration}</td>
           <td>${computeAgo(r.time)}</td>
         </tr>
       `).join('');
