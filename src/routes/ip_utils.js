@@ -17,11 +17,18 @@ let adressesLoaded = true;
 
 function getIP(req) {
   const ipList = req.headers['x-forwarded-for']
-  const ips = ipList.split(',')
-  for (let i = ips.length - 1; i >= 0; i--) {
-    const ip = ips[i].trim();
-    return ip; 
+  if (ipList) {
+    const ips = ipList.split(',')
+    for (let i = ips.length - 1; i >= 0; i--) {
+      const ip = ips[i].trim();
+      return ip; 
+    }
   }
+
+  return req.connection?.remoteAddress ||
+         req.socket?.remoteAddress ||
+         req.connection?.socket?.remoteAddress ||
+         null;
 }
 
 function bitset(num, pos) {
