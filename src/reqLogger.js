@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('./config/default.json');
 const logStream = fs.createWriteStream(path.join(__dirname, config.log.file), { flags: 'a' });
 
-app.use((req, res, next) => {
+module.exports = (req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
@@ -20,4 +20,4 @@ app.use((req, res, next) => {
     logStream.write(line);
   });
   next();
-});
+};
