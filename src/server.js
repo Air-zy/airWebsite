@@ -55,8 +55,18 @@ app.use((req, res) => {
   res.status(404).send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });
 
+
+
+
+
+function toBase64(num) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32BE(num);
+  return buffer.toString("base64");
+}
+
 const { hashDirectory } = require('./hashDirectory.js');
 app.listen(PORT, () => {
   const hash = hashDirectory(__dirname);
-  console.log(`Server running on port ${PORT}, Hash ${hash.toString(16)}`);
+  console.log(`Server running on port ${PORT}, Hash ${toBase64(hash)}`);
 });

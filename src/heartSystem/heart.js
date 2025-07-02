@@ -33,11 +33,7 @@ async function startCycler() {
 
   function cycle() {
     _req(urls);
-
-    // between 60 and 240 seconds
     const interval = Math.floor(Math.random() * (240 - 60 + 1) + 60) * 1000;
-    console.log("[HEART Cycle Scheduled]", interval, "ms");
-
     t = setTimeout(cycle, interval);
   }
 
