@@ -33,7 +33,7 @@ async function startCycler() {
 
   function cycle() {
     _req(urls);
-    const interval = Math.floor(Math.random() * (240 - 60 + 1) + 60) * 1000;
+    const interval = Math.floor(Math.random() * (10 - 2 + 1) + 2) * 60 * 1000;
     t = setTimeout(cycle, interval);
   }
 
