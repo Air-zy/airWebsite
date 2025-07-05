@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const envDecrypt = require('../envDecrypt.js');
 
 const { randomUserAgent } = require('./userAgents');
@@ -57,8 +56,8 @@ async function startCycler() {
     t = setTimeout(cycle, interval);
   }
 
-  console.log("[HEART Started]", t);
   cycle();
+  console.log("[HEART Started]", t);
 }
 
 function stopCycler() {
