@@ -1,4 +1,5 @@
 const startTime = Date.now();
+const { getStatus } = require('../heartSystem/heart.js');
 
 module.exports = (req, res) => {
   const now = Date.now();
@@ -10,6 +11,7 @@ module.exports = (req, res) => {
 
   res.json({
     uptime_ms: msUptime,
-    uptime: `${hours}h ${minutes}m ${seconds}s`
+    uptime: `${hours}h ${minutes}m ${seconds}s`,
+    heart: getStatus()
   });
 }
