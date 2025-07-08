@@ -42,7 +42,7 @@ app.get('/trafic',     (req, res) => { return res.redirect('/api.html');        
 app.get('/api/logs',                require('./routes/api_logs.js')                );
 app.get('/api/projects',            require('./routes/api_projects.js')            );
 app.get('/api/headers',             require('./routes/api_headers.js')             );
-app.get('/uptime',                  require('./routes/uptime.js')                  );
+app.get('/info',                    require('./routes/info.js')                  );
 
 app.post('/c',                      require('./routes/c.js')                       );
 app.post('/validate-me',            require('./routes/validate_me.js')             );
