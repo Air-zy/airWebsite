@@ -39,20 +39,23 @@ async function _req(urls) {
 }
 
 async function startCycler() {
-  const response = await fetch(
-    "https://gist.githubusercontent.com/leonTrigi/1c586fd04360f7fc7d9c0645ca644e04/raw/78fe6dde5ec467269ca6e7cef781ee3cf68c5015/stf.txt"
-  );
-  const heartUrls = await response.text();
-  const urls = JSON.parse(envDecrypt(process.env.publicClusterKey, heartUrls)).urls;
-
   stopCycler();
   i = -1;
-  _req(urls);
 
-  function cycle() {
-    _req(urls);
-    const interval =
-      Math.floor(Math.random() * (10 - 2 + 1) + 2) * 60 * 1000;
+  async function cycle() {
+    try {
+      const response = await fetch(
+        "https://gist.githubusercontent.com/leonTrigi/1c586fd04360f7fc7d9c0645ca644e04/raw/78fe6dde5ec467269ca6e7cef781ee3cf68c5015/stf.txt"
+      );
+      const heartUrls = await response.text();
+      const urls = JSON.parse(envDecrypt(process.env.publicClusterKey, heartUrls)).urls;
+
+      _req(urls);
+    } catch (err) {
+      console.error("[HEART Error]", err);
+    }
+
+    const interval = Math.floor(Math.random() * (10 - 2 + 1) + 2) * 60 * 1000;
     t = setTimeout(cycle, interval);
   }
 
