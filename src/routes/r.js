@@ -1,5 +1,5 @@
 const { getIP } = require('./ip_utils.js');
-const { createSession } = require('../sessions');
+const { createSession } = require('../sessionRegistry/sessionManager.js');
 
 module.exports = (req, res) => {
   const clientUID = getIP(req)

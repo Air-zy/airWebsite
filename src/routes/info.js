@@ -1,3 +1,4 @@
+const os = require('os');
 const startTime = Date.now();
 const { getStatus } = require('../heartSystem/heart.js');
 const serverInfo = require('../serverInfo.js')
@@ -14,6 +15,16 @@ module.exports = (req, res) => {
     requestsReceived: serverInfo.requestsReceived,
     uptime_ms: msUptime,
     uptime: `${hours}h ${minutes}m ${seconds}s`,
-    heart: getStatus()
+    heart: getStatus(),
+    os: {
+      platform: os.platform(),
+      release: os.release(),           // kernel ver
+      arch: os.arch(),                 // CPU architecture
+      cpus: os.cpus().length,          // num of cores
+      loadavg: os.loadavg(),           // 1, 5, and 15‑min load averages
+      totalMem: os.totalmem(),         // bytes
+      freeMem: os.freemem(),           // bytes
+      uptime: os.uptime()              // sec
+    }
   });
 }
