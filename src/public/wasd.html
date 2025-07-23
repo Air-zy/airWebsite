@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Time Event Game</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { height: 100%; background: #222; color: #fff; font-family: Arial, sans-serif; overflow: hidden; }
+    .wrapper { position: relative; width: 100%; height: 100%; transition: all 0.5s ease; }
+    /* Centered state */
+    .wrapper.center .ui { top: 20%; left: 50%; transform: translate(-50%, -50%); opacity: 1; }
+    .wrapper.center .aside { opacity: 0; pointer-events: none; }
+    /* Aside state */
+    .wrapper.aside .ui { top: 10px; left: 50%; transform: translateX(-50%); opacity: 1; }
+    .wrapper.aside .aside { bottom: 10px; left: 50%; transform: translateX(-50%); opacity: 1; }
+
+    .ui, .aside { position: absolute; transition: all 0.5s ease; }
+    .aside { opacity: 1; }
+
+    #controls { display: flex; align-items: center; gap: 10px; }
+    #durationInput { width: 60px; font-size: 1rem; padding: 2px; border-radius: 4px; border: none; text-align: center; }
+    #startBtn { z-index: 3; padding: 8px 16px; font-size: 1rem; cursor: pointer; border: none; border-radius: 5px; background: #28a745; color: #fff; transition: background 0.2s; }
+    #startBtn:hover { background: #218838; }
+
+    #animation { position: absolute; top: 50%; left: 50%; width: 100px; height: 100px; background: transparent; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%) scale(0); opacity: 0.5; z-index: 1; transition: transform 0.5s ease-out, background 0.5s ease-out, opacity 0.5s ease-out; }
+    #target { font-size: 5rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.1s; z-index: 2; }
+    #summary { position: absolute; top: 50%; left: 50%; transform: translate(-50%, 100%); text-align: center; font-size: 1.5rem; opacity: 0; transition: opacity 0.5s; z-index: 2; }
+
+    @keyframes shake { 0% { transform: translate(-50%, -50%) translateX(0); } 20% { transform: translate(-50%, -50%) translateX(-10px); } 40% { transform: translate(-50%, -50%) translateX(10px); } 60% { transform: translate(-50%, -50%) translateX(-10px); } 80% { transform: translate(-50%, -50%) translateX(10px); } 100% { transform: translate(-50%, -50%) translateX(0); } }
+    .shake { animation: shake 0.5s; }
+  </style>
+</head>
+<body>
+  <div class="wrapper center" id="wrapper">
+    <div class="ui" id="controls">
+      <label for="durationInput">Duration (s):</label>
+      <input type="number" id="durationInput" value="10" min="1" max="60">
+      <button id="startBtn">Start Game</button>
+      <div id="timer">Time: <span id="timeLeft">0</span>s</div>
+      <div id="scoreboard">Score: <span id="score">0</span></div>
+    </div>
+    <div class="aside" id="lastDisplay">
+      Last Reaction: <span id="last">N/A</span><span id="unit"> ms</span>
+    </div>
+    <div id="animation"></div>
+    <div id="target"></div>
+    <div id="summary"></div>
+  </div>
+
+  <script>
+    const keys = ['W','A','S','D'];
+    let score=0, startTime, currentKey, promptTimer, countdownTimer, gameActive=false;
+    const wrapper = document.getElementById('wrapper');
+    const animEl = document.getElementById('animation');
+    const targetEl = document.getElementById('target');
+    const lastEl = document.getElementById('last');
+    const unitEl = document.getElementById('unit');
+    const scoreEl = document.getElementById('score');
+    const timeLeftEl = document.getElementById('timeLeft');
+    const durationInput = document.getElementById('durationInput');
+    const startBtn = document.getElementById('startBtn');
+    const summaryEl = document.getElementById('summary');
+
+    function setState(active) {
+      if(active) {
+        wrapper.classList.replace('center','aside');
+      } else {
+        wrapper.classList.replace('aside','center');
+      }
+    }
+
+    function triggerAnimation(correct){
+      const duration = 0.5;
+      // reset
+      animEl.style.transition = 'none';
+      animEl.style.transform = 'translate(-50%,-50%) scale(0)';
+      animEl.style.opacity = '0.5';
+      void animEl.offsetWidth;
+      // animate
+      animEl.style.transition = `transform ${duration}s ease-out, background ${duration}s ease-out, opacity ${duration}s ease-out`;
+      animEl.style.background = correct ? 'rgba(0,255,0,0.5)' : 'rgba(255,0,0,0.5)';
+      animEl.style.transform = 'translate(-50%,-50%) scale(10)';
+      animEl.style.opacity = '0';
+      if(!correct) {
+        targetEl.classList.add('shake');
+        setTimeout(()=> targetEl.classList.remove('shake'), duration*1000);
+      }
+    }
+
+    function showNext(){
+      currentKey = keys[Math.floor(Math.random()*keys.length)];
+      targetEl.textContent = currentKey;
+      targetEl.style.opacity = '1';
+      startTime = performance.now();
+      unitEl.style.display = 'inline';
+      promptTimer = setTimeout(()=>{
+        triggerAnimation(false);
+        hideTarget();
+        if(gameActive) setTimeout(showNext, 500);
+      }, 1000);
+    }
+
+    function hideTarget(){ currentKey = null; targetEl.style.opacity = '0'; }
+
+    function handleKey(e){
+      if(!gameActive || !currentKey) return;
+      const pressed = e.key.toUpperCase();
+      const now = performance.now();
+      clearTimeout(promptTimer);
+
+      const correctAnswer = currentKey
+      hideTarget();
+
+      console.log(pressed, correctAnswer)
+      if(pressed == correctAnswer) {
+        const reaction = Math.round(now - startTime);
+        score += Math.max(0, 1000 - reaction);
+        scoreEl.textContent = score;
+        lastEl.textContent = reaction;
+        unitEl.style.display = 'inline';
+        triggerAnimation(true);
+      } else {
+        lastEl.textContent = 'Wrong';
+        unitEl.style.display = 'none';
+        triggerAnimation(false);
+      }
+      if(gameActive) setTimeout(showNext, 500);
+    }
+
+    function startGame(){
+      summaryEl.style.opacity = '0';
+      score = 0; scoreEl.textContent = score;
+      lastEl.textContent = 'N/A'; unitEl.style.display = 'inline';
+      const total = Math.max(1, parseInt(durationInput.value,10) || 10);
+      timeLeftEl.textContent = total;
+      let time = total;
+      gameActive = true;
+      startBtn.disabled = true;
+      startBtn.textContent = 'Running...';
+      setState(true);
+      countdownTimer = setInterval(()=>{
+        time--;
+        timeLeftEl.textContent = time;
+        if(time <= 0) endGame();
+      }, 1000);
+      showNext();
+    }
+
+    function endGame(){
+      gameActive = false;
+      clearInterval(countdownTimer);
+      clearTimeout(promptTimer);
+      hideTarget();
+      startBtn.disabled = false;
+      startBtn.textContent = 'Restart';
+      setState(false);
+      summaryEl.textContent = `Time's up! Final Score: ${score}`;
+      summaryEl.style.opacity = '1';
+    }
+
+    document.addEventListener('keydown', handleKey);
+    startBtn.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
