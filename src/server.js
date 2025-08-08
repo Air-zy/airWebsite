@@ -55,6 +55,9 @@ app.get('/info',                    require('./routes/info.js')                 
 app.get('/api/cluster-units',       require('./routes/api_clusterUnits.js')        );
 app.get('/r',                       require('./routes/r.js')                       ); // request token
 
+app.post('/gam3push',               require('./routes/gam3push.js')                );
+app.post('/webhook',                require('./routes/webhook.js')                 );
+
 app.post('/c',                      require('./routes/c.js')                       );
 app.post('/validate-me',            require('./routes/validate_me.js')             );
 app.post('/api/project-edit',       require('./routes/api_project_edit.js')        );
