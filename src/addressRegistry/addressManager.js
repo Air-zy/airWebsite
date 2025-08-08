@@ -1,6 +1,6 @@
 const { firedbAdressGet, firedbAdressesSave } = require('../firebasedb.js');
 const { ipLookup } = require('../ipLookup.js');
-const Address = require('./address');
+const Address = require('./adress.js');
 
 const addressMap = new Map();
 let addressesLoaded = false;

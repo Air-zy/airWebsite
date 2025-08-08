@@ -1,4 +1,5 @@
-const { getIPData, bitset, getIP, referLookup, updateCurrentAdressses } = require('./ip_utils.js');
+const { getIPData, bitset, getIP, referLookup } = require('./ip_utils.js');
+const { updateAddress } = require('../addressRegistry/addressManager.js')
 
 module.exports = (req, res) => {
   const ipDecimal = getIP(req)
@@ -28,6 +29,6 @@ module.exports = (req, res) => {
     };
   }
   
-  updateCurrentAdressses(ipDecimal, userAgent, referrer);
+  updateAddress(ipDecimal, userAgent, referrer, req);
   res.status(200).end();
 };

@@ -19,8 +19,14 @@ startMinify({
   dest: PRODUCTION_PUBLIC_DIRECTORY
 });
 
+
+
+// init
 const { startCycler } = require('./heartSystem/heart.js');
 startCycler();
+
+const { loadAddresses } = require('./addressRegistry/addressManager.js')
+loadAddresses();
 
 
 app.use(require('./reqLogger.js'));
