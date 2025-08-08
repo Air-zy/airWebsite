@@ -1,10 +1,13 @@
 {
   "name": "airsite",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "mywebsite",
   "main": "server.js",
   "scripts": {
     "start": "node ./src/server.js"
+  },
+  "devDependencies": {
+    "form-data": ">=2.5.4"
   },
   "dependencies": {
     "node-fetch": "3.3.2",
