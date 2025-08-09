@@ -29,9 +29,11 @@ const { loadAddresses } = require('./addressRegistry/addressManager.js')
 loadAddresses();
 
 
+const compression = require('compression');
 app.use(require('./reqLogger.js'));
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
 app.use(express.json());
+app.use(compression({ threshold: 1024 })); // 1kb threshold
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
 // routes 

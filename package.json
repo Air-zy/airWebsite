@@ -10,6 +10,7 @@
     "form-data": ">=2.5.4"
   },
   "dependencies": {
+    "compression": "^1.8.1",
     "form-data": ">=2.5.4",
     
     "node-fetch": "3.3.2",
