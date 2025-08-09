@@ -47,7 +47,7 @@ async function game3git(filePath, filecontent, commitMessage) {
       const updateResponse = await fetch(url, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${process.env.GAM3_REPO_PAT}`,
+          'Authorization': `Bearer ${repoPat}`,
           'Accept': 'application/vnd.github.v3+json',
         },
         body: JSON.stringify({
@@ -72,7 +72,7 @@ async function game3git(filePath, filecontent, commitMessage) {
       const createResponse = await fetch(url, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${process.env.GAM3_REPO_PAT}`,
+          'Authorization': `Bearer ${repoPat}`,
           'Accept': 'application/vnd.github.v3+json',
         },
         body: JSON.stringify({
