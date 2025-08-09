@@ -1,12 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  
-  <!-- Homepage -->
   <url>
-    <loc>https://airzy.glitch.me/</loc>
-    <lastmod>2024-10-06</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
+    <loc>https://airzy.ca/home</loc>
   </url>
-  
+  <url>
+    <loc>https://airzy.ca/c4</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/avyTos</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/avyprivacy</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/change</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/quad</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/coinsort</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/journal</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/deepwoken</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/anime</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/encryption</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/trafic</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/api/logs</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/api/projects</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/api/headers</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/info</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/api/cluster-units</loc>
+  </url>
+  <url>
+    <loc>https://airzy.ca/r</loc>
+  </url>
 </urlset>
