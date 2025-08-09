@@ -37,5 +37,11 @@ module.exports = (req, res, next) => {
       //process.stdout.write(line);
       logStream.write(line);
     });
+
+    const host = req.hostname.toLowerCase(); // TODO remove this later on after moving the google domain thingy
+    if (host === 'airzy.glitch.me' || host === 'airzy1.koyeb.app') {
+      return res.redirect(301, 'https://airzy.ca' + req.originalUrl);
+    }
+
     next();
 };
