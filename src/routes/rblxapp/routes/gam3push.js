@@ -1,5 +1,5 @@
-const rowagit = require('../modules/rowagit.js')
-const envDecrypt = require('../envDecrypt.js')
+const rowagit = require('../../../modules/rowagit.js')
+const envDecrypt = require('../../../envDecrypt.js')
 const airWebToken2 = envDecrypt(process.env.airKey, process.env.airWebToken2)
 
 module.exports = async (req, res) => {

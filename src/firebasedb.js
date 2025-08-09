@@ -178,6 +178,20 @@ async function firedbRobloxGet() {
   return snap.data();
 }
 
+async function firedbRobloxSave() {
+  if (!robloxRef) {
+    robloxRef = firedb.doc("rblx");
+  }
+
+  if (robloxRef) {
+    try {
+        await robloxRef.set({rblxdata});
+    } catch(err) {
+      console.log("status commit ERR: ", err)
+    }
+  }
+}
+
 module.exports = {
   commitAnime,
   firedbAdressGet,
@@ -185,6 +199,7 @@ module.exports = {
   firedbAnimeMapGet,
   firedbActivityGet,
   firedbRobloxGet,
+  firedbRobloxSave,
   firedbAirsiteSave,
   firedbAdressesSave
 };
