@@ -54,9 +54,10 @@
 
     #gameData {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+      flex-wrap: nowrap;
       gap: 10px;
+      justify-content: center;
+      flex-direction: column;
     }
     .entry {
       font-size: 0.9em;
@@ -169,7 +170,7 @@
     .entry {
       display: block;
       width: 100%;
-      text-align: left;
+      /*text-align: left;*/
       padding: 10px;
       margin-bottom: 8px;
       border-radius: 6px;
