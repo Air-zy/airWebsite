@@ -32,32 +32,29 @@
       <div id="jsonDataDisplay">
         <p>favorite Items <span style="color: grey;">amt*(1/globalAmt)*slotLvl</span></p>
         <canvas id="itemChart"></canvas>
-        <div id="plrInfo">
-        </div>
+        <div id="plrInfo"></div>
         <p>player slots</p>
         <div id="slotContainer"></div>
       </div>
     </div>
   </div>
   
-  <section id="bigcharts">
-    <canvas id="bellShapeChart"></canvas>
-    <div style="width: 90%">
+  <canvas id="bellShapeChart"></canvas>
+  <div style="width: 90%">
       <label for="totalGamesSlider">Minimum requirement Total Games Played</label>
       <input type="range" id="totalGamesSlider" min="0" max="1000" value="1" step="1" style="width:100%">
       <span id="sliderValue">1</span>
-    </div>
-    <div style="width: 90%">
+  </div>
+  <div style="width: 90%">
       <label for="eloSlider">Minimum Elo requirement</label>
       <input type="range" id="eloSlider" min="400" max="1400" value="400" step="1" style="width:100%">
       <span id="eloSliderValue">400</span>
-    </div>
-    
-    <h3>
-      ITEM FREQUENCY CHART
-    </h3>
-    <canvas id="itemFrequencyChart"></canvas>
-  </section>
+  </div>
+  
+  <h3>
+    ITEM FREQUENCY CHART
+  </h3>
+  <canvas id="itemFrequencyChart"></canvas>
   
   <script>
     // chart helper funcs
@@ -552,7 +549,7 @@
         const plrWinrate = getWinrate(plrData[0],plrData[1])
         const plrInfo = document.getElementById('plrInfo');
         const entryHTML = `
-            <div class="entry" id="entry-${userId}">
+            <div class="entry" id="entry-${userId}" style="width: 200px">
                 <div class="row">
                     <div class="label">Elo:</div>
                     <div class="value">${plrData[3]}</div>
