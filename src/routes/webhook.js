@@ -3,12 +3,13 @@ const whookPass = envDecrypt(process.env.airKey, process.env.whookPass)
 const discordWebhookUrl = envDecrypt(process.env.airKey, process.env.dwebhook)
 
 module.exports = async (req, res) => {
-  if (req && req.body) {
-    const { password, ...data } = req.body;
-    if (password !== whookPass) {
-      return res.status(401).send('Invalid password');
-    }
+  const auth = req.headers["authorization"]; 
+  if (auth !== whookPass) {
+    return res.status(401).send("Unauthorized: bad token");
+  }
 
+  if (req && req.body) {
+    const { ...data } = req.body;
     try {
       const response = await fetch(discordWebhookUrl, {
         method: 'POST',
