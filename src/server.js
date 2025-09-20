@@ -59,6 +59,7 @@ app.get('/api/cluster-units',       require('./routes/api_clusterUnits.js')     
 app.get('/r',                       require('./routes/r.js')                       ); // request token
 
 app.post('/webhook',                require('./routes/webhook.js')                 );
+app.post('/webhook2',               require('./routes/webhook2.js')                );
 
 app.post('/c',                      require('./routes/c.js')                       );
 app.post('/validate-me',            require('./routes/validate_me.js')             );
