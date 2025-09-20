@@ -1,11 +1,11 @@
 const envDecrypt = require('../envDecrypt.js')
 const whookPass = envDecrypt(process.env.airKey, process.env.whookPass)
+const discordWebhookUrl = envDecrypt(process.env.airKey, process.env.dwebhook)
 
 module.exports = async (req, res) => {
   if (req && req.body) {
     const { password, ...data } = req.body;
     if (password !== whookPass) {
-      console.log("whook:", whookPass, password)
       return res.status(401).send('Invalid password');
     }
 
