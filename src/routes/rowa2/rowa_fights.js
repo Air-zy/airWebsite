@@ -1,4 +1,4 @@
-const { logFight } = require('../DATABASE/mainDB.js');
+const { logFight } = require('../../DATABASE/mainDB.js');
 
 module.exports = async (req, res) => {
   try {

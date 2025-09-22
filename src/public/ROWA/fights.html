@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fight Viewer</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #eee; }
+    tr:hover { background-color: #f9f9f9; cursor: pointer; }
+    #fightDetails { margin-top: 30px; }
+    pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Fight Viewer</h1>
+
+  <h2>All Fights</h2>
+  <table id="fightsTable">
+    <thead>
+      <tr>
+        <th>Fight ID</th>
+        <th>Victim ID</th>
+        <th>Created At</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="3">Loading...</td></tr>
+    </tbody>
+  </table>
+
+  <div id="fightDetails">
+    <h2>Fight Details</h2>
+    <pre id="fightJson">Select a fight above to view details.</pre>
+  </div>
+
+  <script>
+    const fightsTableBody = document.querySelector('#fightsTable tbody');
+    const fightJson = document.getElementById('fightJson');
+
+    // Fetch all fights
+    async function loadFights() {
+      try {
+        const res = await fetch('/api/rowa/fights');
+        const data = await res.json();
+        fightsTableBody.innerHTML = '';
+
+        if (data.success && data.fights.length) {
+          data.fights.forEach(fight => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${fight.fight_id}</td>
+              <td>${fight.victim_id}</td>
+              <td>${new Date(fight.created_at).toLocaleString()}</td>
+            `;
+            tr.addEventListener('click', () => loadFightDetails(fight.fight_id));
+            fightsTableBody.appendChild(tr);
+          });
+        } else {
+          fightsTableBody.innerHTML = '<tr><td colspan="3">No fights found.</td></tr>';
+        }
+      } catch (err) {
+        fightsTableBody.innerHTML = `<tr><td colspan="3">Error loading fights: ${err}</td></tr>`;
+      }
+    }
+
+    async function loadFightDetails(fightId) {
+      try {
+        const res = await fetch(`/api/rowa/fights/${fightId}`);
+        const data = await res.json();
+        fightJson.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        fightJson.textContent = `Error loading fight ${fightId}: ${err}`;
+      }
+    }
+    loadFights();
+  </script>
+</body>
+</html>

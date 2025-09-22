@@ -73,6 +73,8 @@ async function ensureTables() {
   }
 }
 
+//
+
 async function getAllFights() {
   try {
     const fights = await sql`
@@ -85,6 +87,25 @@ async function getAllFights() {
     throw err;
   }
 }
+
+async function getContributionsByFightId(fightId) {
+  try {
+    const id = BigInt(fightId);
+
+    const contributions = await sql`
+      SELECT *
+      FROM fight_contributions
+      WHERE fight_id = ${id}
+      ORDER BY killer_id ASC
+    `;
+
+    return contributions; // array of contributions, or [] if none
+  } catch (err) {
+    console.error('[getContributionsByFightId] error:', err);
+    throw err;
+  }
+}
+
 
 
 /*
@@ -149,5 +170,7 @@ module.exports = {
   healthCheck,
   logFight,
   ensureTables,
-  getAllFights
+
+  getAllFights,
+  getContributionsByFightId
 };
