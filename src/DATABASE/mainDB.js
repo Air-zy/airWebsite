@@ -80,14 +80,41 @@ async function ensureTables() {
   }
 }
 
+// read only layer.... uhhh yeah.... note to self (only server/admin should use this...)
+function validateReadOnlySql(queryText) {
+  if (!queryText || typeof queryText !== 'string') {
+    throw new Error('Invalid SQL string');
+  }
+  const lowered = queryText.trim().toLowerCase();
+  if (!(lowered.startsWith('select') || lowered.startsWith('with'))) {
+    throw new Error('Only SELECT/CTE queries are allowed');
+  }
+  const forbidden = /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|set|begin|commit|rollback|;)\b/;
+  if (forbidden.test(lowered)) {
+    throw new Error('Query contains forbidden keywords');
+  }
+}
+
+// note to self (only server/admin should use this...)
+async function read(queryText, params = []) {
+  validateReadOnlySql(queryText);
+  try {
+    // unsafe needed because we accept "dynamic query strings"
+    const result = await sql.unsafe(queryText, params);
+    return result;
+  } catch (err) {
+    console.error('[read] error:', err);
+    throw err;
+  }
+}
+
 //
 
 async function getAllFights() {
   try {
-    const fights = await sql`
-      SELECT * FROM fights
-      ORDER BY created_at DESC
-    `;
+    const fights = await read(
+      'SELECT * FROM fights ORDER BY created_at DESC'
+    );
     return fights;
   } catch (err) {
     console.error('[getAllFights] error:', err);
@@ -98,13 +125,10 @@ async function getAllFights() {
 async function getContributionsByFightId(fightId) {
   try {
     const id = BigInt(fightId);
-
-    const contributions = await sql`
-      SELECT *
-      FROM fight_contributions
-      WHERE fight_id = ${id}
-      ORDER BY killer_id ASC
-    `;
+    const contributions = await read(
+      'SELECT * FROM fight_contributions WHERE fight_id = $1 ORDER BY killer_id ASC',
+      [id]
+    );
 
     return contributions; // array of contributions, or [] if none
   } catch (err) {
