@@ -84,7 +84,7 @@ logFight(victimId, killers, raw)
 async function logFight(preVictimId, killers = [], raw = null) {
     if (!preVictimId) throw new Error('victimId required');
     return sql.begin(async (tx) => {
-        const victimId = BigInt(k.key);
+        const victimId = BigInt(preVictimId);
 
         // idempotent ensure players exist
         await tx`
