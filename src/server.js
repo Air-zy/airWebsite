@@ -91,11 +91,13 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}, Hash ${toBase64(hash)}`);
 });
 
-const { healthCheck } = require('./DATABASE/mainDB.js');
+const { healthCheck, ensureTables } = require('./DATABASE/mainDB.js');
 (async () => {
   const ok = await healthCheck()
   if (ok) {
-    console.log('[POSTGRES_DB] ready to use!')
+    console.log('[POSTGRES_DB] ready to use')
+    await ensureTables();
+    console.log('[POSTGRES_DB] init success!')
   } else {
     console.log('[POSTGRES_DB] connection issue.')
   }

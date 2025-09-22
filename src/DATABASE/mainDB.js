@@ -34,6 +34,46 @@ async function healthCheck() {
   }
 }
 
+//
+async function ensureTables() {
+  try {
+    // players table
+    await sql`
+      CREATE TABLE IF NOT EXISTS players (
+        player_id BIGINT PRIMARY KEY
+      )
+    `;
+
+    // fights table
+    await sql`
+      CREATE TABLE IF NOT EXISTS fights (
+        fight_id BIGSERIAL PRIMARY KEY,
+        victim_id BIGINT REFERENCES players(player_id),
+        raw_snapshot JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
+    // fight_contributions table
+    await sql`
+      CREATE TABLE IF NOT EXISTS fight_contributions (
+        fight_id BIGINT REFERENCES fights(fight_id),
+        killer_id BIGINT REFERENCES players(player_id),
+        enemy_focus_percent INT,
+        my_focus_percent INT,
+        last_hit_ms INT,
+        time_since_fight_start_ms INT,
+        PRIMARY KEY (fight_id, killer_id)
+      )
+    `;
+    console.log('[POSTGRES_DB] Tables ensured');
+  } catch (err) {
+    console.error('[POSTGRES_DB] Error ensuring tables:', err);
+    throw err;
+  }
+}
+
+
 /*
 logFight(victimId, killers, raw)
  - victimId: number (roblox player id)
@@ -41,48 +81,51 @@ logFight(victimId, killers, raw)
  - raw: optional raw object to store in fights.raw_snapshot
  returns inserted fight_id on success.
 */
-async function logFight(victimId, killers = [], raw = null) {
-  if (!victimId) throw new Error('victimId required');
+async function logFight(preVictimId, killers = [], raw = null) {
+    if (!preVictimId) throw new Error('victimId required');
+    return sql.begin(async (tx) => {
+        const victimId = BigInt(k.key);
 
-  return sql.begin(async (tx) => {
-    // idempotent ensure players exist
-    await tx`
-      INSERT INTO players (player_id)
-      VALUES (${victimId})
-      ON CONFLICT (player_id) DO NOTHING
-    `;
-
-    for (const k of killers) {
-      await tx`
-        INSERT INTO players (player_id)
-        VALUES (${k.key})
-        ON CONFLICT (player_id) DO NOTHING
-      `;
-    }
-
-    // insert fight
-    const [fight] = await tx`
-      INSERT INTO fights (victim_id, raw_snapshot)
-      VALUES (${victimId}, ${raw})
-      RETURNING fight_id
-    `;
-
-    // insert contributions (converting floats -> compact ints)
-    for (const k of killers) {
-      const enemyFocusPercent = Math.round((k.EnemyFocusAgainstMe ?? 0) * 100);
-      const myFocusPercent = Math.round((k.MyFocusAgainstEnemy ?? 0) * 100);
-      const lastHitMs = Math.round((k.lastHitMe ?? 0) * 1000);
-      const timeSinceMs = Math.round((k.timeSinceFightStarted ?? 0) * 1000);
-
-      await tx`
-        INSERT INTO fight_contributions
-          (fight_id, killer_id, enemy_focus_percent, my_focus_percent, last_hit_ms, time_since_fight_start_ms)
-        VALUES
-          (${fight.fight_id}, ${k.key}, ${enemyFocusPercent}, ${myFocusPercent}, ${lastHitMs}, ${timeSinceMs})
-      `;
-    }
-
-    return fight.fight_id;
+        // idempotent ensure players exist
+        await tx`
+            INSERT INTO players (player_id)
+            VALUES (${victimId})
+            ON CONFLICT (player_id) DO NOTHING
+        `;
+    
+        for (const k of killers) {
+            const killerKey = BigInt(k.key)
+            await tx`
+                INSERT INTO players (player_id)
+                VALUES (${killerKey})
+                ON CONFLICT (player_id) DO NOTHING
+            `;
+        }
+    
+        // insert fight
+        const [fight] = await tx`
+            INSERT INTO fights (victim_id, raw_snapshot)
+            VALUES (${victimId}, ${raw})
+            RETURNING fight_id
+        `;
+    
+        // insert contributions
+        for (const k of killers) {
+            const enemyFocusPercent = Math.round((k.EnemyFocusAgainstMe ?? 0) * 100);
+            const myFocusPercent    = Math.round((k.MyFocusAgainstEnemy ?? 0) * 100);
+            const lastHitSeconds    = Math.round(k.lastHitMe ?? 0);
+            const timeSinceSeconds  = Math.round(k.timeSinceFightStarted ?? 0);
+            const killerKey         = BigInt(k.key)
+      
+            await tx`
+              INSERT INTO fight_contributions
+                (fight_id, killer_id, enemy_focus_percent, my_focus_percent, last_hit_ms, time_since_fight_start_ms)
+              VALUES
+                (${fight.fight_id}, ${killerKey}, ${enemyFocusPercent}, ${myFocusPercent}, ${lastHitSeconds}, ${timeSinceSeconds})
+            `;
+        }
+    
+        return fight.fight_id;
   });
 }
 
@@ -90,4 +133,5 @@ module.exports = {
   sql,
   healthCheck,
   logFight,
+  ensureTables
 };
