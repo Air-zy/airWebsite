@@ -5,17 +5,13 @@ function tryDecrypt(envVal) {
   return envDecrypt(process.env.airKey, envVal);
 }
 
-const DB_HOST = tryDecrypt(process.env.DATABASE_HOST);
-const DB_USER = tryDecrypt(process.env.DATABASE_USER);
-const DB_PASSWORD = tryDecrypt(process.env.DATABASE_PASSWORD);
-const DB_NAME = tryDecrypt(process.env.DATABASE_NAME);
-
 const MAX_CONNS = 5;
 const sql = postgres({
-  host: DB_HOST,
-  database: DB_NAME,
-  username: DB_USER,
-  password: DB_PASSWORD,
+  host:     tryDecrypt(process.env.DATABASE_HOST),
+  database: tryDecrypt(process.env.DATABASE_NAME),
+  username: tryDecrypt(process.env.DATABASE_USER),
+  password: tryDecrypt(process.env.DATABASE_PASSWORD),
+  port:     tryDecrypt(process.env.DATABASE_PORT),
 
   max: MAX_CONNS,
   idle_timeout: 10_000,
