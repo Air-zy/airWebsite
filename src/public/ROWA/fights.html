@@ -1,24 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Fight Viewer</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #eee; }
-    tr:hover { background-color: #f9f9f9; cursor: pointer; }
-    #fightDetails { margin-top: 30px; }
-    pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; }
+    :root {
+      --muted: #666;
+      --card-bg: #fbfcfe;
+      --accent: #2b8cff;
+      --bar-bg: #e9eefc;
+      --bar-fill: #2b8cff;
+    }
+    body { font-family: Arial, sans-serif; padding: 20px; color: #111; background: #fff; }
+    h1 { margin: 0 0 10px 0; font-size: 22px; }
+    h2 { margin-top: 22px; font-size: 18px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #e6e6e6; padding: 8px 10px; text-align: left; font-size: 13px; }
+    th { background-color: #fafafa; color: #222; }
+    tr:hover { background-color: #f7faff; cursor: pointer; }
+    #fightDetails { margin-top: 20px; }
+    .card { background: var(--card-bg); border: 1px solid #eef3ff; padding: 12px; border-radius: 8px; }
+    .meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .killers { display: grid; gap: 10px; margin-top: 10px; }
+    .killer { padding: 10px; border-radius: 6px; background: #fff; border: 1px solid #f0f4ff; display: flex; gap: 12px; align-items: center; }
+    .killer-id { font-family: "Courier New", monospace; font-size: 13px; color: #0b3a66; }
+    .bars { display: grid; gap: 6px; margin-top: 6px; }
+    .bar-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted); }
+    .bar { height: 10px; background: var(--bar-bg); border-radius: 999px; overflow: hidden; margin-top:6px; }
+    .bar > .fill { height: 100%; width: 0%; background: var(--bar-fill); border-radius: inherit; transition: width 300ms ease; }
+    .small { font-size: 12px; color: var(--muted); }
+    .actions { display:flex; gap:8px; align-items:center; }
+    button.copy-btn { background: #f6f8ff; border: 1px solid #e0e8ff; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:12px; }
+    .toggle-raw { margin-top: 10px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; color:var(--muted); font-size:13px; }
+    pre { background: #0f1722; color: #e6eef6; padding:10px; border-radius:6px; overflow:auto; font-size:12px; max-height:320px; }
+    .no-data { color: var(--muted); padding: 8px 0; }
+    .row-selected { background: #eaf4ff !important; }
+    a.id-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+    a.id-link:hover { text-decoration: underline; }
+    .fight-meta-row { display:flex; gap:12px; align-items:center; font-size:13px; margin-bottom:6px; }
+    .meta-label { color: #334; font-weight:600; margin-right:6px; }
   </style>
 </head>
 <body>
   <h1>Fight Viewer</h1>
 
   <h2>All Fights</h2>
-  <table id="fightsTable">
+  <table id="fightsTable" aria-label="All fights">
     <thead>
       <tr>
         <th>Fight ID</th>
@@ -33,48 +61,273 @@
 
   <div id="fightDetails">
     <h2>Fight Details</h2>
-    <pre id="fightJson">Select a fight above to view details.</pre>
+    <div id="fightCard" class="card">
+      <div id="fightHeader" class="meta">Select a fight above to view details.</div>
+
+      <div id="fightBody" style="display:none;">
+        <div id="fightSummary" class="meta"></div>
+
+        <!-- victim & created at -->
+        <div id="victimRow" class="fight-meta-row" style="display:none;">
+          <div><span class="meta-label">Victim:</span><span id="victimIdEl">—</span></div>
+          <div><span class="meta-label">Created:</span><span id="createdAtEl">—</span></div>
+        </div>
+
+        <div id="killersContainer" class="killers"></div>
+
+        <label class="toggle-raw" id="toggleRaw">
+          <input type="checkbox" id="rawCheckbox" style="display:none" />
+          <span id="rawLabel">Show raw JSON</span>
+        </label>
+
+        <div id="rawJsonWrap" style="margin-top:8px; display:none;">
+          <pre id="fightJson">—</pre>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     const fightsTableBody = document.querySelector('#fightsTable tbody');
+    const fightHeader = document.getElementById('fightHeader');
+    const fightBody = document.getElementById('fightBody');
+    const fightSummary = document.getElementById('fightSummary');
+    const killersContainer = document.getElementById('killersContainer');
     const fightJson = document.getElementById('fightJson');
+    const toggleRaw = document.getElementById('toggleRaw');
+    const rawCheckbox = document.getElementById('rawCheckbox');
+    const rawJsonWrap = document.getElementById('rawJsonWrap');
+    const victimRow = document.getElementById('victimRow');
+    const victimIdEl = document.getElementById('victimIdEl');
+    const createdAtEl = document.getElementById('createdAtEl');
 
-    // Fetch all fights
+    let lastSelectedRow = null;
+
+    function formatMs(ms) {
+      if (ms == null) return '—';
+      const n = Number(ms);
+      if (Number.isNaN(n)) return String(ms);
+      if (n < 1000) return `${n} ms`;
+      return `${(n / 1000).toFixed(2)} s`;
+    }
+
+    function makeBar(percent, label) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'bar-row';
+      const left = document.createElement('div');
+      left.textContent = label;
+      const right = document.createElement('div');
+      right.textContent = (percent == null ? '—' : String(percent) + '%');
+      wrapper.appendChild(left);
+      wrapper.appendChild(right);
+
+      const barWrap = document.createElement('div');
+      barWrap.className = 'bar';
+      const fill = document.createElement('div');
+      fill.className = 'fill';
+      fill.style.width = (percent != null ? Math.max(0, Math.min(100, Number(percent))) + '%' : '0%');
+      barWrap.appendChild(fill);
+
+      const container = document.createElement('div');
+      container.appendChild(wrapper);
+      container.appendChild(barWrap);
+      return container;
+    }
+
+    function isDigitsOnly(v) {
+      return (typeof v === 'string' || typeof v === 'number') && String(v).match(/^\d+$/);
+    }
+
+    function createIdElement(id, linkAllowed = true) {
+      const text = id == null ? '—' : String(id);
+      if (linkAllowed && isDigitsOnly(text)) {
+        const a = document.createElement('a');
+        a.className = 'id-link';
+        a.href = `https://www.roblox.com/users/${encodeURIComponent(text)}`;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = text;
+        // prevent row click when clicking the link
+        a.addEventListener('click', (e) => e.stopPropagation());
+        return a;
+      } else {
+        const span = document.createElement('span');
+        span.textContent = text;
+        return span;
+      }
+    }
+
     async function loadFights() {
       try {
         const res = await fetch('/api/rowa/fights');
         const data = await res.json();
-        fightsTableBody.innerHTML = '';
 
-        if (data.success && data.fights.length) {
+        fightsTableBody.innerHTML = '';
+        if (data && data.success && Array.isArray(data.fights) && data.fights.length) {
           data.fights.forEach(fight => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${fight.fight_id}</td>
-              <td>${fight.victim_id}</td>
-              <td>${new Date(fight.created_at).toLocaleString()}</td>
-            `;
-            tr.addEventListener('click', () => loadFightDetails(fight.fight_id));
+
+            // Fight ID: plain text (no roblox link)
+            const tdFightId = document.createElement('td');
+            tdFightId.textContent = fight.fight_id ?? '—';
+
+            // Victim ID: linked if numeric
+            const tdVictim = document.createElement('td');
+            tdVictim.appendChild(createIdElement(fight.victim_id ?? '—', true));
+
+            // Created at: use fight.created_at if present
+            const tdCreated = document.createElement('td');
+            tdCreated.textContent = fight.created_at ? new Date(fight.created_at).toLocaleString() : '—';
+
+            tr.appendChild(tdFightId);
+            tr.appendChild(tdVictim);
+            tr.appendChild(tdCreated);
+
+            tr.addEventListener('click', () => {
+              if (lastSelectedRow) lastSelectedRow.classList.remove('row-selected');
+              tr.classList.add('row-selected');
+              lastSelectedRow = tr;
+              loadFightDetails(fight.fight_id);
+            });
+
             fightsTableBody.appendChild(tr);
           });
         } else {
-          fightsTableBody.innerHTML = '<tr><td colspan="3">No fights found.</td></tr>';
+          fightsTableBody.innerHTML = '<tr><td colspan="3" class="no-data">No fights found.</td></tr>';
         }
       } catch (err) {
-        fightsTableBody.innerHTML = `<tr><td colspan="3">Error loading fights: ${err}</td></tr>`;
+        console.error(err);
+        fightsTableBody.innerHTML = `<tr><td colspan="3" class="no-data">Error loading fights: ${String(err)}</td></tr>`;
       }
     }
 
     async function loadFightDetails(fightId) {
+      fightHeader.textContent = `Loading fight ${fightId}…`;
+      fightBody.style.display = 'none';
+      victimRow.style.display = 'none';
       try {
         const res = await fetch(`/api/rowa/fights/${fightId}`);
         const data = await res.json();
+
+        const fightArr = Array.isArray(data.fight) ? data.fight : (data.fight ? [data.fight] : []);
+        fightHeader.textContent = `Fight ${fightId}`;
+        fightBody.style.display = 'block';
+
+        // createdAt resolution: prefer top-level created_at, else first fight object created_at, else null
+        const createdAtVal = data.created_at || (fightArr[0] && fightArr[0].created_at) || null;
+        const createdAtText = createdAtVal ? new Date(createdAtVal).toLocaleString() : '—';
+
+        // Victim: prefer top-level victim_id (or data.victim), else fightArr[0].victim_id
+        const victimVal = data.victim_id ?? data.victim ?? (fightArr[0] && (fightArr[0].victim_id ?? fightArr[0].victim)) ?? null;
+
+        // Summary
+        const firstTime = fightArr.length ? formatMs(fightArr[0].time_since_fight_start_ms) : '—';
+        fightSummary.textContent = `${fightArr.length} killer(s). First killer time since fight start: ${firstTime}`;
+
+        // Show victim row
+        if (victimVal || createdAtVal) {
+          victimRow.style.display = 'flex';
+          // victim id with link (but not if not numeric)
+          victimIdEl.innerHTML = '';
+          victimIdEl.appendChild(createIdElement(victimVal ?? '—', true));
+          createdAtEl.textContent = createdAtText;
+        } else {
+          victimRow.style.display = 'none';
+        }
+
+        // Killers
+        killersContainer.innerHTML = '';
+        if (!fightArr.length) {
+          killersContainer.innerHTML = '<div class="no-data">No killer data in this fight.</div>';
+        } else {
+          fightArr.forEach(k => {
+            const wrap = document.createElement('div');
+            wrap.className = 'killer';
+
+            const leftCol = document.createElement('div');
+            leftCol.style.minWidth = '220px';
+            leftCol.className = 'killer-main';
+
+            const idLine = document.createElement('div');
+            idLine.style.display = 'flex';
+            idLine.style.justifyContent = 'space-between';
+            idLine.style.alignItems = 'center';
+
+            const idText = document.createElement('div');
+            idText.className = 'killer-id';
+
+            // Prefer known keys for killer id
+            const killerIdVal = k.killer_id ?? k.key ?? k.killer ?? '—';
+            const idElement = createIdElement(killerIdVal, true);
+            idText.appendChild(document.createTextNode('Killer: '));
+            idText.appendChild(idElement);
+
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.title = 'Copy killer id';
+            copyBtn.textContent = 'Copy ID';
+            copyBtn.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              navigator.clipboard?.writeText(String(killerIdVal ?? '')).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => copyBtn.textContent = 'Copy ID', 900);
+              }).catch(() => {
+                copyBtn.textContent = 'Copy';
+              });
+            });
+
+            actions.appendChild(copyBtn);
+            idLine.appendChild(idText);
+            idLine.appendChild(actions);
+
+            leftCol.appendChild(idLine);
+
+            const bars = document.createElement('div');
+            bars.className = 'bars';
+            bars.appendChild(makeBar(k.enemy_focus_percent, 'Enemy focus'));
+            bars.appendChild(makeBar(k.my_focus_percent, 'My focus'));
+
+            leftCol.appendChild(bars);
+
+            const rightCol = document.createElement('div');
+            rightCol.style.textAlign = 'right';
+            rightCol.style.minWidth = '120px';
+            rightCol.innerHTML = `
+              <div class="small">Last hit: ${formatMs(k.last_hit_ms)}</div>
+              <div class="small" style="margin-top:6px">Since start: ${formatMs(k.time_since_fight_start_ms)}</div>
+            `;
+
+            wrap.appendChild(leftCol);
+            wrap.appendChild(rightCol);
+
+            killersContainer.appendChild(wrap);
+          });
+        }
+
+        // Raw JSON
         fightJson.textContent = JSON.stringify(data, null, 2);
+        rawCheckbox.checked = false;
+        rawJsonWrap.style.display = 'none';
       } catch (err) {
-        fightJson.textContent = `Error loading fight ${fightId}: ${err}`;
+        fightHeader.textContent = `Error loading fight ${fightId}`;
+        fightBody.style.display = 'block';
+        victimRow.style.display = 'none';
+        killersContainer.innerHTML = `<div class="no-data">Error: ${String(err)}</div>`;
+        fightJson.textContent = `Error: ${String(err)}`;
       }
     }
+
+    // Raw toggle
+    toggleRaw.addEventListener('click', (e) => {
+      rawCheckbox.checked = !rawCheckbox.checked;
+      rawJsonWrap.style.display = rawCheckbox.checked ? 'block' : 'none';
+      document.getElementById('rawLabel').textContent = rawCheckbox.checked ? 'Hide raw JSON' : 'Show raw JSON';
+    });
+
+    // initial load
     loadFights();
   </script>
 </body>
