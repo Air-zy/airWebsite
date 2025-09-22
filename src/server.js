@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // configs
 const PRODUCTION_PUBLIC_DIRECTORY = path.join(__dirname, './dist')
 
-const { startMinify } = require('./minify.js');
+const { startMinify } = require('./modules/minify.js');
 startMinify({
   src: path.join(__dirname, './public'),
   dest: PRODUCTION_PUBLIC_DIRECTORY
@@ -35,6 +35,7 @@ app.use(require('./reqLogger.js'));
 app.use(express.json());
 app.use(compression({ threshold: 1024 })); // 1kb threshold
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
+app.use('/api/rowadb', require('./middleware/rowadb_middlware.js'))
 
 // routes 
 app.get('/home',       (req, res) => { return res.redirect('/index.html');            });
@@ -68,6 +69,8 @@ app.post('/api/get-anime',          require('./routes/anime/get_anime.js')      
 app.post('/api/commit-anime',       require('./routes/anime/commit_anime.js')      );
 app.post('/api/projects-update',    require('./routes/projects_update.js')         );
 
+app.post('/api/rowadb/fights',        require('./routes/rowa_fights.js')            );
+
 const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
 
@@ -76,17 +79,24 @@ app.use((req, res) => {
 });
 
 
-
-
-
 function toBase64(num) {
   const buffer = Buffer.alloc(4);
   buffer.writeUInt32BE(num);
   return buffer.toString("base64");
 }
 
-const { hashDirectory } = require('./hashDirectory.js');
+const { hashDirectory } = require('./modules/hashDirectory.js');
 app.listen(PORT, () => {
   const hash = hashDirectory(__dirname);
   console.log(`Server running on port ${PORT}, Hash ${toBase64(hash)}`);
 });
+
+const { healthCheck } = require('./DATABASE/mainDB.js');
+(async () => {
+  const ok = await healthCheck()
+  if (ok) {
+    console.log('[POSTGRES_DB] ready to use!')
+  } else {
+    console.log('[POSTGRES_DB] connection issue.')
+  }
+})()

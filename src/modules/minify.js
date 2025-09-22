@@ -31,7 +31,7 @@ async function processFile(filePath, srcDir, outDir) {
       
       content = `<!-- minified by avy \u2764\uFE0F -->\n${content}`;
       await fs.writeFile(destPath, content, 'utf8');
-      console.log(`Minified HTML: ${relPath}`);
+      //console.log(`Minified HTML: ${relPath}`);
 
     } else if (ext === '.js') {
       const input = await fs.readFile(filePath, 'utf8');
@@ -39,7 +39,7 @@ async function processFile(filePath, srcDir, outDir) {
       
       content = `// minified by avy \u2764\uFE0F\n${code}`;
       await fs.writeFile(destPath, content, 'utf8');
-      console.log(`Minified JS: ${relPath}`);
+      //console.log(`Minified JS: ${relPath}`);
 
     } else if (ext === '.css') {
       const input = await fs.readFile(filePath, 'utf8');
@@ -50,11 +50,11 @@ async function processFile(filePath, srcDir, outDir) {
       
       content = `/* minified by avy \u2764\uFE0F */\n${output.styles}`;
       await fs.writeFile(destPath, content, 'utf8');
-      console.log(`Minified CSS: ${relPath}`);
+      //console.log(`Minified CSS: ${relPath}`);
 
     } else {
       await fs.copyFile(filePath, destPath);
-      console.log(`Copied: ${relPath}`);
+      //console.log(`Copied: ${relPath}`);
     }
   } catch (err) {
     console.error(`Error processing ${relPath}:`, err);
@@ -81,7 +81,7 @@ async function startMinify({ src = 'src', dest = 'dist' } = {}) {
 
   console.log(`Minifying from ${srcDir} to ${outDir}`);
   await walkDirectory(srcDir, srcDir, outDir);
-  console.log('Done.');
+  console.log('Minify Done.');
 }
 
 module.exports = { startMinify };
