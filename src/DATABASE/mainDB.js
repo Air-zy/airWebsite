@@ -80,7 +80,6 @@ async function ensureTables() {
   }
 }
 
-// read only layer.... uhhh yeah.... note to self (only server/admin should use this...)
 function validateReadOnlySql(queryText) {
   if (!queryText || typeof queryText !== 'string') {
     throw new Error('Invalid SQL string');
@@ -95,11 +94,11 @@ function validateReadOnlySql(queryText) {
   }
 }
 
-// note to self (only server/admin should use this...)
+// read only layer.... uhhh yeah.... note to self (only server/admin should use)
 async function read(queryText, params = []) {
   validateReadOnlySql(queryText);
   try {
-    // unsafe needed because we accept "dynamic query strings"
+    // unsafe needed because we accept dynamic query strings
     const result = await sql.unsafe(queryText, params);
     return result;
   } catch (err) {
@@ -112,9 +111,10 @@ async function read(queryText, params = []) {
 
 async function getAllFights() {
   try {
-    const fights = await read(
-      'SELECT * FROM fights ORDER BY created_at DESC'
-    );
+    const fights = await sql`
+      SELECT * FROM fights
+      ORDER BY created_at DESC
+    `;
     return fights;
   } catch (err) {
     console.error('[getAllFights] error:', err);
@@ -125,10 +125,13 @@ async function getAllFights() {
 async function getContributionsByFightId(fightId) {
   try {
     const id = BigInt(fightId);
-    const contributions = await read(
-      'SELECT * FROM fight_contributions WHERE fight_id = $1 ORDER BY killer_id ASC',
-      [id]
-    );
+
+    const contributions = await sql`
+      SELECT *
+      FROM fight_contributions
+      WHERE fight_id = ${id}
+      ORDER BY killer_id ASC
+    `;
 
     return contributions; // array of contributions, or [] if none
   } catch (err) {
@@ -204,5 +207,6 @@ module.exports = {
   ensureTables,
 
   getAllFights,
-  getContributionsByFightId
+  getContributionsByFightId,
+  read
 };
