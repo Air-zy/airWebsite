@@ -63,9 +63,16 @@ async function ensureTables() {
         my_focus_percent INT,
         last_hit_ms INT,
         time_since_fight_start_ms INT,
+        enemy_dmg_me INT,
         PRIMARY KEY (fight_id, killer_id)
       )
     `;
+
+    await sql`
+      ALTER TABLE fight_contributions
+      ADD COLUMN IF NOT EXISTS enemy_dmg_me INT DEFAULT 0
+    `;
+
     console.log('[POSTGRES_DB] Tables ensured');
   } catch (err) {
     console.error('[POSTGRES_DB] Error ensuring tables:', err);
@@ -152,12 +159,13 @@ async function logFight(preVictimId, killers = [], raw = null) {
             const lastHitSeconds    = Math.round(k.lastHitMe ?? 0);
             const timeSinceSeconds  = Math.round(k.timeSinceFightStarted ?? 0);
             const killerKey         = BigInt(k.key)
+            const enemyDmgToMe      = Math.round(k.enemyDmgToMe ?? 0);
       
             await tx`
               INSERT INTO fight_contributions
-                (fight_id, killer_id, enemy_focus_percent, my_focus_percent, last_hit_ms, time_since_fight_start_ms)
+                (fight_id, killer_id, enemy_focus_percent, my_focus_percent, last_hit_ms, time_since_fight_start_ms, enemy_dmg_me)
               VALUES
-                (${fight.fight_id}, ${killerKey}, ${enemyFocusPercent}, ${myFocusPercent}, ${lastHitSeconds}, ${timeSinceSeconds})
+                (${fight.fight_id}, ${killerKey}, ${enemyFocusPercent}, ${myFocusPercent}, ${lastHitSeconds}, ${timeSinceSeconds}, ${enemyDmgToMe})
             `;
         }
     
