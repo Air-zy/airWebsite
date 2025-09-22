@@ -51,6 +51,7 @@ app.get('/anime',      (req, res) => { return res.redirect('/anime.html');      
 app.get('/encryption', (req, res) => { return res.redirect('/encryption/cbc.html');   });
 app.get('/trafic',     (req, res) => { return res.redirect('/api.html');              });
 
+app.get('/rowa/fights',             require('./routes/rowa_all_fights.js')         );
 app.get('/api/rblx',                require('./routes/api_rblx.js')                );
 app.get('/api/logs',                require('./routes/api_logs.js')                );
 app.get('/api/projects',            require('./routes/api_projects.js')            );

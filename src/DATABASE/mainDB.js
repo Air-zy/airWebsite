@@ -73,8 +73,23 @@ async function ensureTables() {
   }
 }
 
+async function getAllFights() {
+  try {
+    const fights = await sql`
+      SELECT * FROM fights
+      ORDER BY created_at DESC
+    `;
+    return fights;
+  } catch (err) {
+    console.error('[getAllFights] error:', err);
+    throw err;
+  }
+}
+
 
 /*
+must be authorized to use this!! silly
+
 logFight(victimId, killers, raw)
  - victimId: number (roblox player id)
  - killers: array of { key, EnemyFocusAgainstMe, MyFocusAgainstEnemy, lastHitMe, timeSinceFightStarted }
@@ -133,5 +148,6 @@ module.exports = {
   sql,
   healthCheck,
   logFight,
-  ensureTables
+  ensureTables,
+  getAllFights
 };
