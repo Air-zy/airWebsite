@@ -57,16 +57,31 @@ async function ensureTables() {
         killer_id BIGINT REFERENCES players(player_id),
         enemy_focus_percent INT,
         my_focus_percent INT,
-        last_hit_ms INT,
-        time_since_fight_start_ms INT,
+        last_hit INT,
+        since_fight_start INT,
         enemy_dmg_me INT,
+        me_dmg_enemy INT,
         PRIMARY KEY (fight_id, killer_id)
       )
     `;
 
+    /*await sql`
+      ALTER TABLE fight_contributions
+      RENAME COLUMN last_hit_ms TO last_hit
+    `;
+    await sql`
+      ALTER TABLE fight_contributions
+      RENAME COLUMN time_since_fight_start_ms TO since_fight_start
+    `;*/
+
     await sql`
       ALTER TABLE fight_contributions
       ADD COLUMN IF NOT EXISTS enemy_dmg_me INT DEFAULT 0
+    `;
+
+    await sql`
+      ALTER TABLE fight_contributions
+      ADD COLUMN IF NOT EXISTS me_dmg_enemy INT DEFAULT 100
     `;
 
     console.log('[POSTGRES_DB] Tables ensured');
@@ -136,7 +151,27 @@ async function getContributionsByFightId(fightId) {
   }
 }
 
-
+async function getRecentContributions(limit = 100) {
+  try {
+    const contributions = await sql`
+      SELECT fc.*, f.victim_id
+      FROM fight_contributions fc
+      JOIN fights f USING(fight_id)
+      WHERE fc.fight_id IN (
+        SELECT fight_id
+        FROM fight_contributions
+        GROUP BY fight_id
+        ORDER BY fight_id DESC
+        LIMIT ${limit}
+      )
+      ORDER BY fc.fight_id DESC, fc.killer_id ASC
+    `;
+    return contributions;
+  } catch (err) {
+    console.error('[getRecentContributions] error:', err);
+    throw err;
+  }
+}
 
 /*
 must be authorized to use this!! silly
@@ -183,12 +218,13 @@ async function logFight(preVictimId, killers = [], raw = null) {
             const timeSinceSeconds  = Math.round(k.timeSinceFightStarted ?? 0);
             const killerKey         = BigInt(k.key)
             const enemyDmgToMe      = Math.round(k.enemyDmgToMe ?? 0);
+            const meDmgEnemy        = Math.round(k.myDmgToEnemy ?? 0);
       
             await tx`
               INSERT INTO fight_contributions
-                (fight_id, killer_id, enemy_focus_percent, my_focus_percent, last_hit_ms, time_since_fight_start_ms, enemy_dmg_me)
+                (fight_id, killer_id, enemy_focus_percent, my_focus_percent, last_hit, since_fight_start, enemy_dmg_me, me_dmg_enemy)
               VALUES
-                (${fight.fight_id}, ${killerKey}, ${enemyFocusPercent}, ${myFocusPercent}, ${lastHitSeconds}, ${timeSinceSeconds}, ${enemyDmgToMe})
+                (${fight.fight_id}, ${killerKey}, ${enemyFocusPercent}, ${myFocusPercent}, ${lastHitSeconds}, ${timeSinceSeconds}, ${enemyDmgToMe}, ${meDmgEnemy})
             `;
         }
     
@@ -204,5 +240,6 @@ module.exports = {
 
   getAllFights,
   getContributionsByFightId,
+  getRecentContributions,
   read
 };

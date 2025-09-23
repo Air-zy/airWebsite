@@ -51,8 +51,9 @@ app.get('/anime',      (req, res) => { return res.redirect('/anime.html');      
 app.get('/encryption', (req, res) => { return res.redirect('/encryption/cbc.html');   });
 app.get('/trafic',     (req, res) => { return res.redirect('/api.html');              });
 
-app.get('/api/rowa/fights',         require('./routes/rowa2/rowa_all_fights.js')   );
+app.get('/api/rowa/fights/recent',  require('./routes/rowa2/getFightsRecent.js')   );
 app.get('/api/rowa/fights/:id',     require('./routes/rowa2/getFightById.js')      );
+app.get('/api/rowa/fights',         require('./routes/rowa2/rowa_all_fights.js')   );
 app.get('/api/rblx',                require('./routes/api_rblx.js')                );
 app.get('/api/logs',                require('./routes/api_logs.js')                );
 app.get('/api/projects',            require('./routes/api_projects.js')            );
@@ -71,7 +72,7 @@ app.post('/api/get-anime',          require('./routes/anime/get_anime.js')      
 app.post('/api/commit-anime',       require('./routes/anime/commit_anime.js')      );
 app.post('/api/projects-update',    require('./routes/projects_update.js')         );
 
-app.post('/api/rowadb/fights',        require('./routes/rowa2/rowa_fights.js')     );
+app.post('/api/rowadb/fights',      require('./routes/rowa2/rowa_fights.js')       );
 
 const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
