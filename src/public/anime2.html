@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Decompress & Display Anime Data</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;margin:20px}
+    button{padding:.5rem 1rem;border-radius:8px;border:1px solid #ccc;background:#f6f6f6;cursor:pointer}
+    #info{margin-top:12px}
+    pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:8px;max-height:60vh;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>Decompress & Display Anime Data</h1>
+  <p>Click <strong>Load & Decompress</strong> to fetch the gzipped blob from your API, decompress it (with <code>pako.ungzip</code>), and show the JSON.</p>
+
+  <div>
+    <button id="load">Load & Decompress</button>
+    <span id="status" style="margin-left:12px"></span>
+  </div>
+
+  <div id="info"></div>
+  <pre id="output">(decompressed JSON will appear here)</pre>
+
+  <!-- pako (gzip/deflate) -->
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+  <script>
+    // Adjust this URL to match your route if needed
+    const DATA_URL = '/api/anime2/data';
+
+    const btn = document.getElementById('load');
+    const status = document.getElementById('status');
+    const info = document.getElementById('info');
+    const output = document.getElementById('output');
+
+    btn.addEventListener('click', async () => {
+      status.textContent = 'Loading...';
+      info.textContent = '';
+      output.textContent = '';
+
+      try {
+        const resp = await fetch(DATA_URL, { method: 'GET' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+        // get raw bytes
+        const ab = await resp.arrayBuffer();
+        const compressed = new Uint8Array(ab);
+        const compressedSize = compressed.byteLength;
+
+        // detect gzip magic bytes 0x1f 0x8b
+        let looksGzip = compressedSize >= 2 && compressed[0] === 0x1f && compressed[1] === 0x8b;
+        let jsonText;
+
+        if (looksGzip) {
+          // decompress with pako
+          const decompressed = pako.ungzip(compressed);
+          jsonText = new TextDecoder('utf-8').decode(decompressed);
+        } else {
+          // maybe the server already sent decompressed JSON (or a different encoding)
+          try {
+            jsonText = new TextDecoder('utf-8').decode(compressed);
+            // quick sanity check — if it doesn't look like JSON, attempt ungzip as fallback
+            if (!jsonText.trim().startsWith('{') && !jsonText.trim().startsWith('[')) {
+              const decompressed = pako.ungzip(compressed);
+              jsonText = new TextDecoder('utf-8').decode(decompressed);
+              looksGzip = true;
+            }
+          } catch (e) {
+            // if decode fails, try ungzip
+            const decompressed = pako.ungzip(compressed);
+            jsonText = new TextDecoder('utf-8').decode(decompressed);
+            looksGzip = true;
+          }
+        }
+
+        const decompressedSize = new TextEncoder().encode(jsonText).length;
+
+        // parse JSON if possible
+        let parsed;
+        try {
+          parsed = JSON.parse(jsonText);
+        } catch (e) {
+          parsed = jsonText; // show raw text if not valid JSON
+        }
+
+        info.innerHTML = `Compressed: <strong>${compressedSize}</strong> bytes<br>Decompressed: <strong>${decompressedSize}</strong> bytes<br>Detected gzip: <strong>${looksGzip}</strong>`;
+        output.textContent = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
+        status.textContent = 'Done';
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'Error';
+        info.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+      }
+    });
+  </script>
+</body>
+</html>

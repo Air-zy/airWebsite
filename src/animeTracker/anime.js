@@ -208,12 +208,12 @@ async function init() {
 
   console.log('[anime] starting seasonsNow');
   await seasonsNow(animeMap, 1);
-  /*console.log('[anime] starting TopR17');
+  console.log('[anime] starting TopR17');
   await animesTopR17(animeMap, 1);
   console.log('[anime] starting TopPg13');
   await animesTopPg13(animeMap, 1);
   console.log('[anime] starting TopR');
-  await animesTopR(animeMap);*/
+  await animesTopR(animeMap);
 
   console.log('[anime done]');//, animeMap);
   setAnimeData(animeMap)
