@@ -122,7 +122,7 @@ async function seasonsNow(animeMap, mpage) {
   }
 }
 
-async function animesTopR17() {
+async function animesTopR17(animeMap, mpage) {
   const params = {
     filter: 'favorite',
     rating: 'r17',
@@ -148,7 +148,7 @@ async function animesTopR17() {
   }
 }
 
-async function animesTopPg13() {
+async function animesTopPg13(animeMap, mpage) {
   const params = {
     filter: 'favorite',
     rating: 'pg13',
@@ -174,7 +174,7 @@ async function animesTopPg13() {
   }
 }
 
-async function animesTopR() {
+async function animesTopR(animeMap, mpage) {
   const params = {
     filter: 'favorite',
     rating: 'r',
@@ -213,7 +213,7 @@ async function init() {
   console.log('[anime] starting TopPg13');
   await animesTopPg13(animeMap, 1);
   console.log('[anime] starting TopR');
-  await animesTopR(animeMap);
+  await animesTopR(animeMap, 1);
 
   console.log('[anime done]');//, animeMap);
   setAnimeData(animeMap)
