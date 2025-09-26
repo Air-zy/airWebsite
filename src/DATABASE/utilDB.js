@@ -16,9 +16,10 @@ async function healthCheck() {
 async function ensureTables() {
   try {
     // animeData
+    //await sql`DROP TABLE IF EXISTS big_value;` // TODO remove this after use lol
     await sql`
-      CREATE TABLE big_value (
-        id integer PRIMARY KEY,  -- e.g. always use id = 1
+      CREATE TABLE IF NOT EXISTS big_value (
+        id integer PRIMARY KEY,
         data bytea NOT NULL
       );
     `;
