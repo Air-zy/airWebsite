@@ -4,7 +4,7 @@ module.exports = async (req, res) => {
   try {
     const blob = await getAnimeDataCompressed();
     if (!blob) {
-      return res.status(404).send('No data found');
+      return res.status(404).send('No Compressed Anime data found');
     }
     res.send(blob);
   } catch (err) {
