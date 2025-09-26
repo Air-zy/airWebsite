@@ -1,23 +1,5 @@
-const envDecrypt = require('../envDecrypt.js');
-const postgres = require('postgres');
-
-function tryDecrypt(envVal) {
-  return envDecrypt(process.env.airKey, envVal);
-}
-
-const MAX_CONNS = 5;
-const sql = postgres({
-  host:     tryDecrypt(process.env.DATABASE_HOST),
-  database: tryDecrypt(process.env.DATABASE_NAME),
-  username: tryDecrypt(process.env.DATABASE_USER),
-  password: tryDecrypt(process.env.DATABASE_PASSWORD),
-  port:     tryDecrypt(process.env.DATABASE_PORT),
-
-  max: MAX_CONNS,
-  idle_timeout: 10_000,
-  connect_timeout: 30_000,
-  ssl: 'require'
-});
+const { getSQL } = require("./parseSQL.js")
+const sql = getSQL(process.env.ROWA_DB);
 
 // literally just a db ping
 async function healthCheck() {
@@ -82,6 +64,14 @@ async function ensureTables() {
     await sql`
       ALTER TABLE fight_contributions
       ADD COLUMN IF NOT EXISTS me_dmg_enemy INT DEFAULT 100
+    `;
+
+    // this was a fix
+    await sql`
+      SELECT setval(
+        pg_get_serial_sequence('fights', 'fight_id'),
+        COALESCE((SELECT MAX(fight_id) FROM fights), 0)
+      )
     `;
 
     console.log('[POSTGRES_DB] Tables ensured');

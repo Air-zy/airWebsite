@@ -54,6 +54,7 @@ app.get('/trafic',     (req, res) => { return res.redirect('/api.html');        
 app.get('/api/rowa/fights/recent',  require('./routes/rowa2/getFightsRecent.js')   );
 app.get('/api/rowa/fights/:id',     require('./routes/rowa2/getFightById.js')      );
 app.get('/api/rowa/fights',         require('./routes/rowa2/rowa_all_fights.js')   );
+app.get('/api/anime2/data',         require('./routes/anime2/data.js')   );
 app.get('/api/rblx',                require('./routes/api_rblx.js')                );
 app.get('/api/logs',                require('./routes/api_logs.js')                );
 app.get('/api/projects',            require('./routes/api_projects.js')            );
@@ -94,14 +95,22 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}, Hash ${toBase64(hash)}`);
 });
 
-const { healthCheck, ensureTables } = require('./DATABASE/mainDB.js');
+
+const { healthCheck: rowaHealthCheck, ensureTables: rowaEnsureTables } = require('./DATABASE/rowaDB.js');
+const { healthCheck: utilHealthCheck, ensureTables: utilEnsureTables } = require('./DATABASE/utilDB.js');
+
 (async () => {
-  const ok = await healthCheck()
-  if (ok) {
+  const ok = await rowaHealthCheck()
+  const ok2 = await utilHealthCheck()
+  if (ok & ok2) {
     console.log('[POSTGRES_DB] ready to use')
-    await ensureTables();
+    await rowaEnsureTables();
+    await utilEnsureTables();
     console.log('[POSTGRES_DB] init success!')
   } else {
     console.log('[POSTGRES_DB] connection issue.')
   }
+
+  const { init } = require('./animeTracker/anime.js')
+  init()
 })()

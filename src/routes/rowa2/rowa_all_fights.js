@@ -1,4 +1,4 @@
-const { getAllFights } = require('../../DATABASE/mainDB.js');
+const { getAllFights } = require('../../DATABASE/rowaDB.js');
 
 module.exports = async (req, res) => {
   try {

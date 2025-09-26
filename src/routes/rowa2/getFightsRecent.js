@@ -1,4 +1,4 @@
-const { getRecentContributions } = require('../../DATABASE/mainDB.js');
+const { getRecentContributions } = require('../../DATABASE/rowaDB.js');
 
 module.exports = async (req, res) => {
   try {
