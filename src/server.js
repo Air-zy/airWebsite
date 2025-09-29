@@ -111,7 +111,4 @@ const { healthCheck: utilHealthCheck, ensureTables: utilEnsureTables } = require
   } else {
     console.log('[POSTGRES_DB] connection issue.')
   }
-
-  const { init } = require('./animeTracker/anime.js')
-  init()
 })()
