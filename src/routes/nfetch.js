@@ -9,17 +9,16 @@ module.exports = async (req, res) => { // node fetch gateway
     }
     
     const { url, options } = req.body;
-    console.log("nfetch:", url, options)
     const response = await fetch(url, options);
-    
-    console.log("nfetch got response....")
     res.status(response.status);
     response.headers.forEach((value, key) => {
       res.setHeader(key, value);
     });
     
+    console.log("ready to send response")
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    console.log("sending respones buffer")
     res.send(buffer);
     //response.body.pipe(res);
   } catch (err) {
