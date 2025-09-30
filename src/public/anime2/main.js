@@ -23,19 +23,6 @@ function buildGraph(map) {
   return graph;
 }
 
-
-function normalizeEmbeddings(embeddings, size) {
-  const xs = embeddings.map(e => e[0]);
-  const ys = embeddings.map(e => e[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-
-  return embeddings.map(([x, y]) => [
-    ((x - minX) / (maxX - minX)) * (size * 0.9) + size * 0.05, // margin
-    ((y - minY) / (maxY - minY)) * (size * 0.9) + size * 0.05
-  ]);
-}
-
 async function draw(graph, embeddings, nodes, map) {
     const canvas = document.getElementById('graph');
     const ctx = canvas.getContext('2d');
@@ -164,94 +151,14 @@ async function draw(graph, embeddings, nodes, map) {
   render();
 }
 
-
-function verifyWalks(walks, graph) {
-    const allNodes = new Set(Object.keys(graph)); // or graph.keys() if Map
-    const seen = new Set();
-    for (const walk of walks) {
-    for (const id of walk) {
-        seen.add(String(id)); // make sure types match
-    }
-    }
-
-    // check coverage
-    const missing = [...allNodes].filter(id => !seen.has(id));
-
-    if (missing.length === 0) {
-    console.log("✅ All nodes are covered in the walks");
-    } else {
-    console.log("❌ Missing nodes:", missing);
-    }
-}
-
-function computeNormalizedLaplacian(mat) {
-  const n = mat.length;
-  const L = Array.from({length: n}, () => Array(n).fill(0));
-
-  // compute D^-1/2
-  const D_invSqrt = mat.map(row => 0); // placeholder
-  for (let i = 0; i < n; i++) {
-    const deg = mat[i].reduce((a,b)=>a+b, 0);
-    D_invSqrt[i] = deg > 0 ? 1 / Math.sqrt(deg) : 0;
-  }
-
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      if (i === j) L[i][j] = 1; // start with identity
-      L[i][j] -= D_invSqrt[i] * mat[i][j] * D_invSqrt[j];
-    }
-  }
-  return L;
-}
-
-
-import SVD from './node2vec/svd.js';
-function getSVD(matrix) {
-    // run SVD (matrix is m x n; here m == n == nodes.length)
-    console.log("starting svd");
-
-    // Call the SVD function with desired options
-    // Set withu = true (we want U), withv = false (we don't need V)
-    const res = SVD(matrix, true, false); // eps and tol are optional, defaults can be used
-    console.log("svd result:", res);
-
-    // Extract U and singular values q
-    const { u, q } = res;
-    return { u, q };
-}
-//import { exactGraphDiameter } from './graph_stats/diameter.js';
-import { generateWalksForAllNodes, buildCooccurrence, toMatrix } from './node2vec/randomWalk.js';
-
 async function main(map) {
     console.log("starting")
     const graph = await buildGraph(map);
-    //console.log("map:", map)
-    //console.log("graph", graph)
-
-    /*const { diameter, effectiveDiameter } = exactGraphDiameter(graph);
-    console.log("Exact Diameter:", diameter);
-    console.log("Exact 90% Effective Diameter:", effectiveDiameter);*/
-
-    // generate walks as before
-    const walks = generateWalksForAllNodes(graph, 10, 15); // 10 walks per node, length 15
-    //console.log("walks created and veri", walks)
-    verifyWalks(walks, graph)
-
-    const cooccurMap = buildCooccurrence(walks, 2);
-    //console.log("cooccur map:", cooccurMap)
-
-    const nodes = Object.keys(map);
-    const matrix = toMatrix(cooccurMap, nodes)
-    console.log("matrix:", matrix)
-
-    const L = computeNormalizedLaplacian(matrix);
-    const SVD_EMBEDDINGS = getSVD(L);                // this guy important duh
-    console.log("SVD_EMBEDDINGS:", SVD_EMBEDDINGS)
-
-    const { u } = SVD_EMBEDDINGS;
+    console.log("map:", map)
+    /*const { u } = SVD_EMBEDDINGS;
     const embeddings2D = u.map(row => [row[1], row[2]]);
     console.log("embeddings: ", embeddings2D)
-    await draw(graph, embeddings2D, nodes, map)
+    await draw(graph, embeddings2D, nodes, map)*/
 }
 
 (async () => {
@@ -267,34 +174,8 @@ async function main(map) {
         return map
     }
     
-
-    function topKMap(map, K) {
-        // Convert map to array of [nodeId, nodeData] pairs
-        const entries = Object.entries(map);
-
-        // Compute a "score" for each node — here I'm summing weights in recoms
-        const scored = entries.map(([nodeId, node]) => {
-            const score = node.recoms.reduce((sum, r) => sum + r.v, 0);
-            return [nodeId, node, score];
-        });
-
-        // Sort by score descending and take top K
-        scored.sort((a, b) => b[2] - a[2]);
-        const topK = scored.slice(0, K);
-
-        // Build new map
-        const newMap = {};
-        for (const [nodeId, node] of topK) {
-            newMap[nodeId] = node;
-        }
-
-        return newMap;
-    }
-
-
-
-        const map = await getParsed();
-    main(topKMap(map, 1000))
+    const map = await getParsed();
+    main(map)
 })();
 
 const canvas = document.getElementById('graph');

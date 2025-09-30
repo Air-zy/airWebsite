@@ -75,6 +75,8 @@ app.post('/api/commit-anime',       require('./routes/anime/commit_anime.js')   
 app.post('/api/projects-update',    require('./routes/projects_update.js')         );
 
 app.post('/api/rowadb/fights',      require('./routes/rowa2/rowa_fights.js')       );
+app.post('/nfetch',                 require('./routes/nfetch.js')                  );
+ 
 
 const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
