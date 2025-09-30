@@ -1,4 +1,4 @@
-const envDecrypt = require('../utils/envDecrypt.js');
+const envDecrypt = require('../envDecrypt.js');
 const clusterAcolyteToken = process.env.airClusterAcolyteToken
 
 module.exports = async (req, res) => { // node fetch gateway
