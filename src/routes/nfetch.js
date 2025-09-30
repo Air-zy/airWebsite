@@ -11,6 +11,7 @@ module.exports = async (req, res) => { // node fetch gateway
     
     const { url, options } = req.body;
     const response = await fetch(url, options);
+    response.headers.delete("content-encoding");
     res.status(response.status);
     response.headers.forEach((value, key) => {
       res.setHeader(key, value);
