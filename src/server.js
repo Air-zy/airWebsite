@@ -50,7 +50,7 @@ app.get('/deepwoken',  (req, res) => { return res.redirect('/deepwoken.html');  
 app.get('/anime',      (req, res) => { return res.redirect('/anime.html');            });
 app.get('/encryption', (req, res) => { return res.redirect('/encryption/cbc.html');   });
 app.get('/trafic',     (req, res) => { return res.redirect('/api.html');              });
-app.get('/anime2',     (req, res) => { return res.redirect('/anime2.html');           });
+app.get('/anime2',     (req, res) => { return res.redirect('/anime2/main.html');      });
 
 app.get('/api/rowa/fights/recent',  require('./routes/rowa2/getFightsRecent.js')   );
 app.get('/api/rowa/fights/:id',     require('./routes/rowa2/getFightById.js')      );
