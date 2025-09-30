@@ -4,7 +4,7 @@ const clusterAcolyteToken = process.env.airClusterAcolyteToken
 module.exports = async (req, res) => { // node fetch gateway
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || envDecrypt(process.env.aniPublicClusterKey, authHeader) !== clusterAcolyteToken) {
+    if (!authHeader || envDecrypt(process.env.publicClusterKey, authHeader) !== clusterAcolyteToken) {
       return res.sendStatus(401);
     }
     
@@ -16,11 +16,12 @@ module.exports = async (req, res) => { // node fetch gateway
       res.setHeader(key, value);
     });
     
-    /*const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    res.send(buffer);*/
-    response.body.pipe(res);
+    res.send(buffer);
+    //response.body.pipe(res);
   } catch (err) {
+    console.log(err)
     res.status(500).json({
       acolyte_error: err.toString()
     });
