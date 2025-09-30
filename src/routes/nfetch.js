@@ -1,5 +1,6 @@
 const envDecrypt = require('../envDecrypt.js');
 const clusterAcolyteToken = process.env.airClusterAcolyteToken
+const { Readable, pipeline } = require("stream");
 
 module.exports = async (req, res) => { // node fetch gateway
   try {
@@ -15,12 +16,10 @@ module.exports = async (req, res) => { // node fetch gateway
       res.setHeader(key, value);
     });
     
-    console.log("ready to send response")
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    console.log("sending respones buffer")
-    res.send(buffer);
-    //response.body.pipe(res);
+    const nodeStream = Readable.fromWeb(response.body);
+    pipeline(nodeStream, res, (err) => {
+      if (err) console.error("Pipeline failed:", err);
+    });
   } catch (err) {
     console.log(err)
     res.status(500).json({
