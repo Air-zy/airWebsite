@@ -222,6 +222,7 @@ async function main(map) {
 
     const nodes = Object.keys(map).map(k => Number(k));
 
+    /*
     const embeddingsArray = nodes.map(id => {
         const emb = map[id]?.embd;
         if (!emb) return null;
@@ -245,7 +246,9 @@ async function main(map) {
         };
         reducedIndex++;
     });
+    */
 
+    console.log("drawing")
     await draw(graph, nodes, map)
 }
 

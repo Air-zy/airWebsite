@@ -36,7 +36,7 @@ function covarianceMatrix(data) {
 }
 
 // 3. Power iteration to find top eigenvector
-function powerIteration(A, iterations = 1000, tol = 1e-6) {
+function powerIteration(A, iterations = 4000, tol = 1e-6) {
     const n = A.length;
     let b = Array(n).fill(0).map(() => Math.random());
     let norm = Math.sqrt(b.reduce((sum, x) => sum + x*x, 0));
@@ -82,7 +82,8 @@ function deflateMatrix(A, eigenvector, eigenvalue) {
 }
 
 export function pca3D(data) {
-    const { centered } = centerData(data);
+    //const { centered } = centerData(data);
+    const centered = data
     const cov = covarianceMatrix(centered);
 
     // Top eigenvector
