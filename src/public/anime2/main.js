@@ -67,6 +67,27 @@ function hsvToRgb(h, s, v) {
     return `rgb(${r},${g},${b})`;
 }
 
+let xIndex = 0;
+let yIndex = 1;
+function setPos(nodes, map) {
+    // set pos
+    nodes.forEach(id => {
+        const emb = map[id]?.embd;
+        if (emb) {
+            // Take the first two values of emb.u as x and y
+            const values = Object.values(emb.u);
+            const x = values[xIndex] ?? 0; // fallback to 0 if undefined
+            const y = values[yIndex] ?? 0;
+            map[id].pos = { x, y };
+        }
+    });
+}
+
+const xSlider = document.getElementById("xSlider");
+const ySlider = document.getElementById("ySlider");
+const xVal = document.getElementById("xVal");
+const yVal = document.getElementById("yVal");
+
 //async function draw(graph, embeddings, nodes, map) {
 async function draw(graph, nodes, map) {
     const canvas = document.getElementById('graph');
@@ -76,31 +97,40 @@ async function draw(graph, nodes, map) {
     canvas.width = size;
     canvas.height = size;
 
-    const qValues = nodes.map(id => map[id]?.embd?.u[2] ?? 0);
+    const qValues = nodes.map(id => map[id]?.embd?.u[0] ?? 0);
     const minVal = Math.min(...qValues);
     const maxVal = Math.max(...qValues);
     function normalizeQ(nodeId) {
-      const val = map[nodeId]?.embd?.u[2] ?? 0;
+      const val = map[nodeId]?.embd?.u[0] ?? 0;
       return (val - minVal) / (maxVal - minVal);
-  }
+    }
 
+    function getBasePoints() {
+        return normalizeEmbeddings(
+            nodes.map(id => {
+                const pos = map[id]?.pos;
+                return [pos.x, pos.y];
+            }),
+            size
+        );
+    }
+    let basePoints = getBasePoints();
 
-    // Extract embeddings from map and normalize
-    /*const basePoints = normalizeEmbeddings(
-        nodes.map(id => Object.values(map[id]?.embd?.u) || [0, 0]), 
-        size
-    );*/
+    xSlider.addEventListener("input", () => {
+        xIndex = parseInt(xSlider.value, 10);
+        xVal.textContent = xIndex;
+        setPos(nodes, map);
+        basePoints = getBasePoints();
+        render();
+    });
 
-    const basePoints = normalizeEmbeddings(
-        nodes.map(id => {
-            const emb = map[id]?.embd;
-            if (!emb) return [0, 0];
-            return Object.values(emb.u).map(x => x * emb.q);
-        }),
-        size
-    );
-
-
+    ySlider.addEventListener("input", () => {
+        yIndex = parseInt(ySlider.value, 10);
+        yVal.textContent = yIndex;
+        setPos(nodes, map);
+        basePoints = getBasePoints();
+        render();
+    });
 
     // nodeId -> embedding index
     const nodeIndex = new Map(nodes.map((id, idx) => [Number(id), idx]));
@@ -123,15 +153,11 @@ async function draw(graph, nodes, map) {
       ctx.lineWidth = 0.5;
       for (const [src, neighbors] of graph.entries()) {
           const srcIdx = nodeIndex.get(src);
-          if (srcIdx === undefined) continue;
           const srcPoint = basePoints[srcIdx];
-          if (!srcPoint) continue;
           const [x1, y1] = transform(srcPoint);
           for (const [tgt] of neighbors.entries()) {
               const tgtIdx = nodeIndex.get(tgt);
-              if (tgtIdx === undefined) continue;
               const tgtPoint = basePoints[tgtIdx];
-              if (!tgtPoint) continue;
               const [x2, y2] = transform(tgtPoint);
               ctx.beginPath();
               ctx.moveTo(x1, y1);
@@ -214,39 +240,16 @@ async function draw(graph, nodes, map) {
     render();
 }
 
-import { pca3D } from './pca.js';
+import { mdsMain } from './mds.js';
 async function main(map) {
     console.log("starting")
     const graph = await buildGraph(map);
     console.log("map:", map)
 
     const nodes = Object.keys(map).map(k => Number(k));
+    mdsMain(map, nodes)
 
-    /*
-    const embeddingsArray = nodes.map(id => {
-        const emb = map[id]?.embd;
-        if (!emb) return null;
-        return Object.values(emb.u).map(x => x);// * emb.q); //
-    }).filter(e => e !== null);
-
-    const reduced2D = pca3D(embeddingsArray);
-    console.log("reduced2D", reduced2D); // Array of [x, y] coordinates
-
-    let reducedIndex = 0;
-    nodes.forEach(id => {
-        if (!map[id]?.embd) return; // skip missing
-        // Replace embd with reduced 2D coordinates
-        map[id].embd = {
-            u: {
-                0: reduced2D[reducedIndex][0],
-                1: reduced2D[reducedIndex][1],
-                2: reduced2D[reducedIndex][2]
-            },
-            q: 1 // optional, we can set q=1 because it's already scaled
-        };
-        reducedIndex++;
-    });
-    */
+    setPos(nodes, map)
 
     console.log("drawing")
     await draw(graph, nodes, map)
