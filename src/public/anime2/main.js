@@ -147,18 +147,39 @@ async function draw(graph, nodes, map) {
         ];
     }
 
+      // --- find min and max weights ---
+    let minW = Infinity, maxW = -Infinity;
+    for (const neighbors of graph.values()) {
+        for (const w of neighbors.values()) {
+        if (w < minW) minW = w;
+        if (w > maxW) maxW = w;
+        }
+    }
+    if (minW === maxW) { minW = 0; } // avoid div by zero
+
+    function normalizeWeight(w) {
+        return (w - minW) / (maxW - minW || 1); // 0..1
+    }
+
+
     function render() {
       ctx.clearRect(0, 0, size, size);
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 0.5;
+      //ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 0.3;
       for (const [src, neighbors] of graph.entries()) {
           const srcIdx = nodeIndex.get(src);
           const srcPoint = basePoints[srcIdx];
           const [x1, y1] = transform(srcPoint);
-          for (const [tgt] of neighbors.entries()) {
+          for (const [tgt, weight] of neighbors.entries()) {
               const tgtIdx = nodeIndex.get(tgt);
               const tgtPoint = basePoints[tgtIdx];
               const [x2, y2] = transform(tgtPoint);
+
+              const wNorm = normalizeWeight(weight);
+              //console.log(weight, wNorm)
+
+              ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.95 * wNorm})`;
+
               ctx.beginPath();
               ctx.moveTo(x1, y1);
               ctx.lineTo(x2, y2);
@@ -243,7 +264,6 @@ async function draw(graph, nodes, map) {
 import { mdsMain } from './mds.js';
 async function main(map) {
     console.log("starting")
-    const graph = await buildGraph(map);
     console.log("map:", map)
 
     const nodes = Object.keys(map).map(k => Number(k));
@@ -252,6 +272,8 @@ async function main(map) {
     setPos(nodes, map)
 
     console.log("drawing")
+
+    const graph = await buildGraph(map);
     await draw(graph, nodes, map)
 }
 
