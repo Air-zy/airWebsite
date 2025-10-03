@@ -44,12 +44,6 @@ function cosineSim(a,b){
   if (na <= EPS || nb <= EPS) return 0; // one zero: treat as dissimilar
   return Math.max(-1, Math.min(1, n / (na * nb)));
 }
-function euclidean(a,b){
-  const L = Math.min(a.length,b.length);
-  let s=0;
-  for (let i=0;i<L;i++){ const d=a[i]-b[i]; s+=d*d; }
-  return Math.sqrt(s);
-}
 
 // normalize vector to unit length (in-place copy)
 function l2normalize(v){
@@ -66,7 +60,6 @@ function l2normalize(v){
  *
  * options:
  *   - topK: number to return (default 20)
- *   - metric: "cosine"|"euclid" (default "cosine")
  *   - scoring: "centroid"|"max"|"avgTop"|"ensemble" (default "centroid")
  *   - useWeights: true/false (apply dim weighting simulating Σ) default true
  *   - weightOpts: passed to applyDimWeights
@@ -77,7 +70,6 @@ function l2normalize(v){
 export function recommend(seedIds, map, options = {}) {
   const opts = Object.assign({
     topK: 20,
-    metric: 'cosine',
     scoring: 'centroid',
     useWeights: true,
     weightOpts: { method: 'power', p: 1.0 },
@@ -95,8 +87,7 @@ export function recommend(seedIds, map, options = {}) {
     if (!emb || !emb.embd) continue;
     let v = uToArray(emb.embd);
     if (opts.useWeights) v = applyDimWeights(v, opts.weightOpts);
-    // (optional) normalize seeds so centroid isn't dominated by magnitude
-    if (opts.metric === 'cosine') v = l2normalize(v);
+    v = l2normalize(v) // cosine
     seedVecs.push({ id: sid, vec: v });
   }
   if (seedVecs.length === 0) return [];
@@ -111,7 +102,7 @@ export function recommend(seedIds, map, options = {}) {
       for (let i=0;i<s.vec.length;i++) mean[i] += s.vec[i];
     }
     for (let i=0;i<D;i++) mean[i] /= seedVecs.length;
-    if (opts.metric === 'cosine') queryVec = l2normalize(mean); else queryVec = mean;
+    queryVec = l2normalize(mean)
   }
 
   // Precompute similarities of each candidate to seeds
@@ -123,31 +114,32 @@ export function recommend(seedIds, map, options = {}) {
     if (!entry || !entry.embd) continue;
     let v = uToArray(entry.embd);
     if (opts.useWeights) v = applyDimWeights(v, opts.weightOpts);
-    if (opts.metric === 'cosine') v = l2normalize(v);
+    v = l2normalize(v);
 
     let score = 0;
     if (opts.scoring === 'centroid') {
       if (!queryVec) continue;
-      score = (opts.metric === 'cosine') ? cosineSim(v, queryVec) : -euclidean(v, queryVec);
-      // note: for euclidean we negate so higher is better for uniformity
+      score = cosineSim(v, queryVec)
     } else if (opts.scoring === 'max') {
       let best = -Infinity;
       for (const s of seedVecs) {
-        const val = opts.metric === 'cosine' ? cosineSim(v, s.vec) : -euclidean(v, s.vec);
+        const val = cosineSim(v, s.vec)
         if (val > best) best = val;
       }
       score = best;
     } else if (opts.scoring === 'avgTop') {
-      const sims = seedVecs.map(s => (opts.metric === 'cosine' ? cosineSim(v,s.vec) : -euclidean(v,s.vec)));
+      const sims = seedVecs.map(s => (
+        cosineSim(v,s.vec)
+      ));
       sims.sort((a,b)=>b-a);
       const K = Math.min(3, sims.length);
       score = sims.slice(0,K).reduce((a,b)=>a+b,0)/K;
     } else if (opts.scoring === 'ensemble') {
       // combine centroid + max (weighted)
-      const simCent = (opts.metric === 'cosine') ? cosineSim(v, queryVec) : -euclidean(v, queryVec);
+      const simCent = cosineSim(v, queryVec)
       let best = -Infinity;
       for (const s of seedVecs) {
-        const val = opts.metric === 'cosine' ? cosineSim(v, s.vec) : -euclidean(v, s.vec);
+        const val = cosineSim(v, s.vec)
         if (val > best) best = val;
       }
       score = 0.6 * simCent + 0.4 * best; // tune weights if you want
@@ -178,7 +170,7 @@ export function recommend(seedIds, map, options = {}) {
         // diversity term: maximum similarity to any already picked
         let maxSim = -Infinity;
         for (const p of picked) {
-          const sim = (opts.metric === 'cosine') ? cosineSim(candidate.vec, p.vec) : -euclidean(candidate.vec, p.vec);
+          const sim = cosineSim(candidate.vec, p.vec)
           if (sim > maxSim) maxSim = sim;
         }
         // for uniformity, if metric was euclid we negated earlier — keep using same sign

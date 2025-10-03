@@ -72,12 +72,13 @@ let yIndex = 1;
 function setPos(nodes, map) {
     // set pos
     nodes.forEach(id => {
-        const emb = map[id]?.embd;
+        const emb = map[id]?.embd; // embd aka svd results {q:number, u:numbers}
         if (emb) {
             // Take the first two values of emb.u as x and y
+            const sigma = emb.q
             const values = Object.values(emb.u);
-            const x = values[xIndex] ?? 0; // fallback to 0 if undefined
-            const y = values[yIndex] ?? 0;
+            const x = values[xIndex]*sigma;
+            const y = values[yIndex]*sigma;
             map[id].pos = { x, y };
         }
     });
@@ -296,7 +297,7 @@ async function main(map) {
     const nodes = Object.keys(map).map(k => Number(k));
     mdsMain(map, nodes)
 
-    setPos(nodes, map)
+    //setPos(nodes, map)
 
     console.log("drawing")
 
@@ -355,7 +356,6 @@ async function main(map) {
         if (seedIds.length > 0) {
             const results = recommend(seedIds, map, { // TODO make settings for this
                 topK: 4000,
-                metric: 'cosine', // "cosine"|"euclid" (default "cosine")
                 scoring: 'centroid', // "centroid"|"max"|"avgTop"|"ensemble" (default "centroid") - note (centoid and avgTop are similar) works best generaly (on less popular ones), (ensemble good but cuz middle but the middle is just unrelated...)
                 useWeights: true,
                 weightOpts: { method: 'power', p: 1.0 },

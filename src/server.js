@@ -29,6 +29,22 @@ const { loadAddresses } = require('./addressRegistry/addressManager.js')
 loadAddresses();
 
 
+// TODO move this
+let tokens = 10;
+const refillRate = 10; // tokens per second
+const maxTokens = 10;
+setInterval(() => {
+  tokens = Math.min(tokens + refillRate, maxTokens);
+}, 1000);
+app.use((req, res, next) => {
+  if (tokens > 0) {
+    tokens--;
+    next();
+  } else {
+    res.status(429).end();
+  }
+});
+
 const compression = require('compression');
 app.use(require('./reqLogger.js'));
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
