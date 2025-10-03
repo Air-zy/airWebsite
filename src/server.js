@@ -31,7 +31,7 @@ loadAddresses();
 
 // TODO move this
 let tokens = 10;
-const refillRate = 10; // tokens per second
+const refillRate = 4; // tokens per second
 const maxTokens = 10;
 setInterval(() => {
   tokens = Math.min(tokens + refillRate, maxTokens);
