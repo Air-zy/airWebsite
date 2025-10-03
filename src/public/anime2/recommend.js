@@ -50,13 +50,6 @@ function euclidean(a,b){
   for (let i=0;i<L;i++){ const d=a[i]-b[i]; s+=d*d; }
   return Math.sqrt(s);
 }
-function meanAbsDiff(a,b){
-  const L = Math.min(a.length,b.length);
-  if (L===0) return 0;
-  let s=0;
-  for (let i=0;i<L;i++) s += Math.abs(a[i]-b[i]);
-  return s / L;
-}
 
 // normalize vector to unit length (in-place copy)
 function l2normalize(v){
@@ -73,7 +66,7 @@ function l2normalize(v){
  *
  * options:
  *   - topK: number to return (default 20)
- *   - metric: "cosine"|"euclid"|"meanabs" (default "cosine")
+ *   - metric: "cosine"|"euclid" (default "cosine")
  *   - scoring: "centroid"|"max"|"avgTop"|"ensemble" (default "centroid")
  *   - useWeights: true/false (apply dim weighting simulating Σ) default true
  *   - weightOpts: passed to applyDimWeights
@@ -81,7 +74,7 @@ function l2normalize(v){
  *   - excludeSeeds: true/false (default true)
  *   - candidateIds: optional array of ids to consider (default all keys of map)
  */
-function recommend(seedIds, map, options = {}) {
+export function recommend(seedIds, map, options = {}) {
   const opts = Object.assign({
     topK: 20,
     metric: 'cosine',

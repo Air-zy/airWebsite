@@ -82,7 +82,7 @@ const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
 
 app.use((req, res) => {
-  res.status(404).send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
+  res.status(404).type('text').send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });
 
 

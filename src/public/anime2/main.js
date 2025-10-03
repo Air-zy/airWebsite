@@ -118,7 +118,7 @@ async function draw(graph, nodes, map) {
 
     xSlider.addEventListener("input", () => {
         xIndex = parseInt(xSlider.value, 10);
-        xVal.textContent = xIndex;
+        xVal.textContent = "x using dimension[" + xIndex + "]";
         setPos(nodes, map);
         basePoints = getBasePoints();
         render();
@@ -126,7 +126,7 @@ async function draw(graph, nodes, map) {
 
     ySlider.addEventListener("input", () => {
         yIndex = parseInt(ySlider.value, 10);
-        yVal.textContent = yIndex;
+        yVal.textContent = "y using dimension[" + yIndex + "]";;
         setPos(nodes, map);
         basePoints = getBasePoints();
         render();
@@ -162,52 +162,78 @@ async function draw(graph, nodes, map) {
     }
 
 
+    const minDistSq = 20 * 20; // 1600
     function render() {
-      ctx.clearRect(0, 0, size, size);
-      //ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 0.3;
-      for (const [src, neighbors] of graph.entries()) {
-          const srcIdx = nodeIndex.get(src);
-          const srcPoint = basePoints[srcIdx];
-          const [x1, y1] = transform(srcPoint);
-          for (const [tgt, weight] of neighbors.entries()) {
-              const tgtIdx = nodeIndex.get(tgt);
-              const tgtPoint = basePoints[tgtIdx];
-              const [x2, y2] = transform(tgtPoint);
+        ctx.clearRect(0, 0, size, size);
+        ctx.lineWidth = 0.3;
 
-              const wNorm = normalizeWeight(weight);
-              //console.log(weight, wNorm)
+        // --- Draw edges ---
+        for (const [src, neighbors] of graph.entries()) {
+            const srcIdx = nodeIndex.get(src);
+            const srcPoint = basePoints[srcIdx];
+            const [x1, y1] = transform(srcPoint);
 
-              ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.95 * wNorm})`;
+            for (const [tgt, weight] of neighbors.entries()) {
+                const tgtIdx = nodeIndex.get(tgt);
+                const tgtPoint = basePoints[tgtIdx];
+                const [x2, y2] = transform(tgtPoint);
 
-              ctx.beginPath();
-              ctx.moveTo(x1, y1);
-              ctx.lineTo(x2, y2);
-              ctx.stroke();
-          }
-      }
-      // --- Draw nodes ---
-      ctx.fillStyle = 'white';
-      ctx.font = `8px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      for (const [idx, p] of basePoints.entries()) {
-          const [x, y] = transform(p);
-          // Compute node color from q
-          const nodeId = Number(nodes[idx]);
-          const hue = normalizeQ(nodeId) * 360;
-          ctx.fillStyle = hsvToRgb(hue, 0.6, 1);
-          // Draw node circle
-          ctx.beginPath();
-          ctx.arc(x, y, 2, 0, Math.PI * 2);
-          ctx.fill();
+                const wNorm = normalizeWeight(weight);
+                ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.95 * wNorm})`;
 
-          const nodeData = map[nodeId];
-          if (nodeData?.name) {
-              ctx.fillStyle = 'white';
-              ctx.fillText(nodeData.name, x, y - 4);
-          }
-      }
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        // --- Draw nodes ---
+        ctx.font = `10px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+
+        const drawnLabels = []; // store label positions to avoid overlaps
+
+        for (const [idx, p] of basePoints.entries()) {
+            const [x, y] = transform(p);
+
+            // Compute node color
+            const nodeId = Number(nodes[idx]);
+            const hue = normalizeQ(nodeId) * 360;
+            ctx.fillStyle = hsvToRgb(hue, 0.6, 1);
+
+            const nodeData = map[nodeId];
+            if (nodeData?.name) {
+                let tooClose = false;
+                for (const [lx, ly] of drawnLabels) {
+                    const dx = lx - x;
+                    const dy = ly - y;
+                    if ((dx * dx + dy * dy) < minDistSq) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+
+                if (!tooClose) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(nodeData.name, x, y - 4);
+                    drawnLabels.push([x, y - 4]);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
     }
 
     // --- Mouse Events ---
@@ -262,6 +288,7 @@ async function draw(graph, nodes, map) {
 }
 
 import { mdsMain } from './mds.js';
+import { recommend } from './recommend.js';
 async function main(map) {
     console.log("starting")
     console.log("map:", map)
@@ -275,6 +302,92 @@ async function main(map) {
 
     const graph = await buildGraph(map);
     await draw(graph, nodes, map)
+
+    // 
+
+    const resultsDiv = document.getElementById("results");
+    const searchBar = document.getElementById("searchBar");
+
+    let selectedItems = []; // keep track of selected objects
+
+    function renderCandidates(filter = "") {
+        resultsDiv.innerHTML = ""; // clear
+        const entries = Object.entries(map)
+            .filter(([id, obj]) => obj.name.toLowerCase().includes(filter.toLowerCase()));
+
+        for (const [id, obj] of entries) {
+            const div = document.createElement("div");
+            div.textContent = `${obj.name}`;
+            div.addEventListener("click", () => {
+                // only add if not already selected
+                if (!selectedItems.some(item => item.id === id)) {
+                    selectedItems.push({ id, ...obj });
+                    renderSelected();
+                    console.log("Selected items:", selectedItems);
+                }
+            });
+            resultsDiv.appendChild(div);
+        }
+    }
+
+    const selectedDiv = document.getElementById("selected");
+    function renderSelected() {
+        selectedDiv.innerHTML = ""; // clear
+        for (const item of selectedItems) {
+            const div = document.createElement("div");
+            div.textContent = `${item.name}`;
+            div.addEventListener("click", () => {
+                // remove this item from selected
+                selectedItems = selectedItems.filter(s => s.id !== item.id);
+                renderSelected();
+                console.log("Selected items:", selectedItems);
+            });
+            selectedDiv.appendChild(div);
+        }
+
+        runRecommend()
+    }
+
+    const recomsDiv = document.getElementById("recomendations");
+    function runRecommend() {
+        recomsDiv.innerHTML = ""; // clear
+        const seedIds = selectedItems.map(item => item.id);
+        if (seedIds.length > 0) {
+            const results = recommend(seedIds, map, { // TODO make settings for this
+                topK: 4000,
+                metric: 'cosine', // "cosine"|"euclid" (default "cosine")
+                scoring: 'centroid', // "centroid"|"max"|"avgTop"|"ensemble" (default "centroid") - note (centoid and avgTop are similar) works best generaly (on less popular ones), (ensemble good but cuz middle but the middle is just unrelated...)
+                useWeights: true,
+                weightOpts: { method: 'power', p: 1.0 },
+                mmr: { enabled: false, lambda: 0.7 },
+                excludeSeeds: true,
+                candidateIds: null
+            });
+            console.log("Recommendations:", results);
+            results.forEach(r => {
+                const obj = map[r.id];
+
+                const div = document.createElement("div");
+                div.textContent = `${obj.name} (score: ${r.score.toFixed(4)})`;
+
+                div.addEventListener("click", () => {
+                    console.log("Clicked recommendation:", obj, r.id);
+                });
+
+                recomsDiv.appendChild(div);
+            });
+        } else {
+            console.log("No seeds selected.");
+        }
+    }
+
+
+    renderCandidates();
+    searchBar.addEventListener("input", (e) => {
+        renderCandidates(e.target.value);
+    });
+
+
 }
 
 (async () => {

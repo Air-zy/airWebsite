@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <title>anime2</title>
     <style>
+      :root {
+        color-scheme: dark;
+      }
       body {
         display: flex;
         flex-direction: column;
@@ -26,6 +29,8 @@
         flex-direction: column;
         gap: 8px;
         width: 80%;
+        bottom: 0px;
+        position: fixed;
       }
       label {
         display: flex;
@@ -35,18 +40,106 @@
       input[type="range"] {
         width: 80%;
       }
+
+      /* --- NEW SEARCH FRAME --- */
+      .search-frame {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 300px;
+        max-height: 90vh;
+        background: #222;
+        border: 1px solid #444;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        z-index: 1000;
+      }
+      .search-frame input[type="text"] {
+        padding: 8px;
+        border: none;
+        outline: none;
+        background: #333;
+        color: #eee;
+        font-size: 14px;
+        width: 100%;
+      }
+      .search-results {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+        font-size: 12px;
+        color: white;
+        scrollbar-width: thin;
+      }
+      .search-results div {
+        padding: 6px;
+        border-bottom: 1px solid #444;
+        cursor: pointer;
+      }
+      .search-results div:hover {
+        background: #444;
+      }
+
+
+
+      .selected-div {
+        display: flex;
+        flex-direction: column;
+        padding: 4px;
+        border-top: 1px #444444 solid;
+        align-items: center;
+        margin-top: 8px;
+        max-height: 400px;
+      }
+      .selected-results {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+        font-size: 12px;
+        color: white;
+        scrollbar-width: thin;
+      }
+      .selected-results div {
+        padding: 6px;
+        border-bottom: 1px solid #444;
+        cursor: pointer;
+      }
+      .selected-results div:hover {
+        background: #582d2d;
+      }
     </style>
   </head>
   <body>
     <canvas id="graph"></canvas>
 
+    <div class="search-frame">
+      <input type="text" placeholder="Search..." id="searchBar">
+      <div class="search-results" id="results">
+      </div>
+
+      <div class="selected-div">
+        <p style="padding-top: 8px; margin:0">selected</p>
+        <div class="selected-results" id="selected">
+        </div>
+      </div>
+
+      <div class="selected-div">
+        <p style="padding-top: 8px; margin:0">recomendations</p>
+        <div class="search-results" id="recomendations">
+        </div>
+      </div>
+    </div>
+
     <div class="controls">
       <label>
-        X index: <span id="xVal">0</span>
+        <span id="xVal">x using dimension[0]</span>
         <input id="xSlider" type="range" min="0" max="127" value="0">
       </label>
       <label>
-        Y index: <span id="yVal">1</span>
+        <span id="yVal">y using dimension[1]</span>
         <input id="ySlider" type="range" min="0" max="127" value="1">
       </label>
     </div>
