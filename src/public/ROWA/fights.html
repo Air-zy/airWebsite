@@ -1,260 +1,501 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fights (Glicko-2)</title>
-  <style>
-    :root { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    body { margin: 20px; background:#0f172a; color:#e6eef8; }
-    h1 { margin:0 0 10px 0; font-size:20px; }
-    .container { display:grid; grid-template-columns: 380px 1fr; gap:18px; align-items:start; }
-    .panel { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); border-radius:10px; padding:12px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
-    .controls { display:flex; flex-direction:column; gap:10px; }
-    label { font-size:12px; color:#9fb0d6; }
-    .slider-row { display:flex; gap:8px; align-items:center; }
-    input[type="range"] { width:100%; }
-    .stats { font-size:13px; color:#cfe0ff; display:flex; gap:12px; flex-wrap:wrap; }
-    .leaderboard { margin-top:8px; max-height:420px; overflow:auto; border-radius:8px; padding:8px; background: rgba(255,255,255,0.01); }
-    .leader-item { display:flex; justify-content:space-between; gap:8px; padding:6px 8px; border-radius:6px; margin-bottom:6px; background: linear-gradient(90deg, rgba(255,255,255,0.01), transparent); font-family:monospace; }
-    .leader-item strong { color:#ffd66b; }
-    pre#output { max-height:460px; overflow:auto; background:transparent; color:#bfe0ff; font-size:12px; padding:8px; margin:0; border-radius:6px; }
-    .hint { font-size:12px; color:#9fb0d6; margin-top:8px; }
-    .footer { margin-top:12px; color:#93b4dd; font-size:13px; }
-    .box-title { font-size:13px; color:#cbe3ff; margin-bottom:6px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>All fights — Elo + W/L + Chart</title>
+<style>
+  :root{--bg:#0b1220;--card:rgba(255,255,255,0.02);--muted:#98b0d5;--panel:#071024;}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;}
+  .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:center;padding:20px;box-sizing:border-box;}
+  .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);}
+  h1{margin:0 0 10px 0;font-size:18px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);}
+  th{font-weight:600;color:#cfe6ff;}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover{background:rgba(255,255,255,0.015);}
+  .mono{font-family:ui-monospace,Menlo,Monaco,Roboto Mono,monospace;}
+  .small{color:var(--muted);font-size:13px;margin-top:8px;}
+  /* side panel */
+  .panel {
+    position:fixed;
+    right:0;
+    top:0;
+    height:100%;
+    width:420px;
+    max-width:92%;
+    background:linear-gradient(180deg,var(--panel),rgba(5,10,20,0.85));
+    box-shadow: -20px 0 40px rgba(0,0,0,0.6);
+    border-left:1px solid rgba(255,255,255,0.03);
+    transform:translateX(100%);
+    transition:transform .22s ease;
+    z-index:80;
+    padding:16px;
+    box-sizing:border-box;
+    overflow:auto;
+  }
+  .panel.open{transform:translateX(0);}
+  .panel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .panel h2{margin:0;font-size:16px;}
+  .close{background:transparent;border:0;color:#9fb0d3;cursor:pointer;font-size:14px;padding:6px 8px;border-radius:6px;}
+  .fight {padding:10px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.012);border:1px solid rgba(255,255,255,0.02);}
+  .meta{font-size:13px;color:var(--muted);margin-top:6px;}
+  .tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;margin-right:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.01);}
+  .outcome-win{color:#b9f6c1;font-weight:700;}
+  .outcome-lose{color:#ffb4b4;font-weight:700;}
+  .small-muted{color:var(--muted);font-size:12px}
+  .klist{font-size:13px;color:#dbeafe;margin-top:6px}
+  .note{color:var(--muted);font-size:13px;margin-top:8px}
+
+/* Elo delta styles */
+  .delta-plus{color:#b9f6c1;font-weight:700;}
+  .delta-minus{color:#ffb4b4;font-weight:700;}
+  .delta-zero{color:var(--muted);font-weight:600;}
+
+  /* chart container */
+  .chart-wrap{background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-bottom:12px}
+  canvas{width:100% !important;height:180px !important}
+</style>
 </head>
 <body>
-  <h1>Recent Fights — Glicko-2 Leaderboard</h1>
-
-  <div class="container">
-    <div class="panel">
-      <div class="controls">
-        <div class="box-title">Scroll / Slider selector</div>
-        <div class="slider-row">
-          <input id="percentSlider" type="range" min="0" max="100" value="100" step="1" />
-          <div style="min-width:54px; text-align:right;" id="percentLabel">100%</div>
-        </div>
-
-        <div class="stats">
-          <div>Max fight id: <span id="maxId">—</span></div>
-          <div>Target ID (percent × max): <span id="targetId">—</span></div>
-          <div>Selected fights: <span id="selectedCount">—</span></div>
-        </div>
-
-        <div class="hint">Tip: hover this panel and use the mouse wheel or touchpad to change percent quickly.</div>
-
-        <div style="margin-top:12px;">
-          <div class="box-title">Leaderboard (plrid: rating)</div>
-          <div class="leaderboard" id="leaderboard">Loading…</div>
-        </div>
-
-        <div class="footer">Ratings use <strong>Glicko-2</strong> recalculated from fights ≤ targetId. Each killer vs victim pair is updated.</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="box-title">Raw JSON (debug)</div>
-      <pre id="output">Loading fights...</pre>
+  <div class="wrap">
+    <div class="card" id="app">
+      <h1>Players — Elo (simulated) — shows Wins / Losses</h1>
+      <div id="output">Loading…</div>
+      <div class="small">Winner = <code class="mono">killer_id</code>. Each killer vs each victim pair counts as 1 win / 1 loss. Click an ID to see all their fights and rating history.</div>
     </div>
   </div>
 
-  <script>
-  // ---------- Glicko-2 helpers ----------
-  const TAU = 0.5;   // system constant (volatility scaling)
-  const MU = 1500;
-  const PHI = 350;
-  const SIGMA = 0.06;
+  <aside id="panel" class="panel" aria-hidden="true">
+    <header>
+      <h2 id="panelTitle">Player</h2>
+      <div>
+        <button id="closeBtn" class="close">Close ✕</button>
+      </div>
+    </header>
 
-  function glicko2Init() {
-    return { 
-      rating: MU,      // μ
-      rd: PHI,         // rating deviation
-      sigma: SIGMA,    // volatility
-      wins: 0,
-      losses: 0
+    <!-- Chart area (Chart.js) -->
+    <div class="chart-wrap">
+      <canvas id="ratingChart"></canvas>
+    </div>
+
+    <div id="panelContent"></div>
+    <div class="note">Classification heuristics: boss-raided = multiple killers vs a single victim. Fairness based on focus % difference (≤25 → fair).</div>
+  </aside>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(async function(){
+  const API = '/api/rowa/fights/recent?limit=10000';
+  const INITIAL_RATING = 600;
+  const K = 32;
+
+  // Elo helpers
+  const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA)/400));
+  const applyElo = (rW, rL) => {
+    const eW = expected(rW, rL);
+    return [ rW + K * (1 - eW), rL + K * (0 - (1 - eW)) ];
+  };
+
+  // UI refs
+  const out = document.getElementById('output');
+  const panel = document.getElementById('panel');
+  const panelTitle = document.getElementById('panelTitle');
+  const panelContent = document.getElementById('panelContent');
+  const closeBtn = document.getElementById('closeBtn');
+  const chartCanvas = document.getElementById('ratingChart');
+
+  let contributions = [];
+  try {
+    const res = await fetch(API, {cache:'no-store'});
+    if(!res.ok) throw new Error('fetch status ' + res.status);
+    const json = await res.json();
+    contributions = Array.isArray(json.contributions) ? json.contributions.slice() : [];
+  } catch(err) {
+    out.textContent = 'Failed to load fights feed: ' + (err && err.message ? err.message : String(err));
+    console.error(err);
+    return;
+  }
+
+  // sort by numeric fight_id ascending for Elo sim
+  contributions.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0));
+
+  // Build maps: per-fight grouping and gather unique ids
+  const fightsById = new Map(); // fight_id -> array of contributions
+  const idsSet = new Set();
+
+  for(const c of contributions){
+    const fid = String(c.fight_id ?? '');
+    if(!fightsById.has(fid)) fightsById.set(fid, []);
+    fightsById.get(fid).push(c);
+
+    if(c.killer_id) idsSet.add(String(c.killer_id));
+    if(c.victim_id) idsSet.add(String(c.victim_id));
+  }
+
+  // simulate Elo across fights and count wins/losses
+  const ratings = {}; // id -> rating (floats)
+  const wins = {};    // id -> int
+  const losses = {};  // id -> int
+
+  // per-fight maps
+  const fightEloDeltas = new Map();   // fight_id -> Map(id -> delta rounded)
+  const fightRatingsBefore = new Map();// fight_id -> Map(id -> rating before fight, float)
+  const fightRatingsAfter = new Map(); // fight_id -> Map(id -> rating after fight, float)
+
+  // per-player history: id -> array of {fight_id, before, after}
+  const playerHistory = new Map();
+
+  function ensure(id){
+    if(!(id in ratings)) ratings[id] = INITIAL_RATING;
+    if(!(id in wins)) wins[id] = 0;
+    if(!(id in losses)) losses[id] = 0;
+    if(!playerHistory.has(id)) playerHistory.set(id, []);
+  }
+
+  // For each fight, construct winners set and victims set from contributions
+  for(const [fid, parts] of fightsById.entries()){
+    const killers = new Set();
+    const victims = new Set();
+    for(const p of parts){
+      if(p.killer_id) killers.add(String(p.killer_id));
+      if(p.victim_id) victims.add(String(p.victim_id));
+    }
+    const allPlayers = new Set([...killers, ...victims]);
+    allPlayers.forEach(id => ensure(id));
+
+    // -- record ratings before this fight for every involved player
+    const beforeMap = new Map();
+    allPlayers.forEach(id => beforeMap.set(id, ratings[id]));
+    fightRatingsBefore.set(fid, beforeMap);
+
+    // initialize delta map placeholder
+    fightEloDeltas.set(fid, new Map());
+
+    // apply pairwise killer vs victim updates (mutating ratings)
+    for(const k of killers){
+      for(const v of victims){
+        if(k === v) continue;
+        // count win/loss
+        wins[k] = (wins[k] || 0) + 1;
+        losses[v] = (losses[v] || 0) + 1;
+        // apply Elo on current ratings
+        const rK = ratings[k];
+        const rV = ratings[v];
+        const [newK, newV] = applyElo(rK, rV);
+        ratings[k] = newK;
+        ratings[v] = newV;
+      }
+    }
+
+    // -- after all pairwise updates in this fight, compute rounded delta per player
+    const afterMap = new Map();
+    allPlayers.forEach(id => {
+      const before = beforeMap.get(id) || INITIAL_RATING;
+      const after = ratings[id];
+      const delta = Math.round(after - before);
+      fightEloDeltas.get(fid).set(id, delta);
+      afterMap.set(id, after);
+
+      // append to per-player history
+      const hist = playerHistory.get(id) || [];
+      hist.push({ fight_id: fid, before: before, after: after });
+      playerHistory.set(id, hist);
+    });
+    fightRatingsAfter.set(fid, afterMap);
+  }
+
+  // render player table (with Wins / Losses)
+  const rows = Array.from(Object.keys(ratings)).map(id => ({
+    id,
+    rating: Math.round(ratings[id]),
+    wins: wins[id] || 0,
+    losses: losses[id] || 0
+  }));
+  rows.sort((a,b) => b.rating - a.rating || a.id.localeCompare(b.id));
+
+  if(rows.length === 0){
+    out.textContent = 'No players found in feed.';
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th style="width:48px">#</th>
+        <th>ID</th>
+        <th style="width:110px">Rating</th>
+        <th style="width:80px">Wins</th>
+        <th style="width:80px">Losses</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((r,i)=>`
+        <tr class="clickable" data-id="${r.id}">
+          <td>${i+1}</td>
+          <td class="mono">${r.id}</td>
+          <td>${r.rating}</td>
+          <td>${r.wins}</td>
+          <td>${r.losses}</td>
+        </tr>`).join('')}
+    </tbody>
+  `;
+  out.innerHTML = '';
+  out.appendChild(table);
+
+  // Chart instance
+  let ratingChart = null;
+
+  // click handler for rows
+  table.addEventListener('click', (ev) => {
+    const tr = ev.target.closest('tr[data-id]');
+    if(!tr) return;
+    const id = tr.getAttribute('data-id');
+    openPanelFor(id);
+  });
+
+  closeBtn.addEventListener('click', () => closePanel());
+
+  // Utilities to classify fights for a selected id
+  function classifyFight(selectedId, fightContribs){
+    const killers = new Set();
+    const victims = new Set();
+    for(const p of fightContribs){
+      if(p.killer_id) killers.add(String(p.killer_id));
+      if(p.victim_id) victims.add(String(p.victim_id));
+    }
+    const numKillers = killers.size;
+    const numVictims = victims.size;
+
+    const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
+
+    let my_focus = 0, enemy_focus = 0, me_dmg_enemy = 0, enemy_dmg_me = 0;
+    if(myContribs.length > 0){
+      const prefer = myContribs.find(p => String(p.killer_id) === selectedId) || myContribs[0];
+      my_focus = Number(prefer.my_focus_percent ?? 0);
+      enemy_focus = Number(prefer.enemy_focus_percent ?? 0);
+      me_dmg_enemy = Number(prefer.me_dmg_enemy ?? 0);
+      enemy_dmg_me = Number(prefer.enemy_dmg_me ?? 0);
+    } else {
+      for(const p of fightContribs){
+        for(const v of Object.values(p)){
+          if(String(v) === selectedId){
+            my_focus = Number(p.my_focus_percent ?? 0);
+            enemy_focus = Number(p.enemy_focus_percent ?? 0);
+            me_dmg_enemy = Number(p.me_dmg_enemy ?? 0);
+            enemy_dmg_me = Number(p.enemy_dmg_me ?? 0);
+            break;
+          }
+        }
+      }
+    }
+
+    const didKill = fightContribs.some(p => String(p.killer_id) === selectedId);
+    const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
+    const participatedByDamage = me_dmg_enemy > 0;
+    const bossRaided = (numKillers >= 2 && numVictims === 1);
+    const focusDiff = Math.abs(my_focus - enemy_focus);
+
+    let outcomeText = 'Participated';
+    let classTag = 'Unknown';
+
+    if(didKill){
+      outcomeText = 'Won';
+      if(bossRaided) classTag = 'Boss-raided (win)';
+      else if (numKillers > 1 && numVictims > 1) classTag = 'Group win';
+      else {
+        if(focusDiff <= 25) classTag = 'Fair win';
+        else if(my_focus > enemy_focus) classTag = 'Won (advantage)';
+        else classTag = 'Won (surprised)';
+      }
+    } else if (wasVictim){
+      outcomeText = 'Lost';
+      if(bossRaided) classTag = 'Boss-raided (loss)';
+      else {
+        if(focusDiff <= 25) classTag = 'Fair loss';
+        else if(enemy_focus > my_focus) classTag = 'Lost (targeted)';
+        else classTag = 'Lost (close/unexpected)';
+      }
+    } else if (participatedByDamage){
+      outcomeText = 'Assisted';
+      classTag = 'Assisted a kill';
+    } else {
+      outcomeText = 'Observed';
+      classTag = 'Observer/No damage';
+    }
+
+    return {
+      outcomeText, classTag,
+      numKillers, numVictims,
+      my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me,
+      killers: Array.from(killers), victims: Array.from(victims)
     };
   }
 
-  function glicko2ScaleDown(r) {
-    return (r - MU) / 173.7178;
-  }
-  function glicko2ScaleUp(r) {
-    return r * 173.7178 + MU;
-  }
-
-  function g(phi) {
-    return 1 / Math.sqrt(1 + (3*phi*phi) / (Math.PI*Math.PI));
-  }
-
-  function E(mu, mu_j, phi_j) {
-    return 1 / (1 + Math.exp(-g(phi_j)*(mu - mu_j)));
-  }
-
-  // Update rating after a single game
-  function updateGlicko2(player, opponent, score) {
-    const mu = glicko2ScaleDown(player.rating);
-    const phi = player.rd / 173.7178;
-    const mu_j = glicko2ScaleDown(opponent.rating);
-    const phi_j = opponent.rd / 173.7178;
-
-    const E_j = E(mu, mu_j, phi_j);
-    const g_phi = g(phi_j);
-
-    const v = 1 / (g_phi*g_phi * E_j * (1 - E_j));
-    const delta = v * g_phi * (score - E_j);
-
-    // volatility update (simplified version)
-    let sigmaPrime = player.sigma;
-
-    const phiStar = Math.sqrt(phi*phi + sigmaPrime*sigmaPrime);
-    const phiPrime = 1 / Math.sqrt(1/phiStar/phiStar + 1/v);
-    const muPrime = mu + phiPrime*phiPrime * g_phi * (score - E_j);
-
-    player.rating = glicko2ScaleUp(muPrime);
-    player.rd = phiPrime * 173.7178;
-    player.sigma = sigmaPrime;
-  }
-
-  // ---------- Simulations ----------
-  function simulateGlicko2OnSelected(fightsObj, userIdMap, selectedFightIds) {
-    for (const fightId of selectedFightIds) {
-      const fight = fightsObj[fightId];
-      if (!fight) continue;
-      const victimId = fight.victim_id;
-      for (const killer of fight.killers) {
-        const killerId = killer.killer_id;
-
-        updateGlicko2(userIdMap[killerId], userIdMap[victimId], 1);
-        updateGlicko2(userIdMap[victimId], userIdMap[killerId], 0);
-
-        userIdMap[killerId].wins++;
-        userIdMap[victimId].losses++;
+  // Build list of fights for a selected id (all fights where they appear as killer or victim)
+  function getFightsForId(selectedId){
+    const list = [];
+    for(const [fid, parts] of fightsById.entries()){
+      const appears = parts.some(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
+      if(appears){
+        list.push({ fight_id: fid, parts });
       }
     }
+    list.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0)); // chronological asc
+    return list;
   }
 
-  // ---------- Formatting helpers ----------
-  function formatContributions(contributions) {
-    const fights = new Map();
-    for (const entry of contributions) {
-      const fightId = Number(entry.fight_id);
-      if (!fights.has(fightId)) {
-        fights.set(fightId, { victim_id: Number(entry.victim_id), killers: [] });
-      }
-      fights.get(fightId).killers.push({
-        killer_id: Number(entry.killer_id),
-        enemy_focus_percent: Number(entry.enemy_focus_percent || 100),
-        my_focus_percent: Number(entry.my_focus_percent || 100)
-      });
+  // Render Chart for a selected player
+  function renderChartForPlayer(id, fightsList){
+    const hist = playerHistory.get(id) || [];
+    if(hist.length === 0){
+      // clear chart
+      if(ratingChart){ ratingChart.destroy(); ratingChart = null; }
+      const ctx = chartCanvas.getContext('2d');
+      ctx.clearRect(0,0,chartCanvas.width,chartCanvas.height);
+      return;
     }
-    return fights;
-  }
 
-  function buildUserIdMapFromFights(fightsObj, selectedFightIds) {
-    const userIdMap = {};
-    for (const fightId of selectedFightIds) {
-      const fight = fightsObj[fightId];
-      if (!fight) continue;
-      const victimId = fight.victim_id;
-      if (!userIdMap[victimId]) userIdMap[victimId] = glicko2Init();
-      for (const killer of fight.killers) {
-        const killerId = killer.killer_id;
-        if (!userIdMap[killerId]) userIdMap[killerId] = glicko2Init();
+    // Use fight order from fightsList (only fights where player appears)
+    const labels = hist.map(h => `#${h.fight_id}`);
+    const beforeData = hist.map(h => Math.round(h.before));
+    const afterData = hist.map(h => Math.round(h.after));
+
+    const ctx = chartCanvas.getContext('2d');
+    if(ratingChart) ratingChart.destroy();
+
+    ratingChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Rating (before fight)',
+            data: beforeData,
+            tension: 0.25,
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 3,
+          },
+          {
+            label: 'Rating (after fight)',
+            data: afterData,
+            tension: 0.25,
+            fill: false,
+            borderDash: [6,4],
+            borderWidth: 2,
+            pointRadius: 3,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(ctx){
+                const d = ctx.dataset.label || '';
+                const val = ctx.parsed.y;
+                const idx = ctx.dataIndex;
+                const before = beforeData[idx];
+                const after = afterData[idx];
+                return `${d}: ${val} (before ${before} → after ${after})`;
+              }
+            }
+          },
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            ticks: { precision: 0 }
+          }
+        }
       }
-    }
-    return userIdMap;
-  }
-
-  // ---------- UI ----------
-  const percentSlider = document.getElementById('percentSlider');
-  const percentLabel = document.getElementById('percentLabel');
-  const maxIdEl = document.getElementById('maxId');
-  const targetIdEl = document.getElementById('targetId');
-  const selectedCountEl = document.getElementById('selectedCount');
-  const leaderboardEl = document.getElementById('leaderboard');
-  const outputEl = document.getElementById('output');
-
-  let fightsMap = new Map();
-  let fightsObj = {};
-  let sortedFightIds = [];
-  let maxFightId = 0;
-  let rafId = null;
-
-  function scheduleRender() {
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(() => {
-      rafId = null;
-      renderForPercent(Number(percentSlider.value) / 100);
     });
   }
 
-  function renderForPercent(percent) {
-    const targetId = Math.round(percent * maxFightId);
-    const selectedFightIds = sortedFightIds.filter(id => id <= targetId);
+  // open panel and render selected player's fights
+  function openPanelFor(id){
+    panelTitle.textContent = 'Player: ' + id + ` · Wins ${wins[id] || 0} / Losses ${losses[id] || 0}`;
+    panelContent.innerHTML = '';
 
-    const userIdMap = buildUserIdMapFromFights(fightsObj, selectedFightIds);
-    simulateGlicko2OnSelected(fightsObj, userIdMap, selectedFightIds);
-
-    const leaderboardArr = Object.entries(userIdMap)
-      .map(([pid, data]) => ({ pid, rating: Math.round(data.rating), wins:data.wins, losses:data.losses }))
-      .sort((a,b) => b.rating - a.rating);
-
-    percentLabel.textContent = Math.round(percent*100)+'%';
-    maxIdEl.textContent = String(maxFightId || '—');
-    targetIdEl.textContent = String(targetId);
-    selectedCountEl.textContent = String(selectedFightIds.length);
-
-    leaderboardEl.innerHTML = leaderboardArr.length === 0
-      ? '<div style="color:#8fa9d8">No players in selection</div>'
-      : leaderboardArr.slice(0,300).map(p => `
-          <div class="leader-item">
-            <div>#${p.pid}</div>
-            <strong>${p.rating}</strong>
-            <div>W:${p.wins} L:${p.losses}</div>
-          </div>`).join('');
-
-    const debug = {
-      percent: Math.round(percent*100)+'%',
-      targetId,
-      selectedFightCount: selectedFightIds.length,
-      topLeaderboard: leaderboardArr.slice(0,20)
-    };
-    outputEl.textContent = JSON.stringify(debug, null, 2);
-  }
-
-  const leftPanel = document.querySelectorAll('.panel')[0];
-  leftPanel.addEventListener('wheel', (ev) => {
-    ev.preventDefault();
-    const step = ev.deltaMode === 0 ? Math.sign(-ev.deltaY)*2 : Math.sign(-ev.deltaY)*5;
-    let val = Number(percentSlider.value)+step;
-    val = Math.max(0, Math.min(100, val));
-    percentSlider.value = val;
-    scheduleRender();
-  }, { passive: false });
-
-  percentSlider.addEventListener('input', scheduleRender);
-  percentSlider.addEventListener('change', scheduleRender);
-
-  async function getFights() {
-    try {
-      const res = await fetch('/api/rowa/fights/recent?limit=1000');
-      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-      const contribData = await res.json();
-
-      fightsMap = formatContributions(contribData.contributions || []);
-      fightsObj = Object.fromEntries(fightsMap);
-      sortedFightIds = Array.from(fightsMap.keys()).sort((a,b)=>a-b);
-      maxFightId = sortedFightIds.length ? Math.max(...sortedFightIds) : 0;
-
-      scheduleRender();
-    } catch (err) {
-      console.error('Fetch failed:', err);
-      outputEl.textContent = 'Fetch failed: '+String(err);
+    const fightsList = getFightsForId(id);
+    if(fightsList.length === 0){
+      panelContent.innerHTML = '<div class="small-muted">No fights found for this player in the current feed.</div>';
+      renderChartForPlayer(id, []);
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden','false');
+      return;
     }
+
+    // render chart first (chronological)
+    renderChartForPlayer(id, fightsList);
+
+    // then render fight cards (reverse chronological to match earlier UI)
+    fightsList.sort((a,b) => (Number(b.fight_id)||0) - (Number(a.fight_id)||0));
+
+    for(const f of fightsList){
+      const info = classifyFight(id, f.parts);
+
+      const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map();
+      const ratingBeforeFloat = beforeMap.get(id);
+      const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING);
+      const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map();
+      const eloDelta = fmap.get(id) || 0;
+      const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero');
+      const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
+
+      const div = document.createElement('div');
+      div.className = 'fight';
+      const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
+      div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:600">Fight #${f.fight_id}</div>
+            <div class="meta small-muted">Outcome: <span class="${outcomeClass}">${info.outcomeText}</span> · ${info.classTag}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="small-muted">Killers: ${info.numKillers}</div>
+            <div class="small-muted">Victims: ${info.numVictims}</div>
+            <div style="margin-top:6px"><span class="tag ${eloClass}">${ratingBefore} (${eloLabel})</span></div>
+          </div>
+        </div>
+
+        <div class="klist">
+          <div><strong>Killer(s):</strong> ${info.killers.join(', ') || '—'}</div>
+          <div><strong>Victim(s):</strong> ${info.victims.join(', ') || '—'}</div>
+        </div>
+
+        <div class="meta">
+          <span class="tag">my_focus ${info.my_focus}%</span>
+          <span class="tag">enemy_focus ${info.enemy_focus}%</span>
+          <span class="tag">me_dmg ${info.me_dmg_enemy}</span>
+          <span class="tag">enemy_dmg ${info.enemy_dmg_me}</span>
+        </div>
+      `;
+      panelContent.appendChild(div);
+    }
+
+    panel.classList.add('open');
+    panel.setAttribute('aria-hidden','false');
+    panel.scrollTop = 0;
   }
 
-  getFights();
-  </script>
+  function closePanel(){
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden','true');
+  }
+
+})();
+</script>
 </body>
 </html>

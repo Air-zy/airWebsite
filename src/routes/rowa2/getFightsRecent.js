@@ -4,9 +4,9 @@ module.exports = async (req, res) => {
   try {
     let { limit } = req.query;
 
-    // default to 100, max 500 to prevent huge queries
+    // default to 100, max 2000 to prevent huge queries
     limit = limit ? parseInt(limit, 10) : 100;
-    const MAX_LIMIT = 500;
+    const MAX_LIMIT = 2000;
     if (limit > MAX_LIMIT) limit = MAX_LIMIT;
 
     const contributions = await getRecentContributions(limit);
