@@ -8,15 +8,15 @@
   :root{--bg:#0b1220;--card:rgba(255,255,255,0.02);--muted:#98b0d5;--panel:#071024;}
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;}
   .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px;box-sizing:border-box;}
-  .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);}
+  .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);} 
   h1{margin:0 0 10px 0;font-size:18px;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
-  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);} 
   th{font-weight:600;color:#cfe6ff;}
-  tr.clickable{cursor:pointer;}
-  tr.clickable:hover{background:rgba(255,255,255,0.015);}
-  .mono{font-family:ui-monospace,Menlo,Monaco,Roboto Mono,monospace;}
-  .small{color:var(--muted);font-size:13px;margin-top:8px;}
+  tr.clickable{cursor:pointer;} 
+  tr.clickable:hover{background:rgba(255,255,255,0.015);} 
+  .mono{font-family:ui-monospace,Menlo,Monaco,Roboto Mono,monospace;} 
+  .small{color:var(--muted);font-size:13px;margin-top:8px;} 
   /* side panel */
   .panel {
     position:fixed;
@@ -35,24 +35,24 @@
     box-sizing:border-box;
     overflow:auto;
   }
-  .panel.open{transform:translateX(0);}
-  .panel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-  .panel h2{margin:0;font-size:16px;}
-  .close{background:transparent;border:0;color:#9fb0d3;cursor:pointer;font-size:14px;padding:6px 8px;border-radius:6px;}
-  .fight {padding:10px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.012);border:1px solid rgba(255,255,255,0.02);}
-  .meta{font-size:13px;color:var(--muted);margin-top:6px;}
-  .tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;margin-right:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.01);}
-  .outcome-win{color:#b9f6c1;font-weight:700;}
-  .outcome-lose{color:#ffb4b4;font-weight:700;}
-  .small-muted{color:var(--muted);font-size:12px}
-  .klist{font-size:13px;color:#dbeafe;margin-top:6px}
-  .note{color:var(--muted);font-size:13px;margin-top:8px}
+  .panel.open{transform:translateX(0);} 
+  .panel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;} 
+  .panel h2{margin:0;font-size:16px;} 
+  .close{background:transparent;border:0;color:#9fb0d3;cursor:pointer;font-size:14px;padding:6px 8px;border-radius:6px;} 
+  .fight {padding:10px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.012);border:1px solid rgba(255,255,255,0.02);} 
+  .meta{font-size:13px;color:var(--muted);margin-top:6px;} 
+  .tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;margin-right:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.01);} 
+  .outcome-win{color:#b9f6c1;font-weight:700;} 
+  .outcome-lose{color:#ffb4b4;font-weight:700;} 
+  .small-muted{color:var(--muted);font-size:12px} 
+  .klist{font-size:13px;color:#dbeafe;margin-top:6px} 
+  .note{color:var(--muted);font-size:13px;margin-top:8px} 
   .id-btn{background:transparent;border:0;color:#cfe6ff;cursor:pointer;padding:0;font-family:inherit;font-size:13px}
 
 /* Elo delta styles */
-  .delta-plus{color:#b9f6c1;font-weight:700;}
-  .delta-minus{color:#ffb4b4;font-weight:700;}
-  .delta-zero{color:var(--muted);font-weight:600;}
+  .delta-plus{color:#b9f6c1;font-weight:700;} 
+  .delta-minus{color:#ffb4b4;font-weight:700;} 
+  .delta-zero{color:var(--muted);font-weight:600;} 
 
   /* chart container */
   .chart-wrap{background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-bottom:12px}
@@ -186,12 +186,15 @@
         const rK = ratings[k];
         const rV = ratings[v];
         let [newK, newV] = applyElo(rK, rV);
-        if (newK < 1000) {
-          newK += 6
+
+        // less than 1000 can climb
+        /*if (newK < 1000) {
+          newK += 1
         }
         if (newV < 1000) {
-          newV += 6
-        }
+          newV += 1
+        }*/
+
         ratings[k] = newK;
         ratings[v] = newV;
       }
@@ -214,14 +217,26 @@
     fightRatingsAfter.set(fid, afterMap);
   }
 
-  // render player table (with Wins / Losses)
-  const rows = Array.from(Object.keys(ratings)).map(id => ({
-    id,
-    rating: Math.round(ratings[id]),
-    wins: wins[id] || 0,
-    losses: losses[id] || 0
-  }));
-  rows.sort((a,b) => b.rating - a.rating || a.id.localeCompare(b.id));
+  // render player table (with Wins / Losses and Peak)
+  const rows = Array.from(Object.keys(ratings)).map(id => {
+
+    //
+    const current = ratings[id]
+    const hist = playerHistory.get(id) || [];
+    const peak = hist.length ? Math.max(...hist.map(h => Math.round(h.after))) : Math.round(current);
+    //const w = 0.5; // 0.7 => peak 70%, current 30%
+   // const stable = Math.round(peak * w + current * (1 - w));
+    //
+
+    return {
+      id,
+      peakRating: peak,
+      currentRating: Math.round(current),
+      wins: wins[id] || 0,
+      lost: losses[id] || 0
+    };
+  });
+  rows.sort((a,b) => b.peakRating - a.peakRating || a.id.localeCompare(b.id));
 
   if(rows.length === 0){
     out.textContent = 'No players found in feed.';
@@ -234,9 +249,10 @@
       <tr>
         <th style="width:48px">#</th>
         <th>ID</th>
-        <th style="width:110px">Rating</th>
+        <th style="width:110px">Peak Rating</th>
+        <th style="width:110px">Current Rating</th>
         <th style="width:80px">Wins</th>
-        <th style="width:80px">Losses</th>
+        <th style="width:80px">Lost</th>
       </tr>
     </thead>
     <tbody>
@@ -244,9 +260,10 @@
         <tr class="clickable" data-id="${r.id}">
           <td>${i+1}</td>
           <td class="mono">${r.id}</td>
-          <td>${r.rating}</td>
+          <td>${r.peakRating}</td>
+          <td>${r.currentRating}</td>
           <td>${r.wins}</td>
-          <td>${r.losses}</td>
+          <td>${r.lost}</td>
         </tr>`).join('')}
     </tbody>
   `;
