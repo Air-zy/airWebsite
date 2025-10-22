@@ -7,7 +7,7 @@
 <style>
   :root{--bg:#0b1220;--card:rgba(255,255,255,0.02);--muted:#98b0d5;--panel:#071024;}
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;}
-  .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:center;padding:20px;box-sizing:border-box;}
+  .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px;box-sizing:border-box;}
   .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);}
   h1{margin:0 0 10px 0;font-size:18px;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
@@ -23,8 +23,8 @@
     right:0;
     top:0;
     height:100%;
-    width:420px;
-    max-width:92%;
+    width:600px;
+    max-width:60%;
     background:linear-gradient(180deg,var(--panel),rgba(5,10,20,0.85));
     box-shadow: -20px 0 40px rgba(0,0,0,0.6);
     border-left:1px solid rgba(255,255,255,0.03);
@@ -47,6 +47,7 @@
   .small-muted{color:var(--muted);font-size:12px}
   .klist{font-size:13px;color:#dbeafe;margin-top:6px}
   .note{color:var(--muted);font-size:13px;margin-top:8px}
+  .id-btn{background:transparent;border:0;color:#cfe6ff;cursor:pointer;padding:0;font-family:inherit;font-size:13px}
 
 /* Elo delta styles */
   .delta-plus{color:#b9f6c1;font-weight:700;}
@@ -80,7 +81,7 @@
       <canvas id="ratingChart"></canvas>
     </div>
 
-    <div id="panelContent"></div>
+    <div id="panelContent" style="font-size: 12px"></div>
     <div class="note">Classification heuristics: boss-raided = multiple killers vs a single victim. Fairness based on focus % difference (≤25 → fair).</div>
   </aside>
 
@@ -184,7 +185,13 @@
         // apply Elo on current ratings
         const rK = ratings[k];
         const rV = ratings[v];
-        const [newK, newV] = applyElo(rK, rV);
+        let [newK, newV] = applyElo(rK, rV);
+        if (newK < 1000) {
+          newK += 6
+        }
+        if (newV < 1000) {
+          newV += 6
+        }
         ratings[k] = newK;
         ratings[v] = newV;
       }
@@ -304,27 +311,33 @@
 
     if(didKill){
       outcomeText = 'Won';
-      if(bossRaided) classTag = 'Boss-raided (win)';
-      else if (numKillers > 1 && numVictims > 1) classTag = 'Group win';
+      if(bossRaided) {
+        if (wasVictim) {
+          classTag = 'Boss-raided (win)'
+        } else {
+          classTag = 'helped gank (win)'
+        }
+      } else if (numKillers > 1 && numVictims > 1) classTag = 'Group win';
       else {
         if(focusDiff <= 25) classTag = 'Fair win';
-        else if(my_focus > enemy_focus) classTag = 'Won (advantage)';
-        else classTag = 'Won (surprised)';
+        else if(my_focus > enemy_focus) classTag = 'Won (???)';
+        else classTag = 'unfair Win (did not focus enough on victim|enemy)';
       }
     } else if (wasVictim){
       outcomeText = 'Lost';
-      if(bossRaided) classTag = 'Boss-raided (loss)';
-      else {
+      if(bossRaided) {
+        classTag = 'got ganked (loss)';
+      } else {
         if(focusDiff <= 25) classTag = 'Fair loss';
-        else if(enemy_focus > my_focus) classTag = 'Lost (targeted)';
-        else classTag = 'Lost (close/unexpected)';
+        else if(enemy_focus > my_focus) classTag = 'unfair Loss (did not focus enough on victim|enemy)';
+        else classTag = 'Lost (???)';
       }
     } else if (participatedByDamage){
       outcomeText = 'Assisted';
       classTag = 'Assisted a kill';
     } else {
-      outcomeText = 'Observed';
-      classTag = 'Observer/No damage';
+      outcomeText = 'unknown';
+      classTag = 'unknown? no dmg';
     }
 
     return {
@@ -359,10 +372,27 @@
       return;
     }
 
-    // Use fight order from fightsList (only fights where player appears)
+    // Use fight order from hist (only fights where player appears)
     const labels = hist.map(h => `#${h.fight_id}`);
     const beforeData = hist.map(h => Math.round(h.before));
     const afterData = hist.map(h => Math.round(h.after));
+
+    // --- compute win/loss series: +1 for win, -1 for loss, 0 for assist/other
+    const winLossPerFight = hist.map(h => {
+      const fid = String(h.fight_id);
+      const parts = fightsById.get(fid) || [];
+      if(parts.some(p => String(p.killer_id) === id)) return 1;
+      if(parts.some(p => String(p.victim_id) === id)) return -1;
+      return 0;
+    });
+
+    // --- compute cumulative 'gain' as running sum of +1/-1/0
+    const gainData = [];
+    let running = 0;
+    for(let i=0;i<winLossPerFight.length;i++){
+      running += winLossPerFight[i];
+      gainData.push(running);
+    }
 
     const ctx = chartCanvas.getContext('2d');
     if(ratingChart) ratingChart.destroy();
@@ -373,21 +403,20 @@
         labels,
         datasets: [
           {
-            label: 'Rating (before fight)',
+            label: 'Rating',
             data: beforeData,
-            tension: 0.25,
             fill: false,
-            borderWidth: 2,
-            pointRadius: 3,
+            borderWidth: 1,
+            pointRadius: 1,
+            yAxisID: 'y'
           },
           {
-            label: 'Rating (after fight)',
-            data: afterData,
-            tension: 0.25,
+            label: 'Gain (+1 win, -1 loss)',
+            data: gainData,
             fill: false,
-            borderDash: [6,4],
-            borderWidth: 2,
-            pointRadius: 3,
+            borderWidth: 1,
+            pointRadius: 1,
+            yAxisID: 'y1',
           }
         ]
       },
@@ -403,11 +432,15 @@
             callbacks: {
               label: function(ctx){
                 const d = ctx.dataset.label || '';
-                const val = ctx.parsed.y;
                 const idx = ctx.dataIndex;
-                const before = beforeData[idx];
-                const after = afterData[idx];
-                return `${d}: ${val} (before ${before} → after ${after})`;
+                if((d || '').toLowerCase().includes('gain')){
+                  const v = gainData[idx];
+                  return `${d}: ${v}`;
+                } else {
+                  const before = beforeData[idx];
+                  const after = afterData[idx];
+                  return `${d}: ${before} → ${after}`;
+                }
               }
             }
           },
@@ -416,6 +449,12 @@
         scales: {
           y: {
             beginAtZero: false,
+            ticks: { precision: 0 }
+          },
+          y1: {
+            position: 'right',
+            beginAtZero: false,
+            grid: { drawOnChartArea: false },
             ticks: { precision: 0 }
           }
         }
@@ -439,6 +478,74 @@
 
     // render chart first (chronological)
     renderChartForPlayer(id, fightsList);
+
+    // --- compute top allies & enemies
+    // Allies: other killers that appear in fights where selected was a killer (co-killers)
+    const allyCounts = new Map();
+    // Enemies: killers that killed the selected player (appear as killer where selected is victim)
+    const enemyCounts = new Map();
+
+    for(const f of fightsList){
+      const parts = f.parts || [];
+      const killers = Array.from(new Set(parts.filter(p=>p.killer_id).map(p=>String(p.killer_id))));
+      const victims = Array.from(new Set(parts.filter(p=>p.victim_id).map(p=>String(p.victim_id))));
+
+      // if selected was a killer in this fight -> count other killers as allies
+      if(killers.includes(id)){
+        for(const k of killers){
+          if(k === id) continue;
+          allyCounts.set(k, (allyCounts.get(k)||0) + 1);
+        }
+      }
+
+      // if selected was a victim in this fight -> count killers as enemies
+      if(victims.includes(id)){
+        for(const k of killers){
+          if(k === id) continue;
+          enemyCounts.set(k, (enemyCounts.get(k)||0) + 1);
+        }
+      }
+
+      // adjust
+      for (const [k, allyVal] of allyCounts.entries()) {
+        const enemyVal = enemyCounts.get(k) || 0;
+        if (enemyVal > 0) {
+          const diff = Math.min(allyVal, enemyVal)*2;
+          allyCounts.set(k, allyVal - diff);
+          enemyCounts.set(k, enemyVal - diff);
+        }
+      }
+    }
+
+    function topNFromMap(m, n){
+      return Array.from(m.entries()).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,n);
+    }
+
+    const topAllies = topNFromMap(allyCounts, 2);
+    const topEnemies = topNFromMap(enemyCounts, 2);
+
+    const listsWrap = document.createElement('div');
+    listsWrap.style.display = 'flex';
+    listsWrap.style.gap = '12px';
+    listsWrap.style.marginBottom = '10px';
+
+    const alliesDiv = document.createElement('div');
+    alliesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top allies</div>` + (topAllies.length===0? '<div class="small-muted">No allies found</div>' : '<ul style="margin:0;padding-left:18px">' + topAllies.map(([aid,cnt])=>`<li><button class="id-btn mono" data-id="${aid}">${aid}</button> - contributed ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
+
+    const enemiesDiv = document.createElement('div');
+    enemiesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top enemies</div>` + (topEnemies.length===0? '<div class="small-muted">No enemies found</div>' : '<ul style="margin:0;padding-left:18px">' + topEnemies.map(([eid,cnt])=>`<li><button class="id-btn mono" data-id="${eid}">${eid}</button> - contributed in ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
+
+    listsWrap.appendChild(alliesDiv);
+    listsWrap.appendChild(enemiesDiv);
+    panelContent.appendChild(listsWrap);
+
+    // attach click handler to id buttons inside panelContent to open their panels
+    panelContent.querySelectorAll('.id-btn').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        const targetId = btn.getAttribute('data-id');
+        if(targetId) openPanelFor(targetId);
+      });
+    });
 
     // then render fight cards (reverse chronological to match earlier UI)
     fightsList.sort((a,b) => (Number(b.fight_id)||0) - (Number(a.fight_id)||0));
