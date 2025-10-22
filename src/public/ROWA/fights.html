@@ -90,12 +90,12 @@
 <script>
 (async function(){
   const API = '/api/rowa/fights/recent?limit=10000';
-  const INITIAL_RATING = 600;
-  const K = 32;
+  const INITIAL_RATING = 800;
+  const KValue = 32;
 
   // Elo helpers
   const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA)/400));
-  const applyElo = (rW, rL) => {
+  const applyElo = (rW, rL, K) => {
     const eW = expected(rW, rL);
     return [ rW + K * (1 - eW), rL + K * (0 - (1 - eW)) ];
   };
@@ -139,6 +139,7 @@
   // simulate Elo across fights and count wins/losses
   const ratings = {}; // id -> rating (floats)
   const wins = {};    // id -> int
+  const unfairWins = {}; // id -> int
   const losses = {};  // id -> int
 
   // per-fight maps
@@ -161,10 +162,15 @@
     const killers = new Set();
     const victims = new Set();
     for(const p of parts){
-      if(p.killer_id) killers.add(String(p.killer_id));
-      if(p.victim_id) victims.add(String(p.victim_id));
+      if(p.killer_id) killers.add(p);
+      if(p.victim_id) victims.add(p);
     }
-    const allPlayers = new Set([...killers, ...victims]);
+    const allPlayers = new Set();
+    for (const part of parts) {
+      if (part.killer_id) allPlayers.add(String(part.killer_id));
+      if (part.victim_id) allPlayers.add(String(part.victim_id));
+    }
+
     allPlayers.forEach(id => ensure(id));
 
     // -- record ratings before this fight for every involved player
@@ -176,16 +182,27 @@
     fightEloDeltas.set(fid, new Map());
 
     // apply pairwise killer vs victim updates (mutating ratings)
-    for(const k of killers){
-      for(const v of victims){
+    for(const killer of killers){
+      const k = String(killer.killer_id)
+      for(const victim of victims){
+        const v = String(victim.victim_id)
         if(k === v) continue;
+        const fairness = (killer.enemy_focus_percent/100) * (victim.my_focus_percent/100)
+
+        const numKillers = killers.size
+        const thisKValue = (KValue*fairness)/(1+numKillers*2)
+        console.log(fairness, numKillers, thisKValue, killer, victim)
         // count win/loss
-        wins[k] = (wins[k] || 0) + 1;
+        if (thisKValue == 0) {
+          unfairWins[k] = (unfairWins[k] || 0) + 1;
+        } else {
+          wins[k] = (wins[k] || 0) + 1;
+        }
         losses[v] = (losses[v] || 0) + 1;
         // apply Elo on current ratings
         const rK = ratings[k];
         const rV = ratings[v];
-        let [newK, newV] = applyElo(rK, rV);
+        let [newK, newV] = applyElo(rK, rV, thisKValue);
 
         // less than 1000 can climb
         /*if (newK < 1000) {
@@ -233,6 +250,7 @@
       peakRating: peak,
       currentRating: Math.round(current),
       wins: wins[id] || 0,
+      unfairWins: unfairWins[id] || 0,
       lost: losses[id] || 0
     };
   });
@@ -261,8 +279,8 @@
           <td>${i+1}</td>
           <td class="mono">${r.id}</td>
           <td>${r.peakRating}</td>
-          <td>${r.currentRating}</td>
-          <td>${r.wins}</td>
+          <td>${r.currentRating}</td>s
+          <td>${r.wins} <span style="font-size: 10px; color:gray">+ (${r.unfairWins})</span></td>
           <td>${r.lost}</td>
         </tr>`).join('')}
     </tbody>
@@ -481,7 +499,7 @@
 
   // open panel and render selected player's fights
   function openPanelFor(id){
-    panelTitle.textContent = 'Player: ' + id + ` · Wins ${wins[id] || 0} / Losses ${losses[id] || 0}`;
+    panelTitle.textContent = 'Player: ' + id + ` · Won ${wins[id] || 0} / Lost ${losses[id] || 0} / UnfairWin ${Math.floor((unfairWins[id]/wins[id])*100) || 0}%`;
     panelContent.innerHTML = '';
 
     const fightsList = getFightsForId(id);
