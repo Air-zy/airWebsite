@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ROWA — Player</title>
+<style>
+  :root{--bg:#0b0f14;--card:#0f1720;--muted:#9aa6b2;--accent:#60a5fa;--glass:rgba(255,255,255,0.03)}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#071018);color:#e6eef6;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  .wrap{max-width:920px;margin:36px auto;padding:18px}
+  .card{background:linear-gradient(180deg,var(--card),#0b1117);border-radius:12px;padding:16px;box-shadow:0 6px 30px rgba(2,6,12,0.6);border:1px solid rgba(255,255,255,0.02)}
+  header{display:flex;align-items:center;justify-content:space-between}
+  h1{font-size:20px;margin:0;color:#fff}
+  h1 a{color:inherit;text-decoration:none}
+  .sub{color:var(--muted);font-size:13px}
+  .stats{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .stat{background:var(--glass);padding:10px;border-radius:10px;min-width:110px;text-align:center}
+  .label{color:var(--muted);font-size:12px}
+  .value{font-weight:700;font-size:18px;color:#fff}
+  .big{font-size:28px;color:var(--accent);font-weight:800}
+  main{margin-top:16px;display:grid;grid-template-columns:1fr 320px;gap:14px}
+  details{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;color:var(--muted)}
+  summary{cursor:pointer;font-weight:700;color:#fff}
+  .slots{display:flex;flex-direction:column;gap:8px}
+  .slot{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));border:1px solid rgba(255,255,255,0.02)}
+  .slot h3{margin:0 0 6px 0;font-size:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .kv{min-width:110px;color:var(--muted);font-size:13px}
+  .sm{font-size:12px;color:var(--muted)}
+  .error{color:#ffa3a3}
+  @media(max-width:880px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <header>
+      <div>
+        <h1 id="playerId"><a id="playerLink" href="#" target="_blank" rel="noopener">—</a></h1>
+        <div class="sub" id="sub">Fetching /api/rowa/{id}</div>
+      </div>
+    </header>
+
+    <div class="stats" id="stats"></div>
+
+    <main>
+      <section>
+        <div class="sm" style="margin-bottom:6px">Slots</div>
+        <div class="slots" id="slots"><div class="sm">Loading...</div></div>
+      </section>
+
+      <aside>
+        <div style="margin-bottom:12px">
+          <div class="sm">Meta</div>
+          <div style="padding:12px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.02);">
+            <div class="sm">First seen</div>
+            <div id="metaFirst" class="value">—</div>
+            <div class="sm" id="playtime">Total playtime —</div>
+          </div>
+        </div>
+
+        <!-- keybinds & touch remain collapsed by default -->
+        <details>
+          <summary>Keybinds <span id="kcount" class="sm"></span></summary>
+          <pre id="kbPre" style="margin-top:8px;white-space:pre-wrap;color:var(--muted)"></pre>
+        </details>
+
+        <details style="margin-top:10px">
+          <summary>Touch Data <span id="tcount" class="sm"></span></summary>
+          <pre id="touchPre" style="margin-top:8px;white-space:pre-wrap;color:var(--muted)"></pre>
+        </details>
+      </aside>
+    </main>
+  </div>
+</div>
+
+<script>
+(async function(){
+  const rawId = (location.pathname.split('/').pop() || '').trim();
+  const id = rawId || location.search.split('userid=')[1] || 'unknown';
+  const link = document.getElementById('playerLink');
+  const sub = document.getElementById('sub');
+  const esc = s => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+
+  // set profile href immediately
+  link.href = `https://www.roblox.com/users/${encodeURIComponent(id)}/profile`;
+  link.textContent = id;
+  sub.textContent = '/api/rowa/' + id;
+
+  const fmtDate = s => {
+    if (s == null) return '—';
+    const n = Number(s);
+    if (isNaN(n)) return '—';
+    return new Date(n*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  };
+  const fmtPlay = sec => {
+    if (!sec && sec !== 0) return '—';
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+    return `${h}h ${m}m`;
+  };
+
+  const stats=document.getElementById('stats'),
+        slots=document.getElementById('slots'),
+        metaF=document.getElementById('metaFirst'),
+        play=document.getElementById('playtime'),
+        kb=document.getElementById('kbPre'),
+        touch=document.getElementById('touchPre'),
+        kc=document.getElementById('kcount'),
+        tc=document.getElementById('tcount');
+
+  try {
+    // start both requests: primary API and user lookups (attempt multiple proxies)
+    const apiFetch = fetch('/api/rowa/'+encodeURIComponent(id));
+    const userProxies = [
+      `https://users.roblox.com/v1/users/${encodeURIComponent(id)}`,
+      `https://users.roproxy.com/v1/users/${encodeURIComponent(id)}`,
+      `https://api.roproxy.com/v1/users/${encodeURIComponent(id)}`,
+      `https://roproxy.com/v1/users/${encodeURIComponent(id)}`
+    ];
+
+    // try proxies in order until one works
+    const tryFetchUser = async () => {
+      for (const url of userProxies) {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const body = await r.json();
+          // successful; return body
+          return body;
+        } catch(e) {
+          // try next
+        }
+      }
+      return null;
+    };
+
+    const [apiRes, userResult] = await Promise.all([apiFetch, tryFetchUser()]);
+
+    // use userResult if available to set header
+    if (userResult) {
+      const display = userResult.displayName && userResult.displayName !== userResult.name
+                    ? `${esc(userResult.displayName)} (@${esc(userResult.name)})`
+                    : esc(userResult.name || id);
+      link.textContent = display;
+    }
+
+    // handle API response
+    const res = await apiRes;
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>res.statusText);
+      sub.textContent = 'Error: ' + res.status + (txt ? ' — ' + txt : '');
+      slots.innerHTML = '<div class="sm error">Failed to load</div>';
+      return;
+    }
+    const j = await res.json();
+
+    // main stats
+    const wins = +j.wins || 0, loss = +j.loss || 0, total = wins + loss;
+    const winrate = total ? (wins/total*100).toFixed(2)+'%' : '—';
+    const elo = j.elo ?? '—', seed = j.seed ?? '—';
+    const stat = (l,v,b) => `<div class="stat"><div class="label">${l}</div><div class="${b?'big':'value'}">${v}</div></div>`;
+    stats.innerHTML = stat('Wins', wins) + stat('Losses', loss) + stat('Winrate', winrate) + stat('ELO', esc(elo)) + stat('Seed', esc(seed));
+
+    // meta
+    metaF.textContent = fmtDate(j.meta?.first);
+    play.textContent = 'Total playtime — ' + fmtPlay(j.meta?.totalPlaytime || j.meta?.total || 0);
+
+    // keybinds/touch (collapsed)
+    kb.textContent = JSON.stringify(j.keybindData||[], null, 2);
+    touch.textContent = JSON.stringify(j.touchData||[], null, 2);
+    kc.textContent = '('+((j.keybindData||[]).length)+')';
+    tc.textContent = '('+((j.touchData||[]).length)+')';
+
+    // slots
+    slots.innerHTML = '';
+    (j.slots||[]).forEach((s,i) => {
+      const name = esc(s[0] || `Slot ${i+1}`);
+      const sSeed = esc(s[1] ?? '—');
+      const first = fmtDate(s[3]?.first);
+      const sElo = esc(s[5] ?? '—'), sW = s[6] ?? 0, sL = s[7] ?? 0;
+      slots.innerHTML += `
+        <div class="slot">
+          <h3>${name}</h3>
+          <div class="row">
+            <div class="kv"><div class="sm">Seed</div><div class="value">${sSeed}</div></div>
+            <div class="kv"><div class="sm">First</div><div class="value">${first}</div></div>
+            <div class="kv"><div class="sm">Slot ELO</div><div class="value">${sElo}</div></div>
+            <div class="kv"><div class="sm">Wins</div><div class="value">${sW}</div></div>
+            <div class="kv"><div class="sm">Losses</div><div class="value">${sL}</div></div>
+          </div>
+        </div>`;
+    });
+
+  } catch (err) {
+    sub.textContent = 'Network error';
+    slots.innerHTML = '<div class="sm error">Failed to load</div>';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>

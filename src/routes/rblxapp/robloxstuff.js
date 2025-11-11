@@ -108,7 +108,12 @@ async function getRblxDataDecompressed() {
 }
 
 function startrbx(app) {
-    app.get('/rowa', (req, res) => { return res.redirect('/ROWA/game.html');  });
+    app.get('/rowa',         (req, res) => { return res.redirect('/ROWA/game.html');       });
+    app.get('/rowa/:userid', (req, res) => {
+      res.sendFile('rowaPlr.html', { root: __dirname + '/res' });
+    });
+
+
     app.post('/gam3push', require('./routes/gam3push.js'));
     app.get('/api/roblox-user/:userId', require('./routes/userlookup.js'));
 
