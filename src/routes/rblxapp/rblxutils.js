@@ -20,7 +20,7 @@ async function fetchUsersByIds(ids, opts = {}) {
         url = "https://users.roproxy.com/v1/users",
         chunkSize = 200,
         maxRetries = 5,
-        delayBetweenChunks = 200
+        delayBetweenChunks = 4000
     } = opts;
 
     const uniqueIds = Array.from(new Set(ids.map(n => Number(n)).filter(Number.isFinite)));
@@ -48,7 +48,7 @@ async function fetchUsersByIds(ids, opts = {}) {
     }
 
     async function postChunk(chunk) {
-        let backoff = 500;
+        let backoff = 4000;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const resp = await fetch(url, {
@@ -63,6 +63,7 @@ async function fetchUsersByIds(ids, opts = {}) {
                 }
 
                 if (resp.status === 429 || (resp.status >= 500 && resp.status < 600)) {
+                    console.log(attempt, resp.status)
                     if (attempt === maxRetries) throw new Error(`HTTP ${resp.status}`);
                     await wait(backoff);
                     backoff *= 2;
@@ -79,18 +80,22 @@ async function fetchUsersByIds(ids, opts = {}) {
         return [];
     }
 
-    const chunks = chunkArray(toFetch, chunkSize);
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const data = await postChunk(chunk);
-        for (const u of data) {
-            const uid = Number(u.id ?? u.userId ?? u.user_id);
-            if (Number.isFinite(uid)) {
-                roUNameIDcache[uid] = u;
-                out[uid] = u;
+    try {
+        const chunks = chunkArray(toFetch, chunkSize);
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const data = await postChunk(chunk);
+            for (const u of data) {
+                const uid = Number(u.id ?? u.userId ?? u.user_id);
+                if (Number.isFinite(uid)) {
+                    roUNameIDcache[uid] = u;
+                    out[uid] = u;
+                }
             }
+            if (i < chunks.length - 1) await wait(delayBetweenChunks);
         }
-        if (i < chunks.length - 1) await wait(delayBetweenChunks);
+    } catch {
+
     }
 
     return out;

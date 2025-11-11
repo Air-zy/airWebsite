@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rowa Dashboard</title>
+<style>
+  :root{--bg:#0b0d10;--panel:#0f1418;--muted:#8f9aa2;--text:#e6eef3;--accent:#6ce6b5}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:28px auto;padding:18px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
+  h1{margin:0 0 8px 0;font-size:18px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;border-radius:6px;color:var(--muted);cursor:pointer}
+  .small{font-size:12px;color:var(--muted)}
+  .chartWrap{height:520px;width:100%;display:block}
+  canvas{width:100% !important;height:100% !important;display:block}
+  #lbWrap{overflow:auto;max-height:720px}
+  table{width:100%;border-collapse:collapse;font-size:13px;color:var(--text)}
+  th,td{padding:8px 6px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03)}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  tr:hover td{background:rgba(255,255,255,0.01)}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="topbar">
+        <div>
+          <h1>Elo vs Winrate</h1>
+          <div class="small">X = Elo · Y = Winrate (%)</div>
+        </div>
+        <div><button id="refresh" class="btn">Refresh</button></div>
+      </div>
+      <div class="chartWrap">
+        <canvas id="chart" width="1200" height="520"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h1>Leaderboard (All players)</h1>
+          <div class="small">Sorted by Elo (highest → lowest)</div>
+        </div>
+      </div>
+      <div id="lbWrap"><div class="small muted">Loading…</div></div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(async function(){
+  const chartEl = document.getElementById('chart');
+  const lbWrap = document.getElementById('lbWrap');
+  const refresh = document.getElementById('refresh');
+  let chart;
+
+  function parseNum(v){
+    if (v == null) return NaN;
+    if (typeof v === 'number') return v;
+    // strip commas and non-numeric trailing chars
+    const s = String(v).replace(/[^\d\.\-]/g,'');
+    return s === '' ? NaN : Number(s);
+  }
+
+  async function load(){
+    lbWrap.innerHTML = '<div class="small muted">Loading…</div>';
+    try {
+      const res = await fetch('/api/rowa/all');
+      if (!res.ok) throw new Error('fetch failed ' + res.status);
+      const list = await res.json();
+
+      const points = [];
+      const rows = [];
+      for (const item of list){
+        const id = (item.id ?? item.userid ?? item.userId ?? 'unknown').toString();
+        const v = item.value || {};
+        const wins = parseNum(v.wins) || 0;
+        const loss = parseNum(v.loss) || 0;
+        const games = wins + loss;
+        const winrate = games ? (wins / games) * 100 : 0;
+        const elo = parseNum(v.elo);
+        if (!isFinite(elo)) continue;
+        points.push({ x: elo, y: Math.round(winrate*10)/10, id, wins, loss });
+        rows.push({ id, elo, winrate: Math.round(winrate*10)/10, wins, loss });
+      }
+
+      const elos = points.map(p => p.x);
+      const minE = elos.length ? Math.min(...elos) : 0;
+      const maxE = elos.length ? Math.max(...elos) : 100;
+      const pad = Math.max(10, Math.round((maxE - minE) * 0.05));
+
+      const ctx = chartEl.getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Players',
+            data: points,
+            parsing: false,
+            pointRadius: 1.5,
+            pointHoverRadius: 5,
+            showLine: false,
+            backgroundColor: 'rgba(108,230,181,0.9)'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label(ctx){
+                  const p = ctx.raw;
+                  return `id:${p.id} — Elo:${p.x} — ${p.y}% — W:${p.wins} L:${p.loss}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { title:{display:true,text:'Elo'}, min: Math.max(0, minE - pad), max: maxE + pad, ticks:{color:'#9fb6ad'}, grid:{color:'rgba(255,255,255,0.03)'} },
+            y: { title:{display:true,text:'Winrate (%)'}, min:0, max:100, ticks:{color:'#9fb6ad'}, grid:{color:'rgba(255,255,255,0.03)'} }
+          }
+        }
+      });
+
+      rows.sort((a,b)=>b.elo - a.elo);
+      const table = document.createElement('table');
+      table.innerHTML = `<thead><tr><th style="width:36px">#</th><th>id</th><th style="width:90px">elo</th><th style="width:90px">winrate</th><th class="muted" style="width:48px">W</th><th class="muted" style="width:48px">L</th></tr></thead>`;
+      const body = document.createElement('tbody');
+      for (let i=0;i<rows.length;i++){
+        const r = rows[i];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i+1}</td><td>${r.id}</td><td>${r.elo}</td><td>${r.winrate}%</td><td class="muted">${r.wins}</td><td class="muted">${r.loss}</td>`;
+        body.appendChild(tr);
+      }
+      table.appendChild(body);
+      lbWrap.innerHTML = '';
+      lbWrap.appendChild(table);
+    } catch (err) {
+      lbWrap.innerHTML = `<div class="small muted">Failed to load — ${err.message}</div>`;
+      console.error(err);
+    }
+  }
+
+  refresh.addEventListener('click', load);
+  await load();
+})();
+</script>
+</body>
+</html>
