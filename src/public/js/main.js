@@ -428,7 +428,11 @@ mainContentElm.addEventListener("scroll", function () {
       const mainDiscP = document.getElementById("main-discord")
       const mainLocP = document.getElementById("main-location")
       if (data && data.valid) {
-        mainEmailP.textContent = data.message;
+       mainEmailP.innerHTML = `
+          <a href="mailto:${data.message}" style="text-decoration:none">
+            ${data.message}
+          </a>
+        `;
         mainDiscP.href = data.cord;
         
         mainDiscP.childNodes.forEach(node => {
@@ -442,7 +446,11 @@ mainContentElm.addEventListener("scroll", function () {
           }
         });
       } else if (data.message) {
-        mainEmailP.textContent = data.message;
+        mainEmailP.innerHTML = `
+          <a href="mailto:${data.message}" style="text-decoration:none">
+            ${data.message}
+          </a>
+        `;
       } else {
         console.log("user validate err", data)
       }
