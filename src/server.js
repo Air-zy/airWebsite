@@ -23,7 +23,7 @@ startMinify({
 const { startCycler } = require('./heartSystem/heart.js');
 startCycler();
 
-const { loadAddresses } = require('./addressRegistry/addressManager.js') // getAddressMap
+const { loadAddresses } = require('./classes/addressRegistry/addressManager.js') // getAddressMap
 loadAddresses();
 
 

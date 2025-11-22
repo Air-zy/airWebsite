@@ -40,7 +40,7 @@ const {
   getAddressMap,
   getIPData,
   updateAddress,
-} = require('../addressRegistry/addressManager.js')
+} = require('../classes/addressRegistry/addressManager.js')
 
 let lookupTBL = {};
 function referLookup(ip, req) {

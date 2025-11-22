@@ -1,5 +1,5 @@
-const { firedbAdressGet, firedbAdressesSave } = require('../firebasedb.js');
-const { ipLookup } = require('../ipLookup.js');
+const { firedbAdressGet, firedbAdressesSave } = require('../../firebasedb.js');
+const { ipLookup } = require('../../ipLookup.js');
 const Address = require('./adress.js');
 
 const addressMap = new Map();
