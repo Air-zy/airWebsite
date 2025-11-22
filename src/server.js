@@ -53,17 +53,9 @@ app.get('/encryption', (req, res) => { return res.redirect('/encryption/cbc.html
 app.get('/trafic',     (req, res) => { return res.redirect('/api.html');              });
 app.get('/anime2',     (req, res) => { return res.redirect('/anime2/main.html');      });
 
-app.get('/api/rowa/fights/recent',  require('./routes/rowa2/getFightsRecent.js')   );
-app.get('/api/rowa/fights/:id',     require('./routes/rowa2/getFightById.js')      );
-app.get('/api/rowa/fights',         require('./routes/rowa2/rowa_all_fights.js')   );
-app.get('/api/rowa/all',            require('./routes/rowa2/allPlrData.js')        );
-app.get('/api/rowa/:userid',        require('./routes/rowa2/plrData.js')           );
-app.get('/api/anime2/data',         require('./routes/anime2/data.js')             );
-app.get('/api/rblx',                require('./routes/api_rblx.js')                );
-app.get('/api/logs',                require('./routes/api_logs.js')                );
-app.get('/api/projects',            require('./routes/api_projects.js')            );
-app.get('/api/headers',             require('./routes/api_headers.js')             );
-app.get('/api/cluster-units',       require('./routes/api_clusterUnits.js')        );
+const apiRoutes = require('./routes/api/apiRouter.js');
+app.use('/api', apiRoutes);
+
 app.get('/info',                    require('./routes/info.js')                    );
 app.get('/r',                       require('./routes/r.js')                       ); // request token
 
@@ -72,12 +64,7 @@ app.post('/webhook2',               require('./routes/webhooks/webhook2.js')    
 
 app.post('/c',                      require('./routes/c.js')                       );
 app.post('/validate-me',            require('./routes/validate_me.js')             );
-app.post('/api/project-edit',       require('./routes/api_project_edit.js')        );
-app.post('/api/get-anime',          require('./routes/anime/get_anime.js')         );
-app.post('/api/commit-anime',       require('./routes/anime/commit_anime.js')      );
-app.post('/api/projects-update',    require('./routes/projects_update.js')         );
 
-app.post('/api/rowadb/fights',      require('./routes/rowa2/rowa_fights.js')       );
 app.post('/nfetch',                 require('./routes/nfetch.js')                  );
  
 

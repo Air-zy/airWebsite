@@ -1,5 +1,5 @@
-const { getIPData, bitset, getIP, getProjects } = require('./ip_utils.js');
-const { firedbAirsiteSave } = require('../firebasedb.js');
+const { getIPData, bitset, getIP, getProjects } = require('../ip_utils.js');
+const { firedbAirsiteSave } = require('../../firebasedb.js');
 
 let lastUpdate = 0;
 async function attemptSaveProjectsList(projects) {

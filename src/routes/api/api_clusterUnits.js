@@ -1,4 +1,4 @@
-const envDecrypt = require('../FallbackEncryption/envDecrypt.js')
+const envDecrypt = require('../../FallbackEncryption/envDecrypt.js')
 //const EXPECTED_TOKEN = envDecrypt(process.env.airKey, process.env.airWebToken)
 
 module.exports = async (req, res) => {

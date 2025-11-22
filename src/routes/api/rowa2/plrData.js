@@ -1,4 +1,4 @@
-const envDecrypt = require('../../FallbackEncryption/envDecrypt.js');
+const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js');
 const rbxApiKey = envDecrypt(process.env.airKey, process.env.rowaCloudApi)
 
 module.exports = async (req, res) => {

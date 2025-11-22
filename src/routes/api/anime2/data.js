@@ -1,4 +1,4 @@
-const { getAnimeDataCompressed } = require('../../DATABASE/utilDB.js');
+const { getAnimeDataCompressed } = require('../../../DATABASE/utilDB.js');
 
 module.exports = async (req, res) => {
   try {

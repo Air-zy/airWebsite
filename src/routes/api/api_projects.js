@@ -1,5 +1,5 @@
-const { firedbAirsiteGet } = require('../firebasedb.js');
-const { getProjects } = require('./ip_utils.js');
+const { firedbAirsiteGet } = require('../../firebasedb.js');
+const { getProjects } = require('../ip_utils.js');
 
 
 let lastairsiteGet = 0;
