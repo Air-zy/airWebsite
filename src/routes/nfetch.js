@@ -1,4 +1,4 @@
-const envDecrypt = require('../envDecrypt.js');
+const envDecrypt = require('../FallbackEncryption/envDecrypt.js');
 const clusterAcolyteToken = process.env.airClusterAcolyteToken
 const { Readable, pipeline } = require("stream");
 

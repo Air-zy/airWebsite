@@ -1,5 +1,5 @@
 const { getIPData, bitset, getIP } = require('./ip_utils.js');
-const envDecrypt = require('../envDecrypt.js')
+const envDecrypt = require('../FallbackEncryption/envDecrypt.js')
 
 const trustedDataToSend = {
   valid: true,

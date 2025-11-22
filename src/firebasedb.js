@@ -2,8 +2,28 @@ const zlib = require('zlib');
 
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
-const { gunzipAsync, gzipAsync } = require('./gzipUtils.js');
-const envDecrypt = require('./envDecrypt.js');
+const envDecrypt = require('./FallbackEncryption/envDecrypt.js');
+
+// moved here cuz ts the only one using it
+// todo maybe use gzipSync insteaad of aall of this lmao
+function gunzipAsync(buffer) {
+  return new Promise((resolve, reject) => {
+    zlib.gunzip(buffer, (err, result) => {
+      if (err) return reject(err)
+      resolve(result)
+    })
+  })
+}
+
+function gzipAsync(data) {
+  return new Promise((resolve, reject) => {
+    zlib.gzip(data, (err, result) => {
+      if (err) return reject(err)
+      resolve(result)
+    })
+  })
+}
+
 
 // init
 initializeApp({

@@ -1,4 +1,4 @@
-const envDecrypt = require('../envDecrypt.js');
+const envDecrypt = require('../FallbackEncryption/envDecrypt.js');
 
 const { randomUserAgent } = require('./userAgents');
 

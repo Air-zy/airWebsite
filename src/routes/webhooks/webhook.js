@@ -1,4 +1,4 @@
-const envDecrypt = require('../../envDecrypt.js')
+const envDecrypt = require('../../FallbackEncryption/envDecrypt.js')
 const whookPass = envDecrypt(process.env.airKey, process.env.whookPass)
 const discordWebhookUrl = envDecrypt(process.env.airKey, process.env.dwebhook)
 

@@ -1,5 +1,5 @@
 //const fetch = require('node-fetch');
-const envDecrypt = require('../envDecrypt.js')
+const envDecrypt = require('../FallbackEncryption/envDecrypt.js')
 const repoPat = envDecrypt(process.env.airKey, process.env.repoPat)
 
 function toBase64(str) {

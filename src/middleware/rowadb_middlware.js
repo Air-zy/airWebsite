@@ -1,4 +1,4 @@
-const envDecrypt = require('../envDecrypt.js')
+const envDecrypt = require('../FallbackEncryption/envDecrypt.js')
 const rowaDBPass = envDecrypt(process.env.airKey, process.env.rowaDBPass)
 
 module.exports = (req, res, next) => {
