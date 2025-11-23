@@ -165,6 +165,10 @@ wss.on('connection', ws => {
   });
 });
 
+server.listen(443, () => {
+  console.log('Secure WebSocket server listening on port 443');
+});
+
 const broadcast = () => {
   const msg = JSON.stringify(currentStatus);
   wss.clients.forEach(client => {
