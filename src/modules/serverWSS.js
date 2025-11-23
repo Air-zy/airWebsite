@@ -12,9 +12,11 @@ function start(serverToUse) {
     });
 
     const broadcast = (msg) => {
+        console.log("broadcasting...", broadcast)
         wss.clients.forEach(client => {
+            console.log(client.readyState)
             if (client.readyState === WebSocket.OPEN) {
-            client.send(msg);
+                client.send(msg);
             }
         });
     };
