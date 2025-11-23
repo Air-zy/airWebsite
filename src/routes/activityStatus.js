@@ -7,8 +7,9 @@ function newDateStr() {
 }
 
 let currentStatus = {
-  "status": "",
-  "lastOn": newDateStr()
+  status: "",
+  lastOn: newDateStr(),
+  history: [] // last 254 statuses
 }
 
 let lastUpdate2 = 0;
@@ -16,13 +17,25 @@ async function commitCurrentStatus() {
   const now = Date.now();
   if (now > lastUpdate2 + 6000 && currentStatus.status != "" && currentStatus.status) {
     lastUpdate2 = now;
-    firedbActivitySet(currentStatus)
+
+    currentStatus.history.push({
+      status: currentStatus.status,
+      timestamp: currentStatus.lastOn
+    });
+
+    if (currentStatus.history.length > 254) {
+      currentStatus.history = currentStatus.history.slice(-254);
+    }
+
+    currentStatus.lastOn = newDateStr();
+    firedbActivitySet(currentStatus);
   }
 }
 
 async function initStatus() {
   const meActivityGet = await firedbActivityGet()
   currentStatus = meActivityGet;
+  if (!currentStatus.history) currentStatus.history = [];
 }
 initStatus();
 
