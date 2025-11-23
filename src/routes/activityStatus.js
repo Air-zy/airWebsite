@@ -45,44 +45,43 @@ function start(app, newWS) {
     });
 
     app.post('/presence', (req, res) => {
-        const authHeader = req.headers['authorization'];
+      const authHeader = req.headers['authorization'];
+      if (!authHeader) {
+          return res.status(401).json({ error: 'Authorization header missing' });
+      }
 
-        if (!authHeader) {
-            return res.status(401).json({ error: 'Authorization header missing' });
-        }
+      const token = authHeader.split(' ')[1];
+      if (token != airWebToken) {
+        return res.status(403).json({ error: 'Invalid password' });
+      }
 
-        const token = authHeader.split(' ')[1];
-        if (token == airWebToken) {
-            const status = req.body.status;
-            if (status == "offline") {
-            currentStatus.status = status;
-            broadcast();
-            
-            commitCurrentStatus();
-            } else if (status == "online") {
-            currentStatus.status = status;
-            currentStatus.lastOn = newDateStr();
-            broadcast();
-            
-            commitCurrentStatus();
-            } else if (status == "dnd") {
-            currentStatus.status = status;
-            currentStatus.lastOn = newDateStr();
-            broadcast();
-            
-            commitCurrentStatus();
-            } else if (status == "idle") {
-            currentStatus.status = status;
-            currentStatus.lastOn = newDateStr();
-            broadcast();
-            
-            commitCurrentStatus();
-            }
-        } else {
-            return res.status(403).json({ error: 'Invalid password' });
-        }
+      const status = req.body.status;
+      if (status == "offline") {
+        currentStatus.status = status;
+        broadcast();
         
-        res.sendStatus(200);
+        commitCurrentStatus();
+      } else if (status == "online") {
+        currentStatus.status = status;
+        currentStatus.lastOn = newDateStr();
+        broadcast();
+        
+        commitCurrentStatus();
+      } else if (status == "dnd") {
+        currentStatus.status = status;
+        currentStatus.lastOn = newDateStr();
+        broadcast();
+        
+        commitCurrentStatus();
+      } else if (status == "idle") {
+        currentStatus.status = status;
+        currentStatus.lastOn = newDateStr();
+        broadcast();
+        
+        commitCurrentStatus();
+      }
+      
+      res.status(200).json({ data: status });
     })
 }
 
