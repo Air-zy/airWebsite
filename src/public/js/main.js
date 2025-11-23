@@ -493,7 +493,7 @@ let lastOnTimestamp
 const mainStatusElm = document.getElementById("main-status");
 const mainLastSeenElm = document.getElementById("main-last-seen");
 
-const ws = new WebSocket("wss://airzy.ca");
+const ws = new WebSocket("wss://airzy.ca/ws");
 ws.onopen = () => {
   console.log("WS connected");
 };

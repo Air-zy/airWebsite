@@ -146,7 +146,7 @@ app.post('/presence', (req, res) => {
 const http = require('http')
 const WebSocket = require('ws');
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, path: '/ws' });
 console.log("wws:",wss)
 
 wss.on('error', (err) => {
