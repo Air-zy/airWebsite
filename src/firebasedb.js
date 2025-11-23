@@ -202,12 +202,12 @@ async function _safeSet4(documentRef, animedata) {
 }
 
 
-async function firedbActivitySet(projects) {
+async function firedbActivitySet(activty) {
   if (!activityRef) {
     activityRef = firedb.doc("activity");
   }
   if (activityRef) {
-    await _safeSet4(activity, projects);
+    await _safeSet4(activityRef, activty);
   }
 }
 
