@@ -107,6 +107,8 @@ async function getRblxDataDecompressed() {
   return processedDecompData;
 }
 
+const envDecrypt = require('../../FallbackEncryption/envDecrypt.js');
+const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken)
 function startrbx(app) {
     app.get('/rowa', (req, res) => { return res.redirect('/ROWA/game.html'); });
     app.get('/rowa/:userid', require('./routes/rowauser.js') );

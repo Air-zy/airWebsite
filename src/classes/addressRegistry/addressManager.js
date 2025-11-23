@@ -23,6 +23,10 @@ function getIPData(ip) {
   return addr ? addr.toJSON() : null;
 }
 
+function getAddress(ip) {
+  return addressMap.get(ip);
+}
+
 async function updateAddress(ip, userAgent, referer, req) {
   if (!addressesLoaded) {
     console.warn('[ADDRESS] Not loaded yet; skipping save');
@@ -48,6 +52,7 @@ async function updateAddress(ip, userAgent, referer, req) {
 module.exports = {
   loadAddresses,
   getAddressMap,
+  getAddress,
   getIPData,
   updateAddress,
 };

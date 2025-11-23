@@ -65,6 +65,8 @@ app.post('/webhook2',               require('./routes/webhooks/webhook2.js')    
 app.post('/c',                      require('./routes/c.js')                       );
 app.post('/validate-me',            require('./routes/validate_me.js')             );
 
+app.post('/dashboard',              require('./routes/dashboard.js')               );
+
 app.post('/nfetch',                 require('./routes/nfetch.js')                  );
  
 

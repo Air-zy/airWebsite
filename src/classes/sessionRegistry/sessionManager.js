@@ -1,12 +1,14 @@
 const Session = require('./session');
 const sessions = new Map();
 
+// returns a session token
 function createSession(id, durationMs = 3600000) {
   const session = new Session(id, durationMs);
   sessions.set(session.token, session);
-  return session.token;
+  return session.onlyPublic();
 }
 
+// returns session also
 function validateSession(token) {
   const session = sessions.get(token);
   if (!session) return null;

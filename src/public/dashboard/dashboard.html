@@ -7,7 +7,39 @@
     <link rel="stylesheet" href="./main.css" > 
   </head>
   <body>
-    <button id="pasteBtn">Paste Text</button>
+    <div class="app">
+      <header>
+        <div>
+          <h1>IP Map Visualizer — Dark · Click column headers to sort</h1>
+          <div class="small">Supports IPv4 & IPv6 · Rows color-coded by IP · Click an IP to copy</div>
+        </div>
+
+
+        <div class="controls">
+          <input id="search" type="search" placeholder="search ip / city / isp / region..." />
+          <select id="perpage" class="perpage"><option>25</option><option>50</option><option selected>100</option><option>250</option></select>
+          <button id="download">Download CSV</button>
+        </div>
+      </header>
+
+
+      <div class="table-wrap" id="tableWrap">
+        <table id="ipTable">
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+
+      <div class="pager">
+        <div class="meta" id="summary">0 entries</div>
+        <div style="flex:1"></div>
+        <button id="prev">Prev</button>
+        <button id="next">Next</button>
+        <div class="small">Page <span id="pageNum">1</span></div>
+      </div>
+    </div>
+
     <script src="./main.js"></script>
   </body>
 </html>
