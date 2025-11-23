@@ -17,7 +17,7 @@ module.exports = (req, res) => {
     if (session == null) {
         return res.status(400).json({ error: 'session not found'})
     }
-    console.log(session);
+    //console.log(session);
 
     const pass = req.body.pass;
     if (pass == null) {

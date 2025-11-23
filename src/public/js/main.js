@@ -458,33 +458,29 @@ mainContentElm.addEventListener("scroll", function () {
 });
 
 /* main status */
-function timeDifference(readableDate) {
-    const currentDate = new Date();
-    const pastDate = new Date(readableDate);
+function timeDifference(utcDateString) {
+    const now = new Date();
+    const past = new Date(utcDateString); // parse UTC or ISO string corectly
 
-    console.log(currentDate, pastDate, readableDate)
+    let diff = now - past; // diff in ms
 
-    const diffInMilliseconds = currentDate - pastDate; // in ms
-    const diffInSeconds = diffInMilliseconds / 1000;
-    const diffInMinutes = diffInSeconds / 60;
-    const diffInHours = diffInMinutes / 60;
-    const diffInDays = diffInHours / 24;
-    const diffInMonths = diffInDays / 30;
-    const diffInYears = diffInMonths / 12;
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
 
-    if (diffInSeconds < 60) {
-        return `${Math.floor(diffInSeconds + 30)} seconds ago`;
-    } else if (diffInMinutes < 60) {
-        return `${Math.floor(diffInMinutes)} minutes ago`;
-    } else if (diffInHours < 24) {
-        return `${Math.floor(diffInHours)} hours ago`;
-    } else if (diffInDays < 30) {
-        return `${Math.floor(diffInDays)} days ago`;
-    } else if (diffInMonths < 12) { // anything under here im probabily dead :skull:
-        return `${Math.floor(diffInMonths)} months ago`;
-    } else {
-        return `${Math.floor(diffInYears)} years ago`;
-    }
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} day${days !== 1 ? 's' : ''} ago`;
+
+    const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
+    if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`;
+
+    const years = Math.floor(months / 12);
+    return `${years} year${years !== 1 ? 's' : ''} ago`;
 }
 
 let currentStatus
@@ -492,13 +488,10 @@ let lastOnTimestamp
 
 const mainStatusElm = document.getElementById("main-status");
 const mainLastSeenElm = document.getElementById("main-last-seen");
+const ws = new WebSocket('/ws');
 
-const ws = new WebSocket("wss://airzy.ca/ws");
 ws.onopen = () => {
   console.log("WS connected");
-};
-ws.onmessage = (event) => {
-  console.log("WS message:", event.data);
 };
 ws.onclose = () => {
   console.log("WS closed");
@@ -506,7 +499,7 @@ ws.onclose = () => {
 ws.onerror = (err) => {
   console.error("WS error", err);
 };
-/*
+
 ws.onmessage = (msg) => {
   console.log("WS msg:", msg)
   const data = JSON.parse(msg.data);
@@ -527,7 +520,7 @@ ws.onmessage = (msg) => {
   currentStatus = dstatus
   lastOnTimestamp = data.lastOn;
 };
-*/
+
 setInterval(() => {
   if (currentStatus && lastOnTimestamp) {
     if (currentStatus === "offline") {
