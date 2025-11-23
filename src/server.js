@@ -72,11 +72,6 @@ app.post('/nfetch',                 require('./routes/nfetch.js')               
 const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
 
-app.use((req, res) => {
-  res.status(404).type('text').send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
-});
-
-
 function toBase64(num) {
   const buffer = Buffer.alloc(4);
   buffer.writeUInt32BE(num);
@@ -93,6 +88,19 @@ const serverWSS = require('./modules/serverWSS.js')
 const newWS = serverWSS.start(server);
 const activityStatus = require('./routes/activityStatus.js')
 app.post('/presence', activityStatus.start(app, newWS));
+
+
+
+
+
+
+app.use((req, res) => {
+  res.status(404).type('text').send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
+});
+
+
+
+
 
 const { healthCheck: rowaHealthCheck, ensureTables: rowaEnsureTables } = require('./DATABASE/rowaDB.js');
 const { healthCheck: utilHealthCheck, ensureTables: utilEnsureTables } = require('./DATABASE/utilDB.js');
