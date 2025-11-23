@@ -23,8 +23,8 @@ async function commitCurrentStatus() {
       timestamp: currentStatus.lastOn
     });
 
-    if (currentStatus.history.length > 254) {
-      currentStatus.history = currentStatus.history.slice(-254);
+    if (currentStatus.history.length > 1000) {
+      currentStatus.history = currentStatus.history.slice(-1000);
     }
 
     currentStatus.lastOn = newDateStr();
