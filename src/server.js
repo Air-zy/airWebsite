@@ -26,7 +26,6 @@ startCycler();
 const { loadAddresses } = require('./classes/addressRegistry/addressManager.js') // getAddressMap
 loadAddresses();
 
-
 app.use(require('./middleware/ratelimit.js'));
 app.use(require('./reqLogger.js'));
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
@@ -144,39 +143,34 @@ app.post('/presence', (req, res) => {
   res.sendStatus(200);
 })
 
+const http = require('http')
+const WebSocket = require('ws');
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+console.log("wws:",wss)
 
-function getIP(req) {
-  const ipList = req.headers['x-forwarded-for'];
-  if (ipList) {
-    const ips = ipList.split(',');
-    return ips[0].trim();
-  }
-  return req.connection?.remoteAddress ||
-         req.socket?.remoteAddress ||
-         req.connection?.socket?.remoteAddress ||
-         null;
-}
+wss.on('error', (err) => {
+  console.error("WSS ERROR:", err);
+});
 
-let clients = []; // hold connected clients for SSE
-// endpoint for SSE
-app.get('/events', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.write(`data: ${JSON.stringify(currentStatus)}\n\n`)
-    
-  clients.push(res);
-  const ipAddress = getIP(req)
-  console.log("SSE Make", ipAddress)
-  
-  req.on('close', () => {
-    console.log("SSE close", ipAddress)
-    clients = clients.filter(client => client !== res);
+wss.on('listening', () => {
+  console.log('WSS listening!');
+});
+
+wss.on('connection', ws => {
+  console.log("WS client connected", currentStatus);
+  ws.send(JSON.stringify(currentStatus));
+  ws.on('close', () => {
+    console.log("WS client disconnected");
   });
 });
+
 const broadcast = () => {
-  clients.forEach(client => {
-    client.write(`data: ${JSON.stringify(currentStatus)}\n\n`)
+  const msg = JSON.stringify(currentStatus);
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
   });
 };
 

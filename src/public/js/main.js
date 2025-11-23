@@ -206,16 +206,6 @@ async function reloadProjects() {
       const cardContainer = document.createElement('div');
       cardContainer.classList.add('project-container');
       
-      /*const card = document.createElement('div');
-      card.classList.add('project-card');
-
-      card.addEventListener('click', (event) => {
-        if (event.target.tagName.toLowerCase() === 'a') {
-          return;
-        }
-        window.open(proj.url, '_blank');
-      });*/
-      
       const card = document.createElement('a');
       card.href = proj.url;
       card.target = '_blank';
@@ -502,10 +492,24 @@ let lastOnTimestamp
 
 const mainStatusElm = document.getElementById("main-status");
 const mainLastSeenElm = document.getElementById("main-last-seen");
-const eventSource = new EventSource('/events');
-eventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log(data)
+
+const ws = new WebSocket("wss://airzy.ca");
+ws.onopen = () => {
+  console.log("WS connected");
+};
+ws.onmessage = (event) => {
+  console.log("WS message:", event.data);
+};
+ws.onclose = () => {
+  console.log("WS closed");
+};
+ws.onerror = (err) => {
+  console.error("WS error", err);
+};
+/*
+ws.onmessage = (msg) => {
+  console.log("WS msg:", msg)
+  const data = JSON.parse(msg.data);
   const dstatus = data.status
   if (dstatus == "offline") {
     mainStatusElm.innerText = `status: ${dstatus}`
@@ -523,14 +527,7 @@ eventSource.onmessage = (event) => {
   currentStatus = dstatus
   lastOnTimestamp = data.lastOn;
 };
-
-eventSource.onerror = (err) => {
-  console.log("ES ERR", err)
-  //mainStatusElm.innerText ="error pls refresh"
-  //mainLastSeenElm.innerText ="error pls refresh"
-  eventSource.close();
-};
-
+*/
 setInterval(() => {
   if (currentStatus && lastOnTimestamp) {
     if (currentStatus === "offline") {
