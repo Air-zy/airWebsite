@@ -44,7 +44,7 @@ function start(app, newWS) {
         });
     });
 
-    app.post('/presence', (req, res) => {
+    const presence = (req, res) => {
       const authHeader = req.headers['authorization'];
       if (!authHeader) {
           return res.status(401).json({ error: 'Authorization header missing' });
@@ -82,7 +82,9 @@ function start(app, newWS) {
       }
       
       res.status(200).json({ data: status });
-    })
+    }
+    
+    return presence;
 }
 
 module.exports = { start: start }

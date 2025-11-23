@@ -92,7 +92,7 @@ const server = app.listen(PORT, () => {
 const serverWSS = require('./modules/serverWSS.js')
 const newWS = serverWSS.start(server);
 const activityStatus = require('./routes/activityStatus.js')
-activityStatus.start(app, newWS);
+app.post('/presence', activityStatus.start(app, newWS));
 
 const { healthCheck: rowaHealthCheck, ensureTables: rowaEnsureTables } = require('./DATABASE/rowaDB.js');
 const { healthCheck: utilHealthCheck, ensureTables: utilEnsureTables } = require('./DATABASE/utilDB.js');
