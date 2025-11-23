@@ -45,7 +45,10 @@ const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken)
 function start(app, newWS) {
     const wss = newWS.wss;
     function broadcast() {
-        const msg = JSON.stringify(currentStatus);
+      const copy = { ...currentStatus };
+        delete copy.history;
+
+        const msg = JSON.stringify(copy);
         newWS.broadcast(msg);
     }
 
