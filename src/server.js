@@ -73,6 +73,113 @@ app.post('/nfetch',                 require('./routes/nfetch.js')               
 const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
 
+
+const { firedbActivityGet, firedbActivitySet } = require('./firebasedb.js')
+
+function newDateStr() {
+  let newDateStr = new Date().toISOString()
+  return newDateStr;
+}
+
+let currentStatus = {
+  "status": "",
+  "lastOn": newDateStr()
+}
+
+let lastUpdate2 = 0;
+async function commitCurrentStatus() {
+  const now = Date.now();
+  if (now > lastUpdate2 + 6000 && currentStatus.status != "" && currentStatus.status) {
+    lastUpdate2 = now;
+    firedbActivitySet(currentStatus)
+  }
+}
+
+async function initStatus() {
+  const meActivityGet = await firedbActivityGet()
+  currentStatus = meActivityGet;
+}
+initStatus();
+
+const envDecrypt = require('./FallbackEncryption/envDecrypt.js');
+const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken)
+app.post('/presence', (req, res) => {
+  const authHeader = req.headers['authorization'];
+
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Authorization header missing' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (token == airWebToken) {
+    const status = req.body.status;
+    if (status == "offline") {
+      currentStatus.status = status;
+      broadcast();
+      
+      commitCurrentStatus();
+    } else if (status == "online") {
+      currentStatus.status = status;
+      currentStatus.lastOn = newDateStr();
+      broadcast();
+      
+      commitCurrentStatus();
+    } else if (status == "dnd") {
+      currentStatus.status = status;
+      currentStatus.lastOn = newDateStr();
+      broadcast();
+      
+      commitCurrentStatus();
+    } else if (status == "idle") {
+      currentStatus.status = status;
+      currentStatus.lastOn = newDateStr();
+      broadcast();
+      
+      commitCurrentStatus();
+    }
+  } else {
+    return res.status(403).json({ error: 'Invalid password' });
+  }
+  
+  res.sendStatus(200);
+})
+
+
+function getIP(req) {
+  const ipList = req.headers['x-forwarded-for'];
+  if (ipList) {
+    const ips = ipList.split(',');
+    return ips[0].trim();
+  }
+  return req.connection?.remoteAddress ||
+         req.socket?.remoteAddress ||
+         req.connection?.socket?.remoteAddress ||
+         null;
+}
+
+let clients = []; // hold connected clients for SSE
+// endpoint for SSE
+app.get('/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.write(`data: ${JSON.stringify(currentStatus)}\n\n`)
+    
+  clients.push(res);
+  const ipAddress = getIP(req)
+  console.log("SSE Make", ipAddress)
+  
+  req.on('close', () => {
+    console.log("SSE close", ipAddress)
+    clients = clients.filter(client => client !== res);
+  });
+});
+const broadcast = () => {
+  clients.forEach(client => {
+    client.write(`data: ${JSON.stringify(currentStatus)}\n\n`)
+  });
+};
+
 app.use((req, res) => {
   res.status(404).type('text').send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });

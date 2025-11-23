@@ -10,7 +10,7 @@ setInterval(() => {
 // per-client buckets
 const clientBuckets = {};
 const clientRefillRate = 0.4;
-const clientMaxTokens = 10;
+const clientMaxTokens = 16;
 
 // per-client refill
 setInterval(() => {

@@ -192,6 +192,25 @@ async function firedbActivityGet() {
   return snap.data();
 }
 
+async function _safeSet4(documentRef, animedata) {
+  try {
+    console.log("saving activity... ", typeof(animedata))
+    await documentRef.set(animedata);
+  } catch(err) {
+    console.log("activity ERR: ", err)
+  }
+}
+
+
+async function firedbActivitySet(projects) {
+  if (!activityRef) {
+    activityRef = firedb.doc("activity");
+  }
+  if (activityRef) {
+    await _safeSet4(activity, projects);
+  }
+}
+
 async function firedbRobloxGet() {
   if (!robloxRef) robloxRef = firedb.doc('rblx');
   const snap = await robloxRef.get();
@@ -207,7 +226,7 @@ async function firedbRobloxSave() {
     try {
         await robloxRef.set({rblxdata});
     } catch(err) {
-      console.log("status commit ERR: ", err)
+      console.log("rblx commit ERR: ", err)
     }
   }
 }
@@ -221,5 +240,6 @@ module.exports = {
   firedbRobloxGet,
   firedbRobloxSave,
   firedbAirsiteSave,
+  firedbActivitySet,
   firedbAdressesSave
 };
