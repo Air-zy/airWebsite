@@ -438,6 +438,10 @@ h3 {
   gap: 14px;
   
   font-size: 0.9em;
+
+  text-decoration: none;
+  color: var(--text-normal);
+  white-space: nowrap;
 }
 .item-list a {
   text-decoration: none;

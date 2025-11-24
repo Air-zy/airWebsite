@@ -42,19 +42,41 @@ initStatus();
 const envDecrypt = require('../FallbackEncryption/envDecrypt.js');
 const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken)
 
-function start(app, newWS) {
+function start(newWS) {
     const wss = newWS.wss;
-    function broadcast() {
-      const copy = { ...currentStatus };
-        delete copy.history;
 
-        const msg = JSON.stringify(copy);
-        newWS.broadcast(msg);
+    function getMsg() {
+      const copy = { ...currentStatus };
+      delete copy.history;
+      let since = null;
+      const history = currentStatus.history || [];
+
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].status !== currentStatus.status) {
+          since = history[i].timestamp;
+          break;
+        }
+      }
+
+      if (!since) {
+        since = currentStatus.lastOn || null;
+      }
+
+      copy.since = since;
+
+      const msg = JSON.stringify(copy);
+      return msg
     }
 
+    function broadcast() {
+      const msg = getMsg();
+      newWS.broadcast(msg);
+    }
+
+
     wss.on('connection', ws => {
-        console.log("WS client connected", currentStatus);
-        ws.send(JSON.stringify(currentStatus));
+        console.log("WS client connected");
+        ws.send(getMsg());
         ws.on('close', () => {
             console.log("WS client disconnected");
         });

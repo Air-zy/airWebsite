@@ -1,461 +1,206 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Presence Dashboard</title>
-
-<!-- Chart.js + date adapter (time scale) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Presence — Hour & Weekday</title>
 <style>
   :root{
-    --bg:#0b0c0d;
-    --panel:#0f1112;
-    --muted:#9aa0a6;
-    --accent-green:#3ccf6b; /* online */
-    --accent-red:#ff6b6b;   /* dnd */
-    --accent-grey:#7f8a8c;  /* offline */
-    --accent-yellow:#ffd166;/* idle */
-    --card-radius:12px;
-    --gap:14px;
+    --bg:#0f1113; --card:#16181a; --muted:#9aa0a6;
+    --online:#2ecc71; --dnd:#e74c3c; --idle:#f1c40f; --offline:#95a5a6;
   }
-  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef3;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;}
-  .wrap{max-width:1100px;margin:28px auto;padding:20px;display:grid;grid-template-columns:1fr 420px;gap:var(--gap);}
-  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-  header h1{font-size:18px;margin:0;color:#dfe8ec;}
-  header p{margin:0;color:var(--muted);font-size:13px}
-  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:16px;border-radius:var(--card-radius);box-shadow:0 6px 18px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03)}
-  .left-col{display:grid;gap:var(--gap);}
-  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);}
-  canvas{width:100% !important; height:240px !important; display:block;}
-  .full{grid-column:1/-1}
-  .legend{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
-  .legend .item{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
-  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
-  .right-col{display:grid;gap:var(--gap);align-content:start}
-  .small{font-size:13px;color:var(--muted)}
-  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding-top:8px}
-  .day{aspect-ratio:1/1;border-radius:6px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);position:relative;cursor:default}
-  .day:hover{outline:2px solid rgba(255,255,255,0.04)}
-  .day .dnum{position:absolute;left:6px;top:6px;font-size:11px;color:rgba(255,255,255,0.7)}
-  .tooltip{position:fixed;pointer-events:none;background:rgba(10,12,13,0.95);color:#e8f1f5;padding:8px;border-radius:8px;font-size:12px;border:1px solid rgba(255,255,255,0.03);z-index:9999;display:none}
-  footer{grid-column:1/-1;margin-top:14px;color:var(--muted);font-size:12px}
-  @media(max-width:980px){
-    .wrap{grid-template-columns:1fr; padding:12px}
-    .charts-grid{grid-template-columns:1fr}
-  }
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef3;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  .wrap{max-width:960px;margin:20px auto;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px}
+  .top{display:flex;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
+  .charts {display:flex;flex-direction:column;gap:12px}
+  /* give the canvases only a CSS height (px) — backing buffer set in JS */
+  canvas { width:100%; border-radius:8px; display:block; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Presence — Activity Dashboard</h1>
-      <p class="small">Fetches <code>/api/presence</code> and visualizes status durations & timing (dark mode)</p>
-    </div>
-    <div class="small" id="meta">Loading…</div>
-  </header>
-
-  <div class="left-col">
-    <div class="card charts-grid">
-      <div class="full card" style="padding:12px;">
-        <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Hourly activity (stacked — not offline)</h3>
-        <canvas id="hourlyChart" aria-label="Hourly activity chart"></canvas>
-        <div class="legend">
-          <div class="item"><span class="swatch" style="background:var(--accent-green)"></span> online</div>
-          <div class="item"><span class="swatch" style="background:var(--accent-yellow)"></span> idle</div>
-          <div class="item"><span class="swatch" style="background:var(--accent-red)"></span> dnd</div>
-        </div>
-      </div>
-
-      <div class="card" style="padding:12px;">
-        <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Status share (by active time)</h3>
-        <canvas id="pieChart" aria-label="Status share pie chart"></canvas>
-      </div>
-
-      <div class="full card" style="padding:12px;">
-        <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Status timeline</h3>
-        <canvas id="timelineChart" aria-label="Timeline chart"></canvas>
-        <div class="small" style="margin-top:8px;color:var(--muted)">Step plot of status over time (offline=0, idle=1, online=2, dnd=3)</div>
-      </div>
+  <div class="wrap">
+    <div class="top">
+      <span><span id="dot" class="dot" style="background:var(--offline)"></span><strong id="status">—</strong></span>
+      <span id="last" style="color:var(--muted)">Last: —</span>
+      <span id="count" style="color:var(--muted)">Items: —</span>
     </div>
 
-    <div class="card full" style="padding:12px;">
-      <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Monthly calendar — predominant status per day</h3>
-      <div class="small" style="margin-bottom:8px;color:var(--muted)">Each square = a day (last 30 days). Color = predominant status that day; opacity = relative active time.</div>
-      <div class="calendar" id="calendarGrid" aria-hidden="false"></div>
+    <div class="charts">
+      <!-- no width/height attributes here -->
+      <canvas id="chartHour"></canvas>
+      <canvas id="chartWeek"></canvas>
     </div>
   </div>
 
-  <aside class="right-col">
-    <div class="card">
-      <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Quick stats</h3>
-      <div class="small" id="quickStats">—</div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Legend</h3>
-      <div class="legend" style="margin-top:6px;">
-        <div class="item"><span class="swatch" style="background:var(--accent-green)"></span> online</div>
-        <div class="item"><span class="swatch" style="background:var(--accent-yellow)"></span> idle</div>
-        <div class="item"><span class="swatch" style="background:var(--accent-red)"></span> dnd</div>
-        <div class="item"><span class="swatch" style="background:var(--accent-grey)"></span> offline / no activity</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin:0 0 8px 0;color:#e6eef3;font-size:14px">Notes</h3>
-      <ul class="small" style="margin:0;padding-left:16px;color:var(--muted)">
-        <li>Durations are estimated by pairing history timestamps into intervals.</li>
-        <li>Last interval ends at now (if still active) or at lastOn when offline.</li>
-        <li>Hourly chart shows stacked active minutes per status (no offline).</li>
-      </ul>
-    </div>
-  </aside>
-
-  <footer>Data source: <code>/api/presence</code> · local time shown</footer>
-</div>
-
-<div class="tooltip" id="tip"></div>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-/* ---------- Helpers & config ---------- */
-const COLORS = {
-  online: getCssVar('--accent-green') || '#3ccf6b',
-  dnd: getCssVar('--accent-red') || '#ff6b6b',
-  offline: getCssVar('--accent-grey') || '#7f8a8c',
-  idle: getCssVar('--accent-yellow') || '#ffd166',
-};
+/*
+ Fix approach:
+ - Set CSS height on each canvas (px).
+ - Sync canvas.width/height to clientWidth/clientHeight * devicePixelRatio
+ - Create Chart.js charts with responsive:false, maintainAspectRatio:false
+ - On resize: debounce, destroy & recreate charts (so backing store syncs again)
+*/
 
-function getCssVar(name){
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
+(async ()=>{
 
-function isoToDate(s){ return s ? new Date(s) : null; }
-
-/* Safely destroy any Chart attached to a canvas id */
-function safeDestroyByCanvasId(canvasId){
-  try{
-    const el = document.getElementById(canvasId);
-    if(!el) return;
-    // Chart.getChart works with a canvas element
-    const existing = Chart.getChart(el);
-    if(existing && typeof existing.destroy === 'function'){
-      existing.destroy();
-    }
-    // If there is a global var accidentally assigned, try to destroy it too
-    const w = window[canvasId + 'Chart'] || window[canvasId];
-    if(w && typeof w.destroy === 'function') {
-      try{ w.destroy(); } catch(e){ /* ignore */ }
-    }
-  }catch(e){
-    console.warn('safeDestroyByCanvasId failed', e);
-  }
-}
-
-/* ---------- Fetch + Data Processing ---------- */
-async function run(){
-  let resp;
-  try{
-    resp = await fetch('/api/presence', {cache:'no-store'});
-  }catch(e){
-    return showError('Network error when fetching /api/presence', e);
-  }
-  if(!resp.ok) return showError('/api/presence returned ' + resp.status);
-  let data;
-  try{ data = await resp.json(); }catch(e){ return showError('Invalid JSON from /api/presence'); }
-
-  document.getElementById('meta').textContent = 'lastOn: ' + (data.lastOn ? new Date(data.lastOn).toLocaleString() : '—');
-
-  const history = (Array.isArray(data.history) ? data.history.slice() : []).map(h => ({
-    status: String(h.status || 'offline'),
-    t: new Date(h.timestamp)
-  })).filter(h => h.t && !isNaN(h.t)).sort((a,b)=>a.t-b.t);
-
-  // If lastOn is provided and is >= last history time, ensure a final event exists
-  if(data.lastOn){
-    const lastOnDate = new Date(data.lastOn);
-    if(history.length === 0 || lastOnDate - history[history.length-1].t >= 0){
-      history.push({status: data.status || 'offline', t: lastOnDate});
-    }
-  }
-
-  if(history.length === 0){
-    return showError('No history items found.');
-  }
-
-  // Build intervals: each event -> next event (or now)
-  const now = new Date();
-  const intervals = [];
-  for(let i=0;i<history.length;i++){
-    const start = history[i].t;
-    const status = history[i].status || 'offline';
-    const end = (i+1 < history.length) ? history[i+1].t : now;
-    if(end <= start) continue;
-    intervals.push({start, end, status});
-  }
-
-  // Aggregate totals: per-status totals (ms), per-hour, per-day
-  const statusTotals = {online:0, dnd:0, idle:0, offline:0};
-  const hours = Array.from({length:24}, ()=>({online:0,dnd:0,idle:0,offline:0}));
-  const dayBuckets = {}; // YYYY-MM-DD -> {online:ms,dnd:ms,idle:ms,offline:ms}
-
-  function addDurationToDayAndHour(start, end, status){
-    let s = new Date(start);
-    const e = new Date(end);
-    while(s < e){
-      const hourEnd = new Date(s);
-      hourEnd.setMinutes(0,0,0);
-      hourEnd.setHours(hourEnd.getHours()+1);
-      const chunkEnd = hourEnd < e ? hourEnd : e;
-      const ms = chunkEnd - s;
-      const hr = s.getHours();
-      hours[hr][status] = (hours[hr][status] || 0) + ms;
-      const dayKey = s.toISOString().slice(0,10);
-      if(!dayBuckets[dayKey]) dayBuckets[dayKey] = {online:0,dnd:0,idle:0,offline:0};
-      dayBuckets[dayKey][status] += ms;
-      s = chunkEnd;
-    }
-  }
-
-  for(const iv of intervals){
-    const k = (iv.status in statusTotals) ? iv.status : 'offline';
-    statusTotals[k] += (iv.end ? (iv.end - iv.start) : 0) || (iv.end === undefined ? (new Date() - iv.start) : 0);
-    addDurationToDayAndHour(iv.start, iv.end, k);
-  }
-
-  // Prepare chart-friendly data
-  const hourLabels = Array.from({length:24}, (_,i)=>String(i).padStart(2,'0') + ':00');
-  const hourDatasets = {
-    online: hours.map(h => Math.round((h.online||0)/60000)),
-    idle:   hours.map(h => Math.round((h.idle||0)/60000)),
-    dnd:    hours.map(h => Math.round((h.dnd||0)/60000)),
+  const COLORS = {
+    online:getComputedStyle(document.documentElement).getPropertyValue('--online').trim()||'#2ecc71',
+    dnd:getComputedStyle(document.documentElement).getPropertyValue('--dnd').trim()||'#e74c3c',
+    idle:getComputedStyle(document.documentElement).getPropertyValue('--idle').trim()||'#f1c40f',
+    offline:getComputedStyle(document.documentElement).getPropertyValue('--offline').trim()||'#95a5a6'
   };
+  const STATUSES = ['online','idle','dnd','offline'];
 
-  const statusActiveTotals = {
-    online: Math.round((statusTotals.online||0)/60000),
-    idle:   Math.round((statusTotals.idle||0)/60000),
-    dnd:    Math.round((statusTotals.dnd||0)/60000),
-  };
-
-  const statusValue = {offline:0,idle:1,online:2,dnd:3};
-  const timelinePoints = [];
-  for(let i=0;i<history.length;i++){
-    timelinePoints.push({x: history[i].t, y: statusValue[history[i].status] ?? 0, status: history[i].status});
-  }
-
-  // Create charts + calendar + stats
-  createStackedHourlyChart(hourLabels, hourDatasets);
-  createPieChart(statusActiveTotals);
-  createTimelineChart(timelinePoints);
-  renderCalendarGrid(dayBuckets);
-
-  // Quick stats
-  const totalActiveMinutes = Object.values(statusActiveTotals).reduce((a,b)=>a+b,0);
-  const qs = document.getElementById('quickStats');
-  qs.innerHTML = `
-    <div style="margin-bottom:6px">Total active time (minutes): <strong>${totalActiveMinutes}</strong></div>
-    <div class="small">Online: ${statusActiveTotals.online} min · Idle: ${statusActiveTotals.idle} min · DND: ${statusActiveTotals.dnd} min</div>
-  `;
-}
-
-/* ---------- Chart creators ---------- */
-function createStackedHourlyChart(labels, datasets){
-  safeDestroyByCanvasId('hourlyChart');
-  const canvas = document.getElementById('hourlyChart');
-  const ctx = canvas.getContext('2d');
-  const cfg = {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label:'online', data: datasets.online, backgroundColor: COLORS.online, stack: 'a' },
-        { label:'idle',   data: datasets.idle,  backgroundColor: COLORS.idle,  stack: 'a' },
-        { label:'dnd',    data: datasets.dnd,   backgroundColor: COLORS.dnd,   stack: 'a' },
-      ]
-    },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.raw} min` } }
-      },
-      scales:{
-        x:{ stacked:true, ticks:{color:'#cfe6ec'} },
-        y:{ stacked:true, ticks:{color:'#cfe6ec'}, title:{display:true,text:'minutes',color:'#9fb4bb'} }
-      }
-    }
-  };
-  const chart = new Chart(ctx, cfg);
-  // store to window safely under a unique name if needed
-  window.hourlyChart = chart;
-  return chart;
-}
-
-function createPieChart(statusTotals){
-  safeDestroyByCanvasId('pieChart');
-  const canvas = document.getElementById('pieChart');
-  const ctx = canvas.getContext('2d');
-  const cfg = {
-    type: 'pie',
-    data: {
-      labels: ['online','idle','dnd'],
-      datasets:[{
-        data: [statusTotals.online, statusTotals.idle, statusTotals.dnd],
-        backgroundColor: [COLORS.online, COLORS.idle, COLORS.dnd],
-        hoverOffset:6
-      }]
-    },
-    options:{
-      plugins:{ legend:{position:'bottom',labels:{color:'#cfe6ec'}},
-        tooltip:{ callbacks:{ label: ctx => `${ctx.label}: ${ctx.raw} min` } } },
-      maintainAspectRatio:false
-    }
-  };
-  const chart = new Chart(ctx, cfg);
-  window.pieChart = chart;
-  return chart;
-}
-
-function createTimelineChart(points){
-  safeDestroyByCanvasId('timelineChart');
-  const canvas = document.getElementById('timelineChart');
-  const ctx = canvas.getContext('2d');
-
-  const data = {
-    datasets: [{
-      label: 'status',
-      data: points.map(p => ({x: p.x, y: p.y, status: p.status})),
-      borderColor: 'rgba(200,200,200,0.12)',
-      borderWidth: 2,
-      pointRadius: 6,
-      pointBackgroundColor: points.map(p => COLORS[p.status] || COLORS.offline),
-      showLine: true,
-      spanGaps: true,
-      stepped: 'before',
-    }]
-  };
-
-  const cfg = {
-    type: 'line',
-    data,
-    options: {
-      parsing:false,
-      normalized:true,
-      scales:{
-        x:{
-          type:'time',
-          time:{tooltipFormat:'yyyy-LL-dd HH:mm'},
-          ticks:{color:'#cfe6ec'}
-        },
-        y:{
-          ticks:{
-            color:'#cfe6ec',
-            callback: v => (v===0?'offline':v===1?'idle':v===2?'online':v===3?'dnd':v),
-            stepSize:1, min:0, max:3
-          }
-        }
-      },
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label: ctx => {
-              const s = ctx.raw.status || 'unknown';
-              return `${s} — ${new Date(ctx.raw.x).toLocaleString()}`;
-            }
-          }
-        }
-      },
-      maintainAspectRatio:false
-    }
-  };
-
-  const chart = new Chart(ctx, cfg);
-  window.timelineChart = chart;
-  return chart;
-}
-
-/* ---------- Calendar rendering ---------- */
-function renderCalendarGrid(dayBuckets){
-  const grid = document.getElementById('calendarGrid');
-  grid.innerHTML = '';
-  const DAYS = 30;
-  const days = [];
-  const today = new Date();
-  for(let i=DAYS-1;i>=0;i--){
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0,10);
-    const bucket = dayBuckets[key] || {online:0,dnd:0,idle:0,offline:0};
-    const total = bucket.online + bucket.dnd + bucket.idle + bucket.offline;
-    let pred = 'offline', max = 0;
-    for(const s of ['online','idle','dnd','offline']){
-      if((bucket[s]||0) > max){ max = bucket[s]; pred = s; }
-    }
-    days.push({date:d, key, bucket, total, pred, max});
-  }
-  let maxActive = 0;
-  for(const d of days){
-    const active = (d.bucket.online||0) + (d.bucket.idle||0) + (d.bucket.dnd||0);
-    if(active > maxActive) maxActive = active;
-  }
-
-  const tip = document.getElementById('tip');
-
-  days.forEach(d=>{
-    const el = document.createElement('div');
-    el.className = 'day';
-    const num = document.createElement('div');
-    num.className = 'dnum';
-    num.textContent = String(d.date.getDate());
-    el.appendChild(num);
-
-    const color = COLORS[d.pred] || COLORS.offline;
-    const active = (d.bucket.online||0) + (d.bucket.idle||0) + (d.bucket.dnd||0);
-    const frac = maxActive ? (active / maxActive) : 0;
-    const alpha = Math.min(0.95, 0.18 + frac*0.82);
-    el.style.boxShadow = `inset 0 0 0 1000px ${hexToRgba(color, alpha)}`;
-
-    el.addEventListener('mousemove', ev=>{
-      tip.style.display='block';
-      tip.style.left = (ev.pageX + 12) + 'px';
-      tip.style.top = (ev.pageY + 12) + 'px';
-      const onlineMin = Math.round((d.bucket.online||0)/60000);
-      const idleMin = Math.round((d.bucket.idle||0)/60000);
-      const dndMin = Math.round((d.bucket.dnd||0)/60000);
-      tip.innerHTML = `<strong style="display:block;margin-bottom:6px">${d.key}</strong>
-        <div style="font-size:13px;color:#cfe6ec">predominant: <strong style="color:${color}">${d.pred}</strong></div>
-        <div style="font-size:13px;color:var(--muted)">online: ${onlineMin} min · idle: ${idleMin} min · dnd: ${dndMin} min</div>`;
-    });
-    el.addEventListener('mouseleave', ()=>{ tip.style.display='none'; tip.innerHTML=''; });
-
-    grid.appendChild(el);
+  // prepare buckets
+  const hours = Array.from({length:24},(_,h)=>{
+    const hour12 = ((h+11)%12)+1;
+    const ampm = h<12 ? 'AM':'PM';
+    return { label:`${hour12} ${ampm}`, counts:{ online:0,idle:0,dnd:0,offline:0 } };
   });
-}
+  const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const days = weekdays.map(d=>({ label:d, counts:{ online:0,idle:0,dnd:0,offline:0 } }));
 
-/* ---------- Utilities ---------- */
-function hexToRgba(hex, a){
-  if(!hex) return `rgba(127,138,140,${a})`;
-  hex = hex.replace('#','');
-  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
-  const r = parseInt(hex.slice(0,2),16);
-  const g = parseInt(hex.slice(2,4),16);
-  const b = parseInt(hex.slice(4,6),16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-function showError(msg, err){
-  console.error(msg, err);
-  document.getElementById('meta').textContent = 'error';
-  const qs = document.getElementById('quickStats');
-  qs.innerHTML = `<div style="color:#ff8b8b">${msg}</div>`;
-}
+  // DOM refs
+  const canvasHour = document.getElementById('chartHour');
+  const canvasWeek = document.getElementById('chartWeek');
+  const statusEl = document.getElementById('status');
+  const dot = document.getElementById('dot');
+  const lastEl = document.getElementById('last');
+  const countEl = document.getElementById('count');
 
-/* ---------- Start ---------- */
-run();
+  // tune these CSS heights (px) to your taste
+  const HOUR_CANVAS_PX = 420;
+  const WEEK_CANVAS_PX = 320;
+
+  // fetch presence and fill buckets
+  let hist = [];
+  try {
+    const res = await fetch('/api/presence',{cache:'no-store'});
+    if(!res.ok) throw new Error(res.status+' '+res.statusText);
+    const payload = await res.json();
+    statusEl.textContent = payload.status || '—';
+    dot.style.background = COLORS[payload.status] || COLORS.offline;
+    lastEl.textContent = payload.lastOn ? ('Last: '+ new Date(payload.lastOn).toLocaleString()) : 'Last: —';
+    hist = Array.isArray(payload.history)? payload.history : [];
+    countEl.textContent = 'Items: ' + hist.length;
+
+    hist.forEach(item=>{
+      const ts = item.timestamp || item.time;
+      if(!ts) return;
+      const d = new Date(ts);
+      if(isNaN(d)) return;
+      const h = d.getHours();
+      const s = (item.status||'offline').toLowerCase();
+      const st = STATUSES.includes(s) ? s : 'offline';
+      hours[h].counts[st] = (hours[h].counts[st]||0)+1;
+      const jsDay = d.getDay();
+      const monIndex = (jsDay + 6) % 7;
+      days[monIndex].counts[st] = (days[monIndex].counts[st]||0)+1;
+    });
+
+  } catch(err) {
+    console.error('fetch error', err);
+    statusEl.textContent = 'error';
+    lastEl.textContent = err.message;
+  }
+
+  // helper: set CSS height and sync backing store
+  function syncCanvasBacking(canvas, cssHeightPx) {
+    canvas.style.height = cssHeightPx + 'px';
+    // width via CSS is 100%
+    // compute backing store size
+    const dpr = window.devicePixelRatio || 1;
+    // clientWidth may be fractional — use Math.floor to avoid partial pixel artifacts
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (w > 0 && h > 0) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+
+  // build datasets
+  function buildDatasets(buckets) {
+    return STATUSES.map(s=>({
+      label: s,
+      data: buckets.map(b => b.counts[s] || 0),
+      backgroundColor: COLORS[s],
+      stack: 'a'
+    }));
+  }
+
+  // Chart instances kept here
+  let chartHour = null;
+  let chartWeek = null;
+
+  // Create charts (call after backing store synced)
+  function createCharts() {
+    // destroy if exist
+    if (chartHour) { chartHour.destroy(); chartHour = null; }
+    if (chartWeek) { chartWeek.destroy(); chartWeek = null; }
+
+    // common options: responsive:false to avoid auto-resize loop
+    const commonOpts = {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend:{ position:'top', labels:{color:'#e6eef3', boxWidth:12} },
+        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}` } }
+      },
+      scales: {
+        x: { stacked:true, ticks:{color:'#cbd5da'}, grid:{color:'rgba(255,255,255,0.03)'} },
+        y: { stacked:true, beginAtZero:true, ticks:{color:'#cbd5da', precision:0}, grid:{color:'rgba(255,255,255,0.03)'} }
+      }
+    };
+
+    chartHour = new Chart(canvasHour.getContext('2d'), {
+      type: 'bar',
+      data: { labels: hours.map(h=>h.label), datasets: buildDatasets(hours) },
+      options: Object.assign({}, commonOpts, {
+        plugins: Object.assign({}, commonOpts.plugins, {
+          tooltip: { callbacks: Object.assign({}, commonOpts.plugins.tooltip.callbacks, {
+            title: items => `Hour: ${items[0].label} (local)`
+          }) }
+        })
+      })
+    });
+
+    chartWeek = new Chart(canvasWeek.getContext('2d'), {
+      type: 'bar',
+      data: { labels: days.map(d=>d.label), datasets: buildDatasets(days) },
+      options: Object.assign({}, commonOpts, {
+        plugins: Object.assign({}, commonOpts.plugins, {
+          tooltip: { callbacks: Object.assign({}, commonOpts.plugins.tooltip.callbacks, {
+            title: items => `Day: ${items[0].label}`
+          }) }
+        })
+      })
+    });
+  }
+
+  // initial setup + create
+  function initAndCreate() {
+    syncCanvasBacking(canvasHour, HOUR_CANVAS_PX);
+    syncCanvasBacking(canvasWeek, WEEK_CANVAS_PX);
+    createCharts();
+  }
+
+  // debounce utility
+  function debounce(fn, ms=120){
+    let t;
+    return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); };
+  }
+
+  // on resize: recompute backing store and recreate charts
+  const onResize = debounce(()=>{ initAndCreate(); }, 150);
+  window.addEventListener('resize', onResize);
+
+  // first run
+  initAndCreate();
+
+})();
 </script>
 </body>
 </html>

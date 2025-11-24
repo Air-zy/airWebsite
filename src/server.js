@@ -87,7 +87,7 @@ const server = app.listen(PORT, () => {
 const serverWSS = require('./modules/serverWSS.js')
 const newWS = serverWSS.start(server);
 const activityStatus = require('./routes/activityStatus.js')
-app.post('/presence', activityStatus.start(app, newWS));
+app.post('/presence', activityStatus.start(newWS));
 
 
 
