@@ -509,6 +509,7 @@ function timeDifferenceSince(utcDateString) {
 
 let currentStatus
 let lastOnTimestamp
+let statusSince
 
 const mainStatusElm = document.getElementById("main-status");
 const mainLastSeenElm = document.getElementById("main-last-seen");
@@ -545,15 +546,25 @@ ws.onmessage = (msg) => {
 
   currentStatus = dstatus
   lastOnTimestamp = data.lastOn;
+  statusSince = data.since
 };
 
 setInterval(() => {
   if (currentStatus && lastOnTimestamp) {
     if (currentStatus === "offline") {
+      mainStatusElm.innerText = `status: ${currentStatus}`
       mainLastSeenElm.innerText = `last seen: ${timeDifference(lastOnTimestamp)}`;
     } else {
       mainLastSeenElm.innerText = `last updated: ${timeDifference(lastOnTimestamp)}`;
+      if (currentStatus == "online") {
+        mainStatusElm.innerText = `status: 🟢 ${currentStatus}`
+      } else if (currentStatus == "dnd") {
+        mainStatusElm.innerText = `status: 🔴 ${currentStatus}`
+      } else if (currentStatus == "idle") {
+        mainStatusElm.innerText = `status: 🟡 ${currentStatus}`
+      }
     }
+    mainStatusElm.innerText += ` for ${timeDifferenceSince(statusSince)}`
   }
 }, 1000);
 
