@@ -1,21 +1,35 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Presence — Hour & Weekday</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Presence — Hour & History</title>
 <style>
   :root{
-    --bg:#0f1113; --card:#16181a; --muted:#9aa0a6;
+    color-scheme: dark;
+    --bg:#0f1113; --muted:#9aa0a6;
     --online:#2ecc71; --dnd:#e74c3c; --idle:#f1c40f; --offline:#95a5a6;
   }
+
   html,body{height:100%;margin:0;background:var(--bg);color:#e6eef3;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
   .wrap{max-width:960px;margin:20px auto;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px}
   .top{display:flex;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}
   .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
-  .charts {display:flex;flex-direction:column;gap:12px}
-  /* give the canvases only a CSS height (px) — backing buffer set in JS */
-  canvas { width:100%; border-radius:8px; display:block; }
+  canvas{width:100%; height:320px; border-radius:8px; display:block}
+
+  /* history list */
+  .history{margin-top:12px; max-height:300px; overflow:auto; padding:8px; background:rgba(255,255,255,0.01); border-radius:8px;
+           scrollbar-width: thin; /* Firefox */ }
+  /* WebKit thin scrollbar */
+  .history::-webkit-scrollbar{width:8px;height:8px}
+  .history::-webkit-scrollbar-track{background:transparent}
+  .history::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:999px}
+
+  .item{display:flex;justify-content:space-between;gap:12px;padding:8px;border-radius:6px;margin-bottom:6px;align-items:center}
+  .item + .item{border-top:1px solid rgba(255,255,255,0.02)}
+  .badge{min-width:72px;padding:6px 8px;border-radius:999px;font-weight:600;text-transform:capitalize;text-align:center}
+  .date{color:var(--muted);font-size:13px;white-space:nowrap}
+  .empty{color:var(--muted);padding:10px;text-align:center}
 </style>
 </head>
 <body>
@@ -26,179 +40,143 @@
       <span id="count" style="color:var(--muted)">Items: —</span>
     </div>
 
-    <div class="charts">
-      <!-- no width/height attributes here -->
-      <canvas id="chartHour"></canvas>
-      <canvas id="chartWeek"></canvas>
-    </div>
+    <canvas id="chartHour" aria-label="Hourly presence chart" role="img"></canvas>
+
+    <div class="history" id="history" aria-live="polite"></div>
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-/*
- Fix approach:
- - Set CSS height on each canvas (px).
- - Sync canvas.width/height to clientWidth/clientHeight * devicePixelRatio
- - Create Chart.js charts with responsive:false, maintainAspectRatio:false
- - On resize: debounce, destroy & recreate charts (so backing store syncs again)
-*/
-
-(async ()=>{
-
+(async () => {
+  const CSS = getComputedStyle(document.documentElement);
   const COLORS = {
-    online:getComputedStyle(document.documentElement).getPropertyValue('--online').trim()||'#2ecc71',
-    dnd:getComputedStyle(document.documentElement).getPropertyValue('--dnd').trim()||'#e74c3c',
-    idle:getComputedStyle(document.documentElement).getPropertyValue('--idle').trim()||'#f1c40f',
-    offline:getComputedStyle(document.documentElement).getPropertyValue('--offline').trim()||'#95a5a6'
+    online: CSS.getPropertyValue('--online').trim() || '#2ecc71',
+    dnd:    CSS.getPropertyValue('--dnd').trim()    || '#e74c3c',
+    idle:   CSS.getPropertyValue('--idle').trim()   || '#f1c40f',
+    offline:CSS.getPropertyValue('--offline').trim()|| '#95a5a6'
   };
   const STATUSES = ['online','idle','dnd','offline'];
 
-  // prepare buckets
-  const hours = Array.from({length:24},(_,h)=>{
-    const hour12 = ((h+11)%12)+1;
-    const ampm = h<12 ? 'AM':'PM';
-    return { label:`${hour12} ${ampm}`, counts:{ online:0,idle:0,dnd:0,offline:0 } };
-  });
-  const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const days = weekdays.map(d=>({ label:d, counts:{ online:0,idle:0,dnd:0,offline:0 } }));
-
-  // DOM refs
-  const canvasHour = document.getElementById('chartHour');
-  const canvasWeek = document.getElementById('chartWeek');
   const statusEl = document.getElementById('status');
   const dot = document.getElementById('dot');
   const lastEl = document.getElementById('last');
   const countEl = document.getElementById('count');
+  const canvas = document.getElementById('chartHour');
+  const histEl = document.getElementById('history');
 
-  // tune these CSS heights (px) to your taste
-  const HOUR_CANVAS_PX = 420;
-  const WEEK_CANVAS_PX = 320;
+  const hours = Array.from({length:24}, (_,h) => ({
+    label: `${((h+11)%12)+1} ${h<12?'AM':'PM'}`,
+    counts: { online:0, idle:0, dnd:0, offline:0 }
+  }));
 
-  // fetch presence and fill buckets
-  let hist = [];
+  let history = [];
   try {
-    const res = await fetch('/api/presence',{cache:'no-store'});
-    if(!res.ok) throw new Error(res.status+' '+res.statusText);
+    const res = await fetch('/api/presence', { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
     const payload = await res.json();
+
     statusEl.textContent = payload.status || '—';
-    dot.style.background = COLORS[payload.status] || COLORS.offline;
-    lastEl.textContent = payload.lastOn ? ('Last: '+ new Date(payload.lastOn).toLocaleString()) : 'Last: —';
-    hist = Array.isArray(payload.history)? payload.history : [];
-    countEl.textContent = 'Items: ' + hist.length;
+    dot.style.background = COLORS[(payload.status||'').toLowerCase()] || COLORS.offline;
+    lastEl.textContent = payload.lastOn ? 'Last: ' + new Date(payload.lastOn).toLocaleString() : 'Last: —';
 
-    hist.forEach(item=>{
-      const ts = item.timestamp || item.time;
-      if(!ts) return;
+    history = Array.isArray(payload.history) ? payload.history : [];
+    countEl.textContent = 'Items: ' + history.length;
+
+    history.forEach(it => {
+      const ts = it.timestamp || it.time;
+      if (!ts) return;
       const d = new Date(ts);
-      if(isNaN(d)) return;
+      if (isNaN(d)) return;
       const h = d.getHours();
-      const s = (item.status||'offline').toLowerCase();
+      const s = (it.status || 'offline').toLowerCase();
       const st = STATUSES.includes(s) ? s : 'offline';
-      hours[h].counts[st] = (hours[h].counts[st]||0)+1;
-      const jsDay = d.getDay();
-      const monIndex = (jsDay + 6) % 7;
-      days[monIndex].counts[st] = (days[monIndex].counts[st]||0)+1;
+      hours[h].counts[st] = (hours[h].counts[st] || 0) + 1;
     });
-
-  } catch(err) {
-    console.error('fetch error', err);
+  } catch (err) {
+    console.error(err);
     statusEl.textContent = 'error';
     lastEl.textContent = err.message;
   }
 
-  // helper: set CSS height and sync backing store
-  function syncCanvasBacking(canvas, cssHeightPx) {
-    canvas.style.height = cssHeightPx + 'px';
-    // width via CSS is 100%
-    // compute backing store size
-    const dpr = window.devicePixelRatio || 1;
-    // clientWidth may be fractional — use Math.floor to avoid partial pixel artifacts
-    const w = Math.floor(canvas.clientWidth * dpr);
-    const h = Math.floor(canvas.clientHeight * dpr);
-    if (w > 0 && h > 0) {
-      canvas.width = w;
-      canvas.height = h;
+  // Format: "NOV 24 2025 · 5:23:19 PM"
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function formatDateTimeShort(d){
+    if(!d || isNaN(d)) return '—';
+    const mon = MONTHS[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    let h = d.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const m = pad(d.getMinutes());
+    const s = pad(d.getSeconds());
+    return `${mon} ${day} ${year} · ${h}:${m}:${s} ${ampm}`;
+  }
+
+  function renderHistory(list) {
+    histEl.innerHTML = '';
+    if (!list.length) { histEl.innerHTML = '<div class="empty">No history</div>'; return; }
+    const sorted = [...list].sort((a,b) => {
+      const ta = new Date(a.timestamp||a.time).getTime() || 0;
+      const tb = new Date(b.timestamp||b.time).getTime() || 0;
+      return tb - ta;
+    });
+    for (const it of sorted) {
+      const ts = it.timestamp || it.time;
+      const d = ts ? new Date(ts) : null;
+      const label = (it.status||'offline').toLowerCase();
+      const badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.textContent = label;
+      badge.style.background = COLORS[label] || COLORS.offline;
+      badge.style.color = '#0a0a0a';
+
+      const date = document.createElement('div');
+      date.className = 'date';
+      date.textContent = formatDateTimeShort(d);
+
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.appendChild(badge);
+      row.appendChild(date);
+      histEl.appendChild(row);
     }
   }
 
-  // build datasets
-  function buildDatasets(buckets) {
-    return STATUSES.map(s=>({
-      label: s,
-      data: buckets.map(b => b.counts[s] || 0),
-      backgroundColor: COLORS[s],
-      stack: 'a'
-    }));
+  function syncBacking(c) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.floor(c.clientWidth * dpr);
+    const h = Math.floor(c.clientHeight * dpr);
+    if (w && h) { c.width = w; c.height = h; }
   }
 
-  // Chart instances kept here
-  let chartHour = null;
-  let chartWeek = null;
+  const datasets = STATUSES.map(s => ({
+    label: s,
+    data: hours.map(h => h.counts[s] || 0),
+    backgroundColor: COLORS[s],
+    stack: 'a'
+  }));
 
-  // Create charts (call after backing store synced)
-  function createCharts() {
-    // destroy if exist
-    if (chartHour) { chartHour.destroy(); chartHour = null; }
-    if (chartWeek) { chartWeek.destroy(); chartWeek = null; }
-
-    // common options: responsive:false to avoid auto-resize loop
-    const commonOpts = {
-      responsive: false,
-      maintainAspectRatio: false,
-      plugins: {
-        legend:{ position:'top', labels:{color:'#e6eef3', boxWidth:12} },
-        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}` } }
-      },
-      scales: {
-        x: { stacked:true, ticks:{color:'#cbd5da'}, grid:{color:'rgba(255,255,255,0.03)'} },
-        y: { stacked:true, beginAtZero:true, ticks:{color:'#cbd5da', precision:0}, grid:{color:'rgba(255,255,255,0.03)'} }
+  let chart = null;
+  function drawChart() {
+    if (chart) chart.destroy();
+    syncBacking(canvas);
+    chart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: hours.map(h => h.label), datasets },
+      options: {
+        responsive: false, maintainAspectRatio: false,
+        plugins: { legend:{ position:'top', labels:{ color:'#e6eef3' } } },
+        scales: { x:{ stacked:true, ticks:{color:'#cbd5da'} }, y:{ stacked:true, beginAtZero:true, ticks:{color:'#cbd5da', precision:0} } }
       }
-    };
-
-    chartHour = new Chart(canvasHour.getContext('2d'), {
-      type: 'bar',
-      data: { labels: hours.map(h=>h.label), datasets: buildDatasets(hours) },
-      options: Object.assign({}, commonOpts, {
-        plugins: Object.assign({}, commonOpts.plugins, {
-          tooltip: { callbacks: Object.assign({}, commonOpts.plugins.tooltip.callbacks, {
-            title: items => `Hour: ${items[0].label} (local)`
-          }) }
-        })
-      })
-    });
-
-    chartWeek = new Chart(canvasWeek.getContext('2d'), {
-      type: 'bar',
-      data: { labels: days.map(d=>d.label), datasets: buildDatasets(days) },
-      options: Object.assign({}, commonOpts, {
-        plugins: Object.assign({}, commonOpts.plugins, {
-          tooltip: { callbacks: Object.assign({}, commonOpts.plugins.tooltip.callbacks, {
-            title: items => `Day: ${items[0].label}`
-          }) }
-        })
-      })
     });
   }
 
-  // initial setup + create
-  function initAndCreate() {
-    syncCanvasBacking(canvasHour, HOUR_CANVAS_PX);
-    syncCanvasBacking(canvasWeek, WEEK_CANVAS_PX);
-    createCharts();
-  }
-
-  // debounce utility
-  function debounce(fn, ms=120){
-    let t;
-    return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); };
-  }
-
-  // on resize: recompute backing store and recreate charts
-  const onResize = debounce(()=>{ initAndCreate(); }, 150);
-  window.addEventListener('resize', onResize);
-
-  // first run
-  initAndCreate();
+  renderHistory(history);
+  drawChart();
+  let t;
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawChart, 120); });
 
 })();
 </script>
