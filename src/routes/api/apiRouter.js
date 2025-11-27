@@ -17,6 +17,7 @@ router.get('/projects',            require('./api_projects.js')            );
 router.get('/headers',             require('./api_headers.js')             );
 router.get('/cluster-units',       require('./api_clusterUnits.js')        );
 router.get('/presence',            require('./api_getStatus.js')           );
+router.get('/deepTalents',         require('./api_deepwokenTalents.js')   );
 
 
 router.post('/project-edit',       require('./api_project_edit.js')        );
