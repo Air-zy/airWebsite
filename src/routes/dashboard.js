@@ -1,5 +1,5 @@
-const { validateSession } = require('../classes/sessionRegistry/sessionManager.js');
-const { getAddressMap } = require('../classes/addressRegistry/addressManager.js')
+const { validateSession } = require('./classes/sessionRegistry/sessionManager.js');
+const { getAddressMap } = require('./classes/addressRegistry/addressManager.js')
 
 const envDecrypt = require('../FallbackEncryption/envDecrypt.js');
 const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken)
