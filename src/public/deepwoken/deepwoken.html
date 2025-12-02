@@ -19,6 +19,12 @@
         gap: 10px;
     }
 
+    #potion-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
     .card {
       background: #1b1b1b;
       padding: 15px;
@@ -35,12 +41,28 @@
     .card small {
       color: #aaa;
     }
+
+    .potion-stat { font-weight:600; margin:0 0 6px 0; }
+    .val { font-family: monospace; margin:0 0 8px 0; color:#54cf5e; }
+    .combo { font-size:0.9rem; margin:3px 0; color:#dfdfdf; }
+    .muted { color:#666; font-size:0.85rem }
+    hr {border-color:grey}
   </style>
 </head>
 
 <body>
 
-<h1>Deepwoken Talents</h1>
+<h1>Potion stat extremes</h1>
+<div id="potion-panel" class="potion-panel"></div>
+
+<h2>Ingredient Values</h2>
+<div style="overflow-x:auto;">
+  <table id="ingredientTable" border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse; background:#0a0a0a; border-color: #3d3d3d">
+  </table>
+</div>
+
+
+<h1>Talents</h1>
 <div id="cards"></div>
 
 <script type="module" src="./main.js"></script>
