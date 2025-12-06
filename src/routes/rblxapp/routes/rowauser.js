@@ -1,6 +1,11 @@
 const { readFile } = require('fs').promises;
 const { getThumb } = require('../rowautils');
 module.exports = async (req, res) => {
+  const num_id = Number(req.params.userid);
+  if (!Number.isInteger(num_id)) {
+    return next();
+  }
+
   const id = String(req.params.userid || '');
   let loss = '0', wins = '0', elo = '0';
   let displayName = id;
