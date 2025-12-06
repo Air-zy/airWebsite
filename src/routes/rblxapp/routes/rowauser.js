@@ -1,6 +1,6 @@
 const { readFile } = require('fs').promises;
 const { getThumb } = require('../rowautils');
-module.exports = async (req, res) => {
+module.exports = async (req, res, next) => {
   const num_id = Number(req.params.userid);
   if (!Number.isInteger(num_id)) {
     return next();
