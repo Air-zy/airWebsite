@@ -8,42 +8,56 @@
   :root{--bg:#000000;--card:#0f1720;--muted:#9aa6b2;--accent:#fab760;--glass:rgba(255,255,255,0.03)}
   html,body{height:100%;margin:0;background:linear-gradient(342deg,var(--bg),#2a2a2a);color:#e6eef6;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
   .wrap{max-width:920px;margin:36px auto;padding:18px}
-  .card{background:#00000030;border-radius:12px;padding:16px;box-shadow:0 6px 30px rgba(12, 6, 2, 0.6);border:1px solid rgba(255,255,255,0.02)}
+  .card{background:#00000030;border-radius:12px;padding:30px;border:1px solid rgba(255,255,255,0.06)}
   header{display:flex;align-items:center;justify-content:space-between}
-  h1{font-size:20px;margin:0;color:#fff}
+  .playerHead{display:flex;align-items:center;gap:12px}
+  .avatar{width:64px;height:64px;flex:0 0 64px;display:flex;align-items:center;justify-content:center}
+  .avatar img{width:64px;height:64px;border-radius:999px;object-fit:cover;display:block}
+  .avatar-fallback{width:64px;height:64px;border-radius:999px;background:linear-gradient(135deg,#0b1220,#111419);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--accent);border:2px solid rgba(255,255,255,0.06)}
+  h1{font-size:20px;margin:0;color:#fff;line-height:1}
   h1 a{color:inherit;text-decoration:none}
   .sub{color:var(--muted);font-size:13px}
-  .stats{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-  .stat{background:var(--glass);padding:10px;border-radius:10px;min-width:110px;text-align:center}
+  .stats{display:flex;gap:30px;flex-wrap:wrap;justify-content:center;margin-right:10%}
+  .stat{min-width:10px;text-align:center}
   .label{color:var(--muted);font-size:12px}
-  .value{font-weight:700;font-size:18px;color:#fff}
+  .value{font-size:16px;color:#fff}
   .big{font-size:28px;color:var(--accent);font-weight:800}
-  main{margin-top:16px;display:grid;grid-template-columns:1fr 320px;gap:14px}
+  main{margin-top:20px;display:grid;grid-template-columns:1fr 320px;gap:14px}
   details{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;color:var(--muted)}
-  summary{cursor:pointer;font-weight:700;color:#fff}
+  summary{cursor:pointer;font-weight:400;color:#fff}
   .slots{display:flex;flex-direction:column;gap:8px}
   .slot{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));border:1px solid rgba(255,255,255,0.02)}
   .slot h3{margin:0 0 6px 0;font-size:14px}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .kv{min-width:110px;color:var(--muted);font-size:13px}
+  .row{display:flex;gap:40px;flex-wrap:wrap}
+  .kv{min-width:10px;color:var(--muted);font-size:13px}
   .sm{font-size:12px;color:var(--muted)}
   .error{color:#ffa3a3}
   #touchCanvas{width:100%;height:220px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:block}
   #touchWrap{padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-top:8px}
   @media(max-width:880px){main{grid-template-columns:1fr}}
+  @media(max-width:560px){
+    .avatar{width:48px;height:48px;flex:0 0 48px}
+    .avatar img,.avatar-fallback{width:48px;height:48px}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
     <header>
-      <div>
-        <h1 id="playerId"><a id="playerLink" href="#" target="_blank" rel="noopener">—</a></h1>
-        <div class="sub" id="sub">Fetching /api/rowa/{id}</div>
-      </div>
-    </header>
+      <div class="playerHead">
+        <div class="avatar" id="avatarContainer">
+          <!-- either the img or fallback DIV will be inserted here by JS -->
+        </div>
 
-    <div class="stats" id="stats"></div>
+        <div>
+          <h1 id="playerId"><a id="playerLink" href="#" target="_blank" rel="noopener">—</a></h1>
+          <div class="sub" id="sub">Fetching /api/rowa/{id}</div>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+    </header>
 
     <main>
       <section>
@@ -98,6 +112,7 @@
   const kc = document.getElementById('kcount');
   const tc = document.getElementById('tcount');
   const canvas = document.getElementById('touchCanvas');
+  const avatarContainer = document.getElementById('avatarContainer');
 
   const esc = s => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;')
                             .replaceAll('>','&gt;').replaceAll('"','&quot;')
@@ -112,9 +127,40 @@
     display = `${esc(d)} (@${esc(n)})`;
   }
 
+  // avatar: read meta tags (server injects og:image / twitter:image / link rel=image_src)
+  const ogImg = document.querySelector('meta[property="og:image"]')?.content
+              || document.querySelector('meta[name="twitter:image"]')?.content
+              || document.querySelector('link[rel="image_src"]')?.href
+              || null;
+  const ogAlt = document.querySelector('meta[property="og:image:alt"]')?.content || display;
+
+  // build avatar element(s)
+  avatarContainer.innerHTML = ''; // clear
+  if (ogImg) {
+    const img = document.createElement('img');
+    img.src = ogImg;
+    img.alt = ogAlt;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.onerror = function(){
+      // fallback to initials if the image fails to load
+      avatarContainer.innerHTML = '';
+      const fb = document.createElement('div');
+      fb.className = 'avatar-fallback';
+      fb.textContent = (display && display[0]) ? display[0].toUpperCase() : '?';
+      avatarContainer.appendChild(fb);
+    };
+    avatarContainer.appendChild(img);
+  } else {
+    const fb = document.createElement('div');
+    fb.className = 'avatar-fallback';
+    fb.textContent = (display && display[0]) ? display[0].toUpperCase() : '?';
+    avatarContainer.appendChild(fb);
+  }
+
   link.href = `https://www.roblox.com/users/${encodeURIComponent(id)}/profile`;
   link.textContent = display;
-  sub.textContent = '/api/rowa/' + id;
+  sub.textContent = '/rowa/' + id;
 
   const fmtDate = s => {
     if (!s) return '—';
@@ -300,11 +346,11 @@
     const winrate = total ? (wins/total*100).toFixed(2)+'%' : '—';
     const elo = j.elo ?? '—', seed = j.seed ?? '—';
     const stat = (l,v,b) => `<div class="stat"><div class="label">${l}</div><div class="${b?'big':'value'}">${v}</div></div>`;
-    stats.innerHTML = stat('Wins', wins) + stat('Losses', loss) + stat('Winrate', winrate) + stat('ELO', esc(elo)) + stat('Seed', esc(seed));
+    stats.innerHTML = stat('WON', wins) + stat('LOST', loss) + stat('WINRATE', winrate) + stat('ELO', esc(elo)) + stat('SEED', esc(seed));
 
     // Meta
     metaF.textContent = fmtDate(j.meta?.first);
-    play.textContent = 'Total playtime — ' + fmtPlay(j.meta?.totalPlaytime || j.meta?.total || 0);
+    play.textContent = 'Total playtime - ' + fmtPlay(j.meta?.totalPlaytime || j.meta?.total || 0);
 
     // Keybinds — now pretty-printed with key names
     const k = j.keybindData || [];
@@ -348,11 +394,11 @@
         <div class="slot">
           <h3>${name}</h3>
           <div class="row">
-            <div class="kv"><div class="sm">Seed</div><div class="value">${sSeed}</div></div>
-            <div class="kv"><div class="sm">First</div><div class="value">${first}</div></div>
-            <div class="kv"><div class="sm">Slot ELO</div><div class="value">${sElo}</div></div>
-            <div class="kv"><div class="sm">Wins</div><div class="value">${sW}</div></div>
-            <div class="kv"><div class="sm">Losses</div><div class="value">${sL}</div></div>
+            <div class="kv"><div class="sm">SEED</div><div class="value">${sSeed}</div></div>
+            <div class="kv"><div class="sm">FIRST</div><div class="value">${first}</div></div>
+            <div class="kv"><div class="sm">ELO</div><div class="value">${sElo}</div></div>
+            <div class="kv"><div class="sm">WON</div><div class="value">${sW}</div></div>
+            <div class="kv"><div class="sm">LOST</div><div class="value">${sL}</div></div>
           </div>
         </div>`;
     });
