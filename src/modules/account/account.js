@@ -15,7 +15,7 @@ class Account {
 
     async verifyPassword(plainPassword) {
         if (!this.passwordHash) return false;
-        return await argon2.verifyPassword(this.passwordHash, plainPassword);
+        return await argon2.verify(this.passwordHash, plainPassword);
     }
 
     static fromData(data) {

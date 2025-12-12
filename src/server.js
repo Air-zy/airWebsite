@@ -55,6 +55,9 @@ app.get('/anime2',     (req, res) => { return res.redirect('/anime2/main.html');
 const apiRoutes = require('./routes/api/apiRouter.js');
 app.use('/api', apiRoutes);
 
+const authRoutes = require('./routes/auth/authRouter.js');
+app.use('/auth', authRoutes);
+
 app.get('/info',                    require('./routes/info.js')                    );
 app.get('/r',                       require('./routes/r.js')                       ); // request token
 

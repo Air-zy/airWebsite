@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auth</title>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div>
+    <h3>Login</h3>
+    <input id="login-username" placeholder="Username">
+    <input id="login-password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div id="login-response"></div>
+  </div>
+
+  <!-- REGISTER -->
+  <div>
+    <h3>Register</h3>
+    <input id="register-username" placeholder="Username">
+    <input id="register-password" type="password" placeholder="Password">
+    <button onclick="register()">Register</button>
+    <div id="register-response"></div>
+  </div>
+
+  <script>
+    async function login() {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          identifier: document.getElementById('login-username').value,
+          password: document.getElementById('login-password').value
+        })
+      });
+      document.getElementById('login-response').textContent = await res.text();
+    }
+
+    async function register() {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name: document.getElementById('register-username').value,
+          password: document.getElementById('register-password').value
+        })
+      });
+      document.getElementById('register-response').textContent = await res.text();
+    }
+  </script>
+
+</body>
+</html>
