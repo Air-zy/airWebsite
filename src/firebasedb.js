@@ -36,7 +36,7 @@ const firedb = getFirestore().collection('tokenUsage');
 console.log("[FIREDB] LOADED", firedb._firestore._projectId)
 
 // cached refs
-let addrRef, airsiteRef, animeRef, activityRef, robloxRef;
+let addrRef, airsiteRef, animeRef, activityRef, robloxRef, skillTreeRef;
 
 async function firedbAdressGet() {
   if (!addrRef) addrRef = firedb.doc('adresses2');
@@ -211,6 +211,8 @@ async function firedbActivitySet(activty) {
   }
 }
 
+//
+
 async function firedbRobloxGet() {
   if (!robloxRef) robloxRef = firedb.doc('rblx');
   const snap = await robloxRef.get();
@@ -231,15 +233,44 @@ async function firedbRobloxSave() {
   }
 }
 
+//
+
+async function skillTreeGet() {
+  if (!skillTreeRef) skillTreeRef = firedb.doc('skilltree');
+  const snap = await skillTreeRef.get();
+  return snap.data();
+}
+
+async function skillTreeSave() {
+  if (!skillTreeRef) {
+    skillTreeRef = firedb.doc("skilltree");
+  }
+
+  if (skillTreeRef) {
+    try {
+        await skillTreeRef.set({rblxdata});
+    } catch(err) {
+      console.log("rblx commit ERR: ", err)
+    }
+  }
+}
+
 module.exports = {
   commitAnime,
-  firedbAdressGet,
-  firedbAirsiteGet,
   firedbAnimeMapGet,
-  firedbActivityGet,
+
+  firedbAdressGet,
+  firedbAdressesSave,
+
+  firedbAirsiteGet,
+  firedbAirsiteSave,
+
   firedbRobloxGet,
   firedbRobloxSave,
-  firedbAirsiteSave,
+
   firedbActivitySet,
-  firedbAdressesSave
+  firedbActivityGet,
+
+  skillTreeGet,
+  skillTreeSave
 };

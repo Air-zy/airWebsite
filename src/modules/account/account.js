@@ -1,4 +1,6 @@
-class Profile {
+const crypto = require('crypto');
+
+class Account {
   constructor(name) {
     this.name = name;
     this.createdAt = Date.now();
@@ -6,4 +8,4 @@ class Profile {
   }
 }
 
-module.exports = Profile;
+module.exports = Account;
