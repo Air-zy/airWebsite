@@ -33,6 +33,7 @@ initializeApp({
 });
 
 const firedb = getFirestore().collection('tokenUsage');
+const firedbSecure = getFirestore().collection('secure');
 console.log("[FIREDB] LOADED", firedb._firestore._projectId)
 
 // cached refs
@@ -272,5 +273,7 @@ module.exports = {
   firedbActivityGet,
 
   skillTreeGet,
-  skillTreeSave
+  skillTreeSave,
+
+  firedbSecure
 };
