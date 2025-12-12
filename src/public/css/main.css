@@ -60,8 +60,8 @@ nav {
 }
 #s1 {
   z-index: -1;
-  top: 140px;
-  margin-left: 4%;
+  top: 100px;
+  margin: 4%;
   pointer-events: none;
 }
 #s2,
@@ -249,7 +249,7 @@ h3 {
   font-weight: 1;
 }
 #airzy {
-  min-width: 70px;
+  min-width: 4ch;
   color: gold;
   transition: text-shadow 1s;
 }

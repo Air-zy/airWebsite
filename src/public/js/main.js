@@ -367,12 +367,11 @@ mainContentElm.addEventListener("scroll", function () {
 
   const nav = document.getElementsByTagName("nav")[0];
   const section1 = document.getElementById("s1");
+  section1.style.transform = `translateY(${(-scrollTop / 6)}px)`;
   
   if (scrollTop < 800) {
     nav.style.minHeight = `${100 - scrollTop / 8}px`;
   }
-  //section1.style.top = `${140-scrollTop/6}px`
-  section1.style.transform = `translateY(${(-scrollTop / 6)}px)`;
 
   
   const adapt = document.getElementById("adapt");
