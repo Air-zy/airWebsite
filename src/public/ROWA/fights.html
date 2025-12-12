@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>All fights — Elo + W/L + Chart</title>
 <style>
-  :root{--bg:#0b1220;--card:rgba(255,255,255,0.02);--muted:#98b0d5;--panel:#071024;}
+  :root{--bg:#222222;--card:rgba(30,30,30);--muted:#a6a6a6;--panel:#1b1b1b;}
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;}
   .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px;box-sizing:border-box;}
-  .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);} 
+  .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgb(42,42,42);} 
   h1{margin:0 0 10px 0;font-size:18px;}
   table{width:100%;border-collapse:collapse;font-size:14px;}
-  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);} 
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);} 
   th{font-weight:600;color:#cfe6ff;}
   tr.clickable{cursor:pointer;} 
   tr.clickable:hover{background:rgba(255,255,255,0.015);} 
@@ -23,10 +23,10 @@
     right:0;
     top:0;
     height:100%;
-    width:600px;
+    width: 50%;
+    min-width: 400px;
     max-width:60%;
-    background:linear-gradient(180deg,var(--panel),rgba(5,10,20,0.85));
-    box-shadow: -20px 0 40px rgba(0,0,0,0.6);
+    background:var(--panel);
     border-left:1px solid rgba(255,255,255,0.03);
     transform:translateX(100%);
     transition:transform .22s ease;
@@ -39,7 +39,7 @@
   .panel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;} 
   .panel h2{margin:0;font-size:16px;} 
   .close{background:transparent;border:0;color:#9fb0d3;cursor:pointer;font-size:14px;padding:6px 8px;border-radius:6px;} 
-  .fight {padding:10px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.012);border:1px solid rgba(255,255,255,0.02);} 
+  .fight {padding:10px;border-radius:8px;margin-bottom:8px;background:rgb(20 20 20);border:1px solid rgba(255,255,255,0.02);} 
   .meta{font-size:13px;color:var(--muted);margin-top:6px;} 
   .tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;margin-right:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.01);} 
   .outcome-win{color:#b9f6c1;font-weight:700;} 
@@ -91,7 +91,7 @@
 (async function(){
   const API = '/api/rowa/fights/recent?limit=10000';
   const INITIAL_RATING = 800;
-  const KValue = 32;
+  const KValue = 32*2;
 
   // Elo helpers
   const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA)/400));
@@ -114,6 +114,7 @@
     if(!res.ok) throw new Error('fetch status ' + res.status);
     const json = await res.json();
     contributions = Array.isArray(json.contributions) ? json.contributions.slice() : [];
+    console.log(contributions);
   } catch(err) {
     out.textContent = 'Failed to load fights feed: ' + (err && err.message ? err.message : String(err));
     console.error(err);
@@ -184,14 +185,48 @@
     // apply pairwise killer vs victim updates (mutating ratings)
     for(const killer of killers){
       const k = String(killer.killer_id)
+
+      let totalDmgKillerDealt = 0
+      let totalDmgVictimsDealt = 0
+      //let totalKillerFocusAgainstVictims = 0
+      for(const victim of victims){
+        //totalKillerFocusAgainstVictims += victim.enemy_focus_percent;
+        totalDmgKillerDealt += victim.enemy_dmg_me;
+        totalDmgVictimsDealt += victim.me_dmg_enemy;
+      }
       for(const victim of victims){
         const v = String(victim.victim_id)
         if(k === v) continue;
-        const fairness = (killer.enemy_focus_percent/100) * (victim.my_focus_percent/100)
-
+        let fairness = (killer.enemy_focus_percent/100) * (victim.my_focus_percent/100)
         const numKillers = killers.size
-        const thisKValue = (KValue*fairness)/(1+numKillers*2)
-        console.log(fairness, numKillers, thisKValue, killer, victim)
+
+        /*
+        if (numKillers > 1 && killer.enemy_focus_percent > victim.my_focus_percent) {
+            fairness *= 0.5;
+        }
+
+        if (numKillers > 1 && killer.me_dmg_enemy < victim.me_dmg_enemy) { // killer does less damage than the person it killed?!
+            fairness *= 0.5;
+        }*/
+
+        // bossraid detection...
+        /*if (totalDmgKillerDealt + 40 > totalDmgVictimsDealt) { // victims did alot of dmg to killer, despite that killer won
+            fairness = 1+fairness;
+        }*/
+
+        // ignore barely damaged fights...
+        const DamageExchanged = killer.me_dmg_enemy + killer.enemy_dmg_me
+        if (DamageExchanged < totalDmgKillerDealt/2 || killer.me_dmg_enemy < 50) {
+          //console.warn(fid, killer.killer_id, victim.victim_id)
+          fairness = 0;
+        } else {
+          //fairness *= totalKillerFocusAgainstVictims/100
+          //console.log(fid, killer, victim)
+        }
+
+        const thisKValue = (KValue*fairness) * (2/numKillers) // 2/numkillers instead of 1/numkillers to make teaming stronger...
+        //console.log(fid, killer, victim, totalDmgKillerDealt, totalDmgVictimsDealt)
+        //console.log(fairness, numKillers, thisKValue, killer, victim)
         // count win/loss
         if (thisKValue == 0) {
           unfairWins[k] = (unfairWins[k] || 0) + 1;
@@ -206,10 +241,10 @@
 
         // less than 1000 can climb
         /*if (newK < 1000) {
-          newK += 1
+          newK += 0.1
         }
         if (newV < 1000) {
-          newV += 1
+          newV += 0.1
         }*/
 
         ratings[k] = newK;
@@ -339,6 +374,7 @@
     const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
     const participatedByDamage = me_dmg_enemy > 0;
     const bossRaided = (numKillers >= 2 && numVictims === 1);
+    const unfairGank = (numKillers > 1 && my_focus > enemy_focus)
     const focusDiff = Math.abs(my_focus - enemy_focus);
 
     let outcomeText = 'Participated';
@@ -349,8 +385,10 @@
       if(bossRaided) {
         if (wasVictim) {
           classTag = 'Boss-raided (win)'
-        } else {
+        } else if (unfairGank) {
           classTag = 'helped gank (win)'
+        } else {
+          classTag = 'unfair? helped gank (win)'
         }
       } else if (numKillers > 1 && numVictims > 1) classTag = 'Group win';
       else {
@@ -586,6 +624,7 @@
     fightsList.sort((a,b) => (Number(b.fight_id)||0) - (Number(a.fight_id)||0));
 
     for(const f of fightsList){
+      console.log(f)
       const info = classifyFight(id, f.parts);
 
       const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map();
