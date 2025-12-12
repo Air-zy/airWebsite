@@ -26,6 +26,8 @@ startCycler();
 const { loadAddresses } = require('./routes/classes/addressRegistry/addressManager.js') // getAddressMap
 loadAddresses();
 
+app.set('trust proxy', 1);
+
 app.use(require('./routes/middleware/ratelimit.js'));
 app.use(require('./reqLogger.js'));
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh

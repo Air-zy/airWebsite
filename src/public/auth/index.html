@@ -4,28 +4,134 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Auth</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-col-start: #3e3e3e;
+      --bg-col-end: #252525;
+      --card-bg: rgba(16,16,16,0.8);
+      --text-col: #e0e0e0;
+      --accent-col: #888;
+      --input-bg: rgba(29,29,29,0.8);
+      --btn-bg: rgb(255, 255, 255)
+    }
+
+    body {
+      margin: 0;
+      font-family: monospace;
+      background: linear-gradient(125deg, var(--bg-col-start), var(--bg-col-end));
+      color: var(--text-col);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .auth-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .auth-card {
+      background: var(--card-bg);
+      padding: 25px 30px;
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      border-radius: 10px;
+    }
+
+    h3 {
+      margin: 0;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .input-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      background: var(--input-bg);
+      color: var(--text-col);
+      outline: none;
+      border: #444444 solid 1px;
+    }
+
+    .toggle-pass {
+      position: absolute;
+      right: 8px;
+      cursor: pointer;
+      color: var(--accent-col);
+      font-size: 0.9rem;
+      user-select: none;
+    }
+
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: var(--btn-bg);
+      color: rgb(0, 0, 0);
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .response {
+      font-size: 0.85rem;
+      color: var(--accent-col);
+      min-height: 18px;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- LOGIN -->
-  <div>
-    <h3>Login</h3>
-    <input id="login-username" placeholder="Username">
-    <input id="login-password" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-    <div id="login-response"></div>
-  </div>
+  <div class="auth-container">
+    <!-- LOGIN -->
+    <div class="auth-card">
+      <h3>Login</h3>
+      <div class="input-group">
+        <input id="login-username" placeholder="Username">
+      </div>
+      <div class="input-group">
+        <input id="login-password" type="password" placeholder="Password">
+        <span class="toggle-pass" onclick="togglePassword('login-password')">&#128065;</span>
+      </div>
+      <button onclick="login()">Login</button>
+      <div class="response" id="login-response"></div>
+    </div>
 
-  <!-- REGISTER -->
-  <div>
-    <h3>Register</h3>
-    <input id="register-username" placeholder="Username">
-    <input id="register-password" type="password" placeholder="Password">
-    <button onclick="register()">Register</button>
-    <div id="register-response"></div>
+    <!-- REGISTER -->
+    <div class="auth-card">
+      <h3>Register</h3>
+      <div class="input-group">
+        <input id="register-username" placeholder="Username">
+      </div>
+      <div class="input-group">
+        <input id="register-password" type="password" placeholder="Password">
+        <span class="toggle-pass" onclick="togglePassword('register-password')">&#128065;</span>
+      </div>
+      <button onclick="register()">Register</button>
+      <div class="response" id="register-response"></div>
+    </div>
   </div>
 
   <script>
+    function togglePassword(id) {
+      const input = document.getElementById(id);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
     async function login() {
       const res = await fetch('/auth/login', {
         method: 'POST',
