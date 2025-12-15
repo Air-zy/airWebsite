@@ -152,7 +152,7 @@
 (async function(){
   const API = '/api/rowa/fights/recent?limit=10000';
   const INITIAL_RATING = 800;
-  const KValue = 32*2;
+  const KValue = 32*3;
 
   // deterministic color generator for ids (hsl)
   function colorForId(id, lightness=80, sat=85){
@@ -234,7 +234,7 @@
   // Data structures for simulation
   const pairStats = new Map(); // "a|b" -> {count,lastFightIndex}
   let fightIndex = 0;
-  function pairKey(a,b){ return a<b ? a+'|'+b : b+'|'+a; }
+  function pairKey(a,b){ return a+'|'+b }
   function effectiveFrequency(stats, now){
     if(!stats) return 1;
     const gap = now - stats.lastFightIndex;
