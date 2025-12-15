@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Wordle Art</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#071226;color:#e6eef6;margin:0;display:flex;justify-content:center;padding:18px}
+  .card{width:860px;background:rgba(255,255,255,0.03);padding:12px;border-radius:8px}
+  .row{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .left{display:flex;align-items:center;gap:10px;width:360px;flex:0 0 360px}
+  .lbl{width:28px}
+  .tiles{display:flex;gap:6px}
+  .tile{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700}
+  .g0{background:#3a3a3a;color:#fff}.g1{background:#c9b458;color:#111}.g2{background:#6aaa64;color:#fff}
+  input,button{padding:8px;border-radius:6px;border:0;background:rgba(255,255,255,0.02);color:inherit}
+  button{background:#2563eb;color:#fff;cursor:pointer}
+  .matches{flex:1;display:flex;flex-wrap:nowrap;gap:6px;min-height:44px;align-items:center;padding:6px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .pill{padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.03);font-family:monospace;flex:0 0 auto;white-space:nowrap}
+  .small{font-size:13px;color:#9aa4b2}
+  .matches::-webkit-scrollbar{height:10px}
+  .matches::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:6px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div id="grid"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input id="answer" placeholder="answer (5 letters)" maxlength="5"/>
+      <button id="go">Find</button>
+      <div class="small" id="status">loading…</div>
+    </div>
+  </div>
+
+<script>
+const GIST = "https://gist.githubusercontent.com/slushman/34e60d6bc479ac8fc698df8c226e4264/raw/cf702f098856c72a81d79f69b11f0a8c333e7d2f/wordle-list";
+let words = [];
+const ROWS = 6, COLS = 5;
+const grid = document.getElementById('grid'), status = document.getElementById('status');
+const pattern = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+
+for(let r=0;r<ROWS;r++){
+  const row = document.createElement('div'); row.className='row';
+  const left = document.createElement('div'); left.className='left';
+  const lbl = document.createElement('div'); lbl.className='lbl'; lbl.textContent='R'+(r+1);
+  const tiles = document.createElement('div'); tiles.className='tiles';
+  for(let c=0;c<COLS;c++){
+    const t = document.createElement('div'); t.className='tile g0'; t.textContent='_';
+    ((rr,cc,el)=>el.onclick = ()=>{ pattern[rr][cc]=(pattern[rr][cc]+1)%3; render(); })(r,c,t);
+    tiles.appendChild(t);
+  }
+  left.appendChild(lbl); left.appendChild(tiles);
+  const matches = document.createElement('div'); matches.className='matches'; matches.id = 'matches-'+r;
+  row.appendChild(left); row.appendChild(matches); grid.appendChild(row);
+}
+function render(){
+  const tilesGroups = grid.querySelectorAll('.tiles');
+  tilesGroups.forEach((tg,r)=>[...tg.children].forEach((t,c)=>{
+    t.className = 'tile g'+pattern[r][c];
+    t.textContent = pattern[r][c]===2? 'G' : pattern[r][c]===1? 'Y' : '_';
+  }));
+}
+render();
+
+fetch(GIST).then(r=>r.text()).then(t=>{
+  try{ words = JSON.parse(t).map(s=>s.toLowerCase()).filter(s=>/^[a-z]{5}$/.test(s)); }
+  catch{ words = (t.match(/\b[a-z]{5}\b/gi)||[]).map(s=>s.toLowerCase()); }
+  status.textContent = words.length ? words.length+' words' : 'no words';
+}).catch(()=>status.textContent='fetch fail');
+
+function feedback(guess,answer){
+  const g = guess.split(''), a = answer.split(''), f=[0,0,0,0,0];
+  for(let i=0;i<5;i++) if(g[i]===a[i]){ f[i]=2; g[i]=a[i]=null; }
+  const cnt = {};
+  for(let i=0;i<5;i++) if(a[i]) cnt[a[i]]=(cnt[a[i]]||0)+1;
+  for(let i=0;i<5;i++) if(g[i]){ if(cnt[g[i]]>0){ f[i]=1; cnt[g[i]]--; } else f[i]=0; }
+  return f;
+}
+
+document.getElementById('go').onclick = ()=>{
+  const ans = (document.getElementById('answer').value||'').toLowerCase();
+  if(!/^[a-z]{5}$/.test(ans)){ status.textContent='enter 5-letter answer'; return; }
+  if(words.length===0){ status.textContent='word list not loaded'; return; }
+  status.textContent = 'searching…';
+  for(let r=0;r<ROWS;r++){
+    const cont = document.getElementById('matches-'+r);
+    cont.innerHTML = '';
+    const patStr = JSON.stringify(pattern[r]);
+    const matches = [];
+    for(const w of words) if(JSON.stringify(feedback(w,ans))===patStr) matches.push(w);
+    if(matches.length===0){ const n=document.createElement('div'); n.className='small'; n.textContent='no matches'; cont.appendChild(n); continue; }
+    matches.forEach(m=>{
+      const p = document.createElement('div'); p.className='pill'; p.textContent = m; cont.appendChild(p);
+    });
+  }
+  status.textContent = 'done';
+};
+</script>
+</body>
+</html>

@@ -160,18 +160,12 @@
 
   // For each fight, construct winners set and victims set from contributions
   for(const [fid, parts] of fightsById.entries()){
-    const killers = new Set();
-    const victims = new Set();
-    for(const p of parts){
-      if(p.killer_id) killers.add(p);
-      if(p.victim_id) victims.add(p);
-    }
+    console.log(fid, parts)
     const allPlayers = new Set();
     for (const part of parts) {
       if (part.killer_id) allPlayers.add(String(part.killer_id));
       if (part.victim_id) allPlayers.add(String(part.victim_id));
     }
-
     allPlayers.forEach(id => ensure(id));
 
     // -- record ratings before this fight for every involved player
@@ -182,51 +176,58 @@
     // initialize delta map placeholder
     fightEloDeltas.set(fid, new Map());
 
-    // apply pairwise killer vs victim updates (mutating ratings)
-    for(const killer of killers){
-      const k = String(killer.killer_id)
+    //const death = new Set();
+    const numParts = parts.length
+    for (const part of parts) {
+      const k = part.killer_id;
+      const v = part.victim_id;
+      const fairness = (part.enemy_focus_percent/100) * (part.my_focus_percent/100) / (1+part.last_hit/60) // divides by every minute
+      let thisKValue = (KValue * fairness) / numParts;
 
-      let totalDmgKillerDealt = 0
-      let totalDmgVictimsDealt = 0
-      //let totalKillerFocusAgainstVictims = 0
-      for(const victim of victims){
-        //totalKillerFocusAgainstVictims += victim.enemy_focus_percent;
-        totalDmgKillerDealt += victim.enemy_dmg_me;
-        totalDmgVictimsDealt += victim.me_dmg_enemy;
+      if (part.last_hit*2 > part.since_fight_start) {
+        thisKValue = 0;
       }
-      for(const victim of victims){
-        const v = String(victim.victim_id)
-        if(k === v) continue;
-        let fairness = (killer.enemy_focus_percent/100) * (victim.my_focus_percent/100)
-        const numKillers = killers.size
+      
+      // count win/loss
+      if (thisKValue == 0) {
+        unfairWins[k] = (unfairWins[k] || 0) + 1/numParts;
+      } else {
+        wins[k] = (wins[k] || 0) + 1/numParts;
+      }
+      losses[v] = (losses[v] || 0) + 1/numParts;
 
-        /*
-        if (numKillers > 1 && killer.enemy_focus_percent > victim.my_focus_percent) {
-            fairness *= 0.5;
+      // apply Elo on current ratings
+      const rK = ratings[k];
+      const rV = ratings[v];
+      let [newK, newV] = applyElo(rK, rV, thisKValue);
+      ratings[k] = newK;
+      ratings[v] = newV;
+    }
+    /*
+    for (const victim of victims) { // only one victim...
+      const v = String(victim.victim_id);
+
+      let numKillers = 0;
+      for (const killer of killers) { // multiple killers
+        const k = String(killer.killer_id);
+        if (k === v) continue;
+        numKillers+=1;
+      }
+
+      for (const killer of killers) {
+        const k = String(killer.killer_id);
+        if (k === v) continue;
+        let fairness = (killer.enemy_focus_percent / 100) * (victim.my_focus_percent / 100) / (1+killer.last_hit/60); // divides by every minute
+        const thisKValue = (KValue * fairness);
+
+        //console.log(fid, k, v, killer, victim, thisKValue)
+
+        if (numKillers >= 2) {
+          if (killer.me_dmg_enemy < 50) {
+            fairness = KValue;
+          }
         }
 
-        if (numKillers > 1 && killer.me_dmg_enemy < victim.me_dmg_enemy) { // killer does less damage than the person it killed?!
-            fairness *= 0.5;
-        }*/
-
-        // bossraid detection...
-        /*if (totalDmgKillerDealt + 40 > totalDmgVictimsDealt) { // victims did alot of dmg to killer, despite that killer won
-            fairness = 1+fairness;
-        }*/
-
-        // ignore barely damaged fights...
-        const DamageExchanged = killer.me_dmg_enemy + killer.enemy_dmg_me
-        if (DamageExchanged < totalDmgKillerDealt/2 || killer.me_dmg_enemy < 50) {
-          //console.warn(fid, killer.killer_id, victim.victim_id)
-          fairness = 0;
-        } else {
-          //fairness *= totalKillerFocusAgainstVictims/100
-          //console.log(fid, killer, victim)
-        }
-
-        const thisKValue = (KValue*fairness) * (2/numKillers) // 2/numkillers instead of 1/numkillers to make teaming stronger...
-        //console.log(fid, killer, victim, totalDmgKillerDealt, totalDmgVictimsDealt)
-        //console.log(fairness, numKillers, thisKValue, killer, victim)
         // count win/loss
         if (thisKValue == 0) {
           unfairWins[k] = (unfairWins[k] || 0) + 1;
@@ -234,23 +235,16 @@
           wins[k] = (wins[k] || 0) + 1;
         }
         losses[v] = (losses[v] || 0) + 1;
+
         // apply Elo on current ratings
         const rK = ratings[k];
         const rV = ratings[v];
         let [newK, newV] = applyElo(rK, rV, thisKValue);
 
-        // less than 1000 can climb
-        /*if (newK < 1000) {
-          newK += 0.1
-        }
-        if (newV < 1000) {
-          newV += 0.1
-        }*/
-
         ratings[k] = newK;
         ratings[v] = newV;
       }
-    }
+    }*/
 
     // -- after all pairwise updates in this fight, compute rounded delta per player
     const afterMap = new Map();
@@ -284,9 +278,9 @@
       id,
       peakRating: peak,
       currentRating: Math.round(current),
-      wins: wins[id] || 0,
-      unfairWins: unfairWins[id] || 0,
-      lost: losses[id] || 0
+      wins: Math.ceil(wins[id]) || 0,
+      unfairWins: Math.ceil(unfairWins[id]) || 0,
+      lost: Math.ceil(losses[id]) || 0
     };
   });
   rows.sort((a,b) => b.peakRating - a.peakRating || a.id.localeCompare(b.id));
@@ -374,7 +368,6 @@
     const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
     const participatedByDamage = me_dmg_enemy > 0;
     const bossRaided = (numKillers >= 2 && numVictims === 1);
-    const unfairGank = (numKillers > 1 && my_focus > enemy_focus)
     const focusDiff = Math.abs(my_focus - enemy_focus);
 
     let outcomeText = 'Participated';
@@ -385,10 +378,8 @@
       if(bossRaided) {
         if (wasVictim) {
           classTag = 'Boss-raided (win)'
-        } else if (unfairGank) {
-          classTag = 'helped gank (win)'
         } else {
-          classTag = 'unfair? helped gank (win)'
+          classTag = 'helped gank (win)'
         }
       } else if (numKillers > 1 && numVictims > 1) classTag = 'Group win';
       else {
