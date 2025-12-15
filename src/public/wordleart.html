@@ -5,19 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Wordle Art</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;background:#071226;color:#e6eef6;margin:0;display:flex;justify-content:center;padding:18px}
+  :root{color-scheme: dark}
+  body{font-family:Arial,Helvetica,sans-serif;background:#000000;color:#e6eef6;margin:0;display:flex;justify-content:center;padding:18px}
   .card{width:860px;background:rgba(255,255,255,0.03);padding:12px;border-radius:8px}
-  .row{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .row{display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
   .left{display:flex;align-items:center;gap:10px;width:360px;flex:0 0 360px}
   .lbl{width:28px}
   .tiles{display:flex;gap:6px}
   .tile{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700}
   .g0{background:#3a3a3a;color:#fff}.g1{background:#c9b458;color:#111}.g2{background:#6aaa64;color:#fff}
-  input,button{padding:8px;border-radius:6px;border:0;background:rgba(255,255,255,0.02);color:inherit}
+  input,button{padding:8px;border-radius:6px;border:0;background:rgba(255,255,255,0.05);color:inherit}
   button{background:#2563eb;color:#fff;cursor:pointer}
-  .matches{flex:1;display:flex;flex-wrap:nowrap;gap:6px;min-height:44px;align-items:center;padding:6px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .matches{flex:1;display:flex;flex-wrap:nowrap;gap:6px;min-height:44px;align-items:center;padding:2px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch}
   .pill{padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.03);font-family:monospace;flex:0 0 auto;white-space:nowrap}
   .small{font-size:13px;color:#9aa4b2}
+  .matches{scrollbar-width: thin}
   .matches::-webkit-scrollbar{height:10px}
   .matches::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:6px}
 </style>
