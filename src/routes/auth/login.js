@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
             ok: true,
             uid: acc.uid,
             name: acc.name,
-            createdAt: acc.createdAt
+            sesh: acc.currentSession.onlyPublic()
         });
     } catch (err) {
         console.error(err);

@@ -1,4 +1,4 @@
 node_modules/
 src/dist/
-src/trafic.log
+trafic.log
 .env

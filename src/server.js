@@ -53,6 +53,9 @@ const compression = require('compression');
 app.use(compression({ threshold: 1024 })); // 1kb threshold
 
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
+
+//
+
 app.use('/api/rowadb', require('./routes/middleware/rowadb_middlware.js'))
 
 // routes 

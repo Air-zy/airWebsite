@@ -5,7 +5,7 @@ const sessions = new Map();
 function createSession(id, durationMs = 3600000) {
   const session = new Session(id, durationMs);
   sessions.set(session.token, session);
-  return session.onlyPublic();
+  return session;
 }
 
 // returns session also

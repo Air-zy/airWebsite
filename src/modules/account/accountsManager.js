@@ -81,6 +81,8 @@ async function login(identifier, password) {
 
   const ok = await acc.verifyPassword(password);
   if (!ok) return null;
+
+  acc.loginSession();
   return acc;
 }
 

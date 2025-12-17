@@ -16,6 +16,23 @@ async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
+function injected() {
+  const ctx = document.createElement('canvas').getContext('webgl');
+  const renderer = (ctx && ctx.getExtension && ctx.getExtension('WEBGL_debug_renderer_info'))
+    ? ctx.getParameter(ctx.getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL)
+    : 'Unknown';
+  const tzSign = (new Date).getTimezoneOffset() > 0 ? '-' : '+';
+  const tzHours = String(Math.abs((new Date).getTimezoneOffset()/60)).padStart(2,'0');
+  const tzMinutes = String(Math.abs((new Date).getTimezoneOffset()%60)).padStart(2,'0');
+  const payload = { a: `${renderer} UTC${tzSign}${tzHours}:${tzMinutes} ${navigator.platform}${navigator.vendor}${window.innerWidth}x${window.innerHeight}` };
+  fetch('/c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+}
+let injectedStr =  '(' + injected.toString() + ')();';
+minifyJs(injectedStr).then(res => { 
+  injectedStr = res.code; 
+});
+
+
 async function processFile(filePath, srcDir, outDir) {
   const relPath = path.relative(srcDir, filePath);
   const destPath = path.join(outDir, relPath);
@@ -30,8 +47,8 @@ async function processFile(filePath, srcDir, outDir) {
       content = await minifyHtml(input, defaultHtmlOptions);
       
       if (content.includes('</body>') && content.includes('<head>')) {
-        const scriptToInject = "fetch(\"/c\",{method:\"POST\",headers:{\"Content-Type\":\"application/json\"},body:JSON.stringify({a:`${(e=>e&&e.getExtension(\"WEBGL_debug_renderer_info\")?e.getParameter(e.getExtension(\"WEBGL_debug_renderer_info\").UNMASKED_RENDERER_WEBGL):\"Unknown\")(document.createElement(\"canvas\").getContext(\"webgl\"))} UTC${(new Date).getTimezoneOffset()>0?\"-\":\"+\"}${String(Math.abs((new Date).getTimezoneOffset()/60)).padStart(2,\"0\")}:${String(Math.abs((new Date).getTimezoneOffset()%60)).padStart(2,\"0\")} `+navigator.platform+navigator.vendor+`${window.innerWidth}x${window.innerHeight}`})});";
-        content = content.replace('</body>', `<script>${scriptToInject}</script></body>`);
+        const scriptToInject = injectedStr;
+        content = content.replace('</body>', `<script defer>${scriptToInject}</script></body>`);
 
         content = `<!-- minified by avy \u2764\uFE0F -->\n${content}`;
       }

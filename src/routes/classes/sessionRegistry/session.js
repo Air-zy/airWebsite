@@ -29,6 +29,12 @@ class Session {
 
     this.publicKey = publicKey;   // to client
     this.privateKey = privateKey; // secret on server
+
+    this.accUID = null;
+  }
+
+  setAccUID(uid) {
+    this.accUID = uid;
   }
 
   isExpired() {
@@ -53,7 +59,8 @@ class Session {
   onlyPublic() {
     return {
       token: this.token,
-      publicKey: this.publicKey
+      expiresAt: this.expiresAt,
+      publicKey: this.publicKey,
     }
   }
 }

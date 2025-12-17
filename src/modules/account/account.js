@@ -1,4 +1,5 @@
 const argon2 = require('argon2');
+const sessionManager = require('../../routes/classes/sessionRegistry/sessionManager.js');
 
 class Account {
     constructor(name) {
@@ -6,7 +7,10 @@ class Account {
         this.name = name;
         this.passwordHash = null;
         this.createdAt = Date.now();
+        this.currentSession = null;
     }
+
+    //
 
     async setPassword(plainPassword) {
         if (!plainPassword) throw new Error("Password required");
@@ -17,6 +21,17 @@ class Account {
         if (!this.passwordHash) return false;
         return await argon2.verify(this.passwordHash, plainPassword);
     }
+
+    //
+
+    loginSession(clientUID) {
+        const session = sessionManager.createSession(clientUID)
+        session.onlyPublic();
+        this.currentSession = session;
+        return session;
+    }
+
+    //
 
     static fromData(data) {
         const acc = new Account(data.name);
