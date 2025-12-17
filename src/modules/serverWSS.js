@@ -4,11 +4,11 @@ function start(serverToUse) {
     const wss = new WebSocket.Server({ server: serverToUse, path: '/ws' });
 
     wss.on('error', (err) => {
-        console.error("WSS ERROR:", err);
+        console.error("[WSS] ERROR:", err);
     });
 
     wss.on('listening', () => {
-        console.log('WSS listening!');
+        console.log('[WSS] listening!');
     });
 
     const broadcast = (msg) => {

@@ -1,5 +1,5 @@
 
-const { firedbActivityGet, firedbActivitySet } = require('../firebasedb.js')
+const { firedbActivityGet, firedbActivitySet } = require('../firebase/firebasedb.js')
 
 function newDateStr() {
   let newDateStr = new Date().toISOString()

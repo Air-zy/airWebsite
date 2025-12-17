@@ -1,8 +1,5 @@
 const zlib = require('zlib');
-
-const { initializeApp, cert } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
-const envDecrypt = require('./FallbackEncryption/envDecrypt.js');
+const { getFirestore, getApp } = require('./firebaseUtils');
 
 // moved here cuz ts the only one using it
 // todo maybe use gzipSync insteaad of aall of this lmao
@@ -26,15 +23,12 @@ function gzipAsync(data) {
 
 
 // init
-initializeApp({
-  credential: cert(
-    JSON.parse(envDecrypt(process.env.airKey, process.env.firebaseJsonKey))
-  )
-});
 
-const firedb = getFirestore().collection('tokenUsage');
-const firedbSecure = getFirestore().collection('secure');
-console.log("[FIREDB] LOADED", firedb._firestore._projectId)
+const mainApp = getApp(process.env.firebaseJsonKey, "firedb1");
+const mainFirestore = getFirestore(mainApp);
+
+const firedb = mainFirestore.collection('tokenUsage');
+const firedbSecure = mainFirestore.collection('secure');
 
 // cached refs
 let addrRef, airsiteRef, animeRef, activityRef, robloxRef, skillTreeRef;

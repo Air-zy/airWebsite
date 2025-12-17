@@ -1,4 +1,4 @@
-const { firedbSecure } = require('../../firebasedb.js');
+const { firedbSecure } = require('../../firebase/firebasedb.js');
 const Account = require('./account.js');
 const COUNTER_DOC_ID = 'counter';
 

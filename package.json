@@ -1,6 +1,6 @@
 {
   "name": "airsite",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "mywebsite",
   "main": "server.js",
   "scripts": {
@@ -26,11 +26,10 @@
     "clean-css": "^5.3.2",
 
     "express": "^5.0.1",
-    "socket.io": "^4.8.0",
-
     "firebase-admin": "^12.2.0",
 
     "zlib": "^1.0.5",
+    "ws": "^8.13.0",
     
     "postgres": "^3.4.7"
   },

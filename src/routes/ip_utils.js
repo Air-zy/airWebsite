@@ -1,4 +1,4 @@
-const { firedbAirsiteGet, firedbAnimeMapGet } = require('../firebasedb.js');
+const { firedbAirsiteGet, firedbAnimeMapGet } = require('../firebase/firebasedb.js');
 
 let compressedAnimeMap = null;
 let projects = null;

@@ -1,4 +1,4 @@
-const { skillTreeGet } = require('../../firebasedb.js');
+const { skillTreeGet } = require('../../firebase/firebasedb.js');
 
 let lastCall = 0;
 let cache = null;

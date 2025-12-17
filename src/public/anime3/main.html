@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>anime3 full</title></head>
+<body>
+<pre id="out">loading…</pre>
+
+<script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+<script>
+function decompress(gzBuffer, cb) {
+  try {
+    const uint8 = gzBuffer instanceof Uint8Array ? gzBuffer : new Uint8Array(gzBuffer);
+    const out = pako.ungzip(uint8);
+    const parsed = JSON.parse(new TextDecoder('utf-8').decode(out));
+    const nodes = restore(parsed.nodes);
+    const edges = restore(parsed.edges);
+    cb(null, { nodes, edges });
+  } catch (e) { cb(e); }
+}
+
+function restore(value) {
+  if (value && value.__type === 'Map') return new Map(value.value.map(([k,v]) => [k, restore(v)]));
+  if (value && value.__type === 'Set') return new Set(value.value.map(restore));
+  if (Array.isArray(value)) return value.map(restore);
+  if (value && typeof value === 'object') {
+    const out = {}; for (const [k,v] of Object.entries(value)) out[k] = restore(v); return out;
+  }
+  return value;
+}
+
+function replacer(k, v) {
+  if (v instanceof Map) return Array.from(v.entries());
+  if (v instanceof Set) return Array.from(v);
+  return v;
+}
+
+const out = document.getElementById('out');
+fetch('/api/anime3/data')
+  .then(r => { if (!r.ok) throw new Error(r.status+' '+r.statusText); return r.arrayBuffer(); })
+  .then(ab => decompress(ab, (err, res) => {
+    if (err) return out.textContent = 'decompress error: ' + err;
+    const nodes = res.nodes;
+    const edges = res.edges;
+    console.log(nodes, edges);
+    out.textContent = JSON.stringify({ nodes: nodes, edges: edges }, replacer, 2);
+  }))
+  .catch(e => out.textContent = 'fetch error: ' + e);
+</script>
+</body>
+</html>

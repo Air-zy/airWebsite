@@ -1,4 +1,4 @@
-const { firedbActivityGet } = require('../../firebasedb.js');
+const { firedbActivityGet } = require('../../firebase/firebasedb.js');
 
 let lastCall = 0;
 let cache = null;

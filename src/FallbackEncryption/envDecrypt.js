@@ -11,8 +11,15 @@ function getSecondStackFrame() {
   return second.getFileName() + " " + second.getLineNumber() + ", " + second.getColumnNumber()
 }
 
+const PROJECT_SRC = process.cwd().replace(/\\/g, "/") + "/src/";
+
 function envDecrypt(key, ciphertext) {
-  console.log("[env req] ", getSecondStackFrame())
+  const frame = getSecondStackFrame();
+  const normalized = frame.replace(/\\/g, "/");
+  if (!normalized.startsWith(PROJECT_SRC)) {
+    console.warn("[ENV REQ!] ", frame)
+  };
+
   if (key == null) {
     throw new Error("envDecrypt error: `key` is null or undefined");
   }

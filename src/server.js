@@ -13,11 +13,27 @@ const PORT = process.env.PORT || 3000;
 // configs
 const PRODUCTION_PUBLIC_DIRECTORY = path.join(__dirname, './dist')
 
-const { startMinify } = require('./modules/minify.js');
-startMinify({
-  src: path.join(__dirname, './public'),
-  dest: PRODUCTION_PUBLIC_DIRECTORY
+let resolveMinify;
+const minifyReady = new Promise(res => (resolveMinify = res));
+
+app.use(async (req, res, next) => {
+  await minifyReady;
+  next();
 });
+
+
+(async () => {
+  const { startMinify } = require('./modules/minify.js');
+
+  // lmao imagine this thing fails
+  await startMinify({
+    src: path.join(__dirname, './public'),
+    dest: PRODUCTION_PUBLIC_DIRECTORY
+  });
+
+  resolveMinify();
+})();
+
 
 // init
 const { startCycler } = require('./heartSystem/heart.js');
@@ -29,7 +45,7 @@ loadAddresses();
 app.set('trust proxy', 1);
 
 app.use(require('./routes/middleware/ratelimit.js'));
-app.use(require('./reqLogger.js'));
+app.use(require('./routes/middleware/reqLogger.js'));
 //app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
 app.use(express.json());
 
@@ -86,7 +102,7 @@ function toBase64(num) {
 const { hashDirectory } = require('./modules/hashDirectory.js');
 const server = app.listen(PORT, () => {
   const hash = hashDirectory(__dirname);
-  console.log(`Server running on port ${PORT}, Hash ${toBase64(hash)}`);
+  console.log(`[Server] running on port ${PORT}, Hash ${toBase64(hash)}`);
 });
 
 const serverWSS = require('./modules/serverWSS.js')
@@ -94,18 +110,11 @@ const newWS = serverWSS.start(server);
 const activityStatus = require('./routes/activityStatus.js')
 app.post('/presence', activityStatus.start(newWS));
 
-
-
-
-
-
 app.use((req, res) => {
   res.status(404).type('text').send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);
 });
 
-
-
-
+//require('./firebase/firebasedb2.js');
 
 const { healthCheck: rowaHealthCheck, ensureTables: rowaEnsureTables } = require('./DATABASE/rowaDB.js');
 const { healthCheck: utilHealthCheck, ensureTables: utilEnsureTables } = require('./DATABASE/utilDB.js');

@@ -1,4 +1,4 @@
-const { firedbRobloxGet, firedbRobloxSave } = require('../../firebasedb.js');
+const { firedbRobloxGet, firedbRobloxSave } = require('../../firebase/firebasedb.js');
 const { fetchUsersByIds } = require('./rblxutils.js')
 const zlib = require('zlib');
 

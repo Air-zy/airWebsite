@@ -79,13 +79,22 @@ async function walkDirectory(dir, srcDir, outDir) {
   }
 }
 
+const PROJECT = process.cwd().replace(/\\/g, "/");
 async function startMinify({ src = 'src', dest = 'dist' } = {}) {
   const srcDir = path.resolve(src);
   const outDir = path.resolve(dest);
   await fs.rm(outDir, { recursive: true, force: true });
   await ensureDir(outDir);
 
-  console.log(`Minifying from ${srcDir} to ${outDir}`);
+  const prettySrc = srcDir.startsWith(PROJECT)
+    ? srcDir.slice(PROJECT.length + 1)
+    : srcDir;
+
+  const prettyOut = outDir.startsWith(PROJECT)
+    ? outDir.slice(PROJECT.length + 1)
+    : outDir;
+
+  console.log(`Minifying from ${prettySrc} to ${prettyOut}`);
   await walkDirectory(srcDir, srcDir, outDir);
   console.log('Minify Done.');
 }

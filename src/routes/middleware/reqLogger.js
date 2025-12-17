@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const serverInfo = require('./serverInfo.js')
-const config = require('./config/default.json');
+const config = require('../../config/default.json');
 const logStream = fs.createWriteStream(path.join(__dirname, config.log.file), { flags: 'a' });
 
 function getIP(req) {

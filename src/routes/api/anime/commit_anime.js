@@ -1,4 +1,4 @@
-const { commitAnime } = require('../../../firebasedb.js');
+const { commitAnime } = require('../../../firebase/firebasedb.js');
 const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js')
 
 const animePass = envDecrypt(process.env.airKey, process.env.animePass)

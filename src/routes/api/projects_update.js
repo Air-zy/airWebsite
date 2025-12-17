@@ -1,4 +1,4 @@
-const { firedbAirsiteSave } = require('../../firebasedb.js');
+const { firedbAirsiteSave } = require('../../firebase/firebasedb.js');
 const envDecrypt = require('../../FallbackEncryption/envDecrypt.js')
 
 const EXPECTED_TOKEN = envDecrypt(process.env.airKey, process.env.airWebToken)

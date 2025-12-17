@@ -60,7 +60,7 @@ async function startCycler() {
   }
 
   cycle();
-  console.log("[HEART Started]", t);
+  console.log("[HEART] started", t);
 }
 
 function stopCycler() {

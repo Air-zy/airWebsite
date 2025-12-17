@@ -1,4 +1,4 @@
-const rowagit = require('../../../modules/rowagit.js')
+const rowagit = require('./rowagit.js')
 const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js')
 const airWebToken2 = envDecrypt(process.env.airKey, process.env.airWebToken2)
 

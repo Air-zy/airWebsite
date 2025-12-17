@@ -1,7 +1,7 @@
 const os = require('os');
 const startTime = Date.now();
 const { getStatus } = require('../heartSystem/heart.js');
-const serverInfo = require('../serverInfo.js')
+const serverInfo = require('./middleware/serverInfo.js')
 
 module.exports = (req, res) => {
   const now = Date.now();
