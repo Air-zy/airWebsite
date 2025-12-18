@@ -1,49 +1,518 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Fetch and Decompress</title>
+  <meta charset="utf-8" />
+  <title>Anime Recs</title>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui; color: #fff; padding: 18px; max-width: 900px; margin: auto; }
+
+    #search { width: 100%; padding: 8px; margin-bottom: 8px; }
+    #results { border: 1px solid #1b1b1b; padding: 8px; max-height: 300px; overflow: auto; }
+
+    .item { padding: 8px; border-radius: 6px; cursor: pointer; }
+    .item:hover { background: #1f1f1f; }
+    .selected { background: #222222; }
+    .selected-multi { outline: 2px solid #5aa6ff; }
+
+    .panel { border: 1px solid #5b5b5b; padding: 12px; border-radius: 6px; margin-top: 12px; }
+    .list { list-style: none; padding: 0; margin: 0; }
+    .list li { display: flex; justify-content: space-between; padding: 6px 4px; border-bottom: 1px solid #252525; }
+
+    .badge { padding: 2px 6px; border-radius: 6px; background: #141414; font-weight: 600; }
+
+    #selectedBar { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .sel-pill { background: #202020; padding: 6px 8px; border-radius: 999px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+    .sel-pill button { background: transparent; border: 0; cursor: pointer; font-size: 14px; }
+
+    .genre-line { font-size: 12px; color: #9aa; margin-top: 4px; }
+    .pill-genres { font-size: 12px; color: #888; margin-left: 6px; }
+
+    #recs { max-height: 300px; overflow: auto; }
+  </style>
 </head>
 <body>
-  <h1>Anime Data</h1>
-  <pre id="output">Loading...</pre>
+  <h2>Anime Recommendations</h2>
+
+  <div id="controls">
+    <input id="search" placeholder="search title..." />
+    <button id="clearBtn">Clear</button>
+  </div>
+
+  <div id="selectedBar" aria-live="polite"></div>
+
+  <div id="results">Loading…</div>
+
+  <div id="recommendations" class="panel" style="display:none">
+    <h3>Recommendations</h3>
+    <div id="recs"></div>
+  </div>
 
   <script>
-    async function fetchAndDecompress() {
-      const outputEl = document.getElementById('output');
+    function restore(value) {
+      if (!value) {
+        return value;
+      }
 
+      if (value.__type === 'Map') {
+        return new Map(value.value.map(function (pair) {
+          return [pair[0], restore(pair[1])];
+        }));
+      }
+
+      if (value.__type === 'Set') {
+        return new Set(value.value.map(restore));
+      }
+
+      if (Array.isArray(value)) {
+        return value.map(restore);
+      }
+
+      if (typeof value === 'object') {
+        var out = {};
+        Object.keys(value).forEach(function (k) {
+          out[k] = restore(value[k]);
+        });
+        return out;
+      }
+
+      return value;
+    }
+
+    var resultsEl = document.getElementById('results');
+    var searchEl = document.getElementById('search');
+    var selectedBar = document.getElementById('selectedBar');
+    var recsPanel = document.getElementById('recommendations');
+    var recsEl = document.getElementById('recs');
+    var clearBtn = document.getElementById('clearBtn');
+
+    var nodesMap = new Map();
+    var edgesMap = new Map();
+    var nodesArr = [];
+    var selectedSet = new Set();
+
+    // Load compressed graph data from server, decompress and restore
+    async function load() {
       try {
-        // 1. Fetch from your API
-        const res = await fetch('/api/anime3/data');
-        if (!res.ok) throw new Error('Failed to fetch data');
+        var res = await fetch('/api/anime3/data');
 
-        const json = await res.json();
-        const base64 = json.data;
+        if (!res.ok) {
+          throw new Error('fetch failed: ' + res.status);
+        }
 
-        console.log("base64:", base64)
+        var json = await res.json();
+        var b64 = json.data || '';
 
-        function base64ToUint8Array(base64) {
-          const raw = atob(base64);
-          const arr = new Uint8Array(raw.length);
-          for (let i = 0; i < raw.length; i++) {
-            arr[i] = raw.charCodeAt(i);
+        function b64toU8(s) {
+          var binary = atob(s);
+          var arr = new Uint8Array(binary.length);
+          for (var i = 0; i < binary.length; i++) {
+            arr[i] = binary.charCodeAt(i);
           }
           return arr;
         }
 
-        const compressed = base64ToUint8Array(base64);
+        var decompressed = pako.inflate(b64toU8(b64), { to: 'string' });
+        var parsed = JSON.parse(decompressed);
 
-        const decompressed = pako.inflate(compressed, { to: 'string' });
+        nodesMap = restore(parsed.nodes);
+        edgesMap = restore(parsed.edges);
 
-        outputEl.textContent = decompressed;
+        nodesArr = Array.from(nodesMap.values()).map(function (n) {
+          var id = String(n.id || n.key || '');
+          var title = String(n.title || n.name || '');
+
+          if (!nodesMap.has(id)) {
+            nodesMap.set(id, Object.assign({}, n, { id: id }));
+          }
+
+          return { id: id, title: title };
+        }).sort(function (a, b) {
+          return a.title.localeCompare(b.title);
+        });
+
+        renderResults(nodesArr.slice(0, 100));
       } catch (err) {
-        console.error(err);
-        outputEl.textContent = 'Error: ' + err.message;
+        resultsEl.textContent = 'Error: ' + err.message;
       }
     }
 
-    fetchAndDecompress();
+    // Escape HTML to avoid injections
+    function escapeHtml(s) {
+      if (!s && s !== 0) return '';
+      return String(s).replace(/[&<>"']/g, function (m) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+      });
+    }
+
+    // Render visible search results (titles + optional genres). IDs are not shown.
+    function renderResults(list) {
+      resultsEl.innerHTML = '';
+
+      if (!list.length) {
+        resultsEl.innerHTML = '<div style="color:#888">no results</div>';
+        return;
+      }
+
+      list.forEach(function (it) {
+        var wrapper = document.createElement('div');
+        wrapper.className = 'item';
+        wrapper.dataset.id = it.id;
+
+        var node = nodesMap.get(it.id) || {};
+        var genres = (node.value && node.value.genre) || node.genre || node.genres || [];
+        var genreStr = Array.isArray(genres) ? genres.join(', ') : (genres || '');
+
+        var titleHtml = '<div style="font-weight:600">' + escapeHtml(it.title || '(no title)') + '</div>';
+        var genreHtml = genreStr ? ('<div class="genre-line">' + escapeHtml(genreStr) + '</div>') : '';
+
+        wrapper.innerHTML = titleHtml + genreHtml;
+
+        wrapper.addEventListener('click', function () {
+          toggleSelect(it.id, wrapper);
+        });
+
+        if (selectedSet.has(String(it.id))) {
+          wrapper.classList.add('selected', 'selected-multi');
+        }
+
+        resultsEl.appendChild(wrapper);
+      });
+    }
+
+    // Toggle selection for an item (keeps IDs in data but never shows them)
+    function toggleSelect(id, el) {
+      id = String(id);
+
+      if (selectedSet.has(id)) {
+        selectedSet.delete(id);
+        if (el) {
+          el.classList.remove('selected', 'selected-multi');
+        }
+      } else {
+        selectedSet.add(id);
+        if (el) {
+          el.classList.add('selected', 'selected-multi');
+        }
+      }
+
+      updateSelectedBar();
+
+      if (selectedSet.size) {
+        runRecommendations();
+      } else {
+        recsPanel.style.display = 'none';
+      }
+    }
+
+    // Update the selected pills. IDs are intentionally omitted from the UI.
+    function updateSelectedBar() {
+      selectedBar.innerHTML = '';
+
+      if (selectedSet.size === 0) {
+        selectedBar.innerHTML = '<div style="color:#888">No anime selected — click items to add them.</div>';
+        return;
+      }
+
+      Array.from(selectedSet).forEach(function (id) {
+        var node = nodesMap.get(id) || { title: '(no title)' };
+        var title = node.title || node.name || '(no title)';
+
+        var genres = (node.value && node.value.genre) || node.genre || node.genres || [];
+        var genreStr = Array.isArray(genres) ? genres.join(', ') : (genres || '');
+
+        var pill = document.createElement('div');
+        pill.className = 'sel-pill';
+
+        var inner = document.createElement('div');
+        inner.style.display = 'flex';
+        inner.style.flexDirection = 'column';
+        inner.style.alignItems = 'flex-start';
+
+        var titleDiv = document.createElement('div');
+        titleDiv.style.fontWeight = '600';
+        titleDiv.textContent = title;
+
+        inner.appendChild(titleDiv);
+
+        if (genreStr) {
+          var g = document.createElement('div');
+          g.className = 'pill-genres';
+          g.textContent = genreStr;
+          inner.appendChild(g);
+        }
+
+        var rem = document.createElement('button');
+        rem.textContent = '✕';
+        rem.title = 'Remove';
+        rem.addEventListener('click', function () {
+          selectedSet.delete(id);
+          updateSelectedBar();
+          var ch = Array.from(resultsEl.children).find(function (c) { return c.dataset && c.dataset.id === id; });
+          if (ch) ch.classList.remove('selected', 'selected-multi');
+
+          if (selectedSet.size) {
+            runRecommendations();
+          } else {
+            recsPanel.style.display = 'none';
+          }
+        });
+
+        pill.appendChild(inner);
+        pill.appendChild(rem);
+
+        selectedBar.appendChild(pill);
+      });
+    }
+
+    // Search input handling
+    searchEl.addEventListener('input', function () {
+      var q = searchEl.value.trim().toLowerCase();
+
+      if (!q) {
+        renderResults(nodesArr.slice(0, 100));
+        return;
+      }
+
+      var results = nodesArr.filter(function (n) {
+        var t = (n.title || '').toLowerCase();
+        var i = (n.id || '').toLowerCase();
+        return t.includes(q) || i.includes(q);
+      }).slice(0, 200);
+
+      renderResults(results);
+    });
+
+    clearBtn.addEventListener('click', function () {
+      searchEl.value = '';
+      renderResults(nodesArr.slice(0, 100));
+    });
+
+    // Build adjacency list with weights: 1/(1+sqrt(numvotes))
+    function buildAdjacency() {
+      var adj = new Map();
+
+      function ensure(n) {
+        if (!adj.has(n)) {
+          adj.set(n, []);
+        }
+      }
+
+      edgesMap.forEach(function (v, k) {
+        if (!k) return;
+        var parts = String(k).split(',');
+        if (parts.length < 2) return;
+
+        var a = String(parts[0].trim());
+        var b = String(parts[1].trim());
+
+        var numvotes = Number(v) || 0;
+        var weight = 1 / (1 + Math.sqrt(numvotes));
+
+        ensure(a);
+        ensure(b);
+
+        adj.get(a).push({ to: b, w: weight });
+        adj.get(b).push({ to: a, w: weight });
+      });
+
+      return adj;
+    }
+
+    // A small binary heap for Dijkstra (min-heap on dist)
+    function MinHeap() {
+      this.data = [];
+    }
+
+    MinHeap.prototype.size = function () {
+      return this.data.length;
+    };
+
+    MinHeap.prototype.push = function (x) {
+      this.data.push(x);
+      this._siftUp(this.data.length - 1);
+    };
+
+    MinHeap.prototype.pop = function () {
+      if (this.data.length === 0) return undefined;
+      var top = this.data[0];
+      var last = this.data.pop();
+      if (this.data.length) {
+        this.data[0] = last;
+        this._siftDown(0);
+      }
+      return top;
+    };
+
+    MinHeap.prototype._siftUp = function (i) {
+      var a = this.data;
+      while (i > 0) {
+        var p = (i - 1) >> 1;
+        if (a[p].dist <= a[i].dist) break;
+        var tmp = a[p];
+        a[p] = a[i];
+        a[i] = tmp;
+        i = p;
+      }
+    };
+
+    MinHeap.prototype._siftDown = function (i) {
+      var a = this.data;
+      var n = a.length;
+      while (true) {
+        var l = 2 * i + 1;
+        var r = l + 1;
+        var smallest = i;
+        if (l < n && a[l].dist < a[smallest].dist) smallest = l;
+        if (r < n && a[r].dist < a[smallest].dist) smallest = r;
+        if (smallest === i) break;
+        var tmp = a[i];
+        a[i] = a[smallest];
+        a[smallest] = tmp;
+        i = smallest;
+      }
+    };
+
+    // Multi-source Dijkstra: compute per-source distances and sum them
+    function computeDistancesMultiSource(adj, sources) {
+      var k = sources.length;
+      var distancesMap = new Map();
+      var prev = new Map();
+
+      adj.forEach(function (_, node) {
+        distancesMap.set(node, new Float64Array(k).fill(Infinity));
+        prev.set(node, new Array(k).fill(null));
+      });
+
+      var heap = new MinHeap();
+
+      sources.forEach(function (s, i) {
+        if (!adj.has(s)) return;
+        distancesMap.get(s)[i] = 0;
+        prev.get(s)[i] = null;
+        heap.push({ id: s, src: i, dist: 0 });
+      });
+
+      while (heap.size()) {
+        var u = heap.pop();
+        var arr = distancesMap.get(u.id);
+        if (!arr || u.dist !== arr[u.src]) continue;
+
+        var neighbors = adj.get(u.id) || [];
+        neighbors.forEach(function (nb) {
+          var total = u.dist + nb.w;
+          var nbArr = distancesMap.get(nb.to);
+          if (total < nbArr[u.src]) {
+            nbArr[u.src] = total;
+            prev.get(nb.to)[u.src] = u.id;
+            heap.push({ id: nb.to, src: u.src, dist: total });
+          }
+        });
+      }
+
+      var finalDistances = new Map();
+      distancesMap.forEach(function (arr, node) {
+        var sum = 0;
+        for (var i = 0; i < k; i++) sum += arr[i];
+        finalDistances.set(node, sum);
+      });
+
+      return { distancesMap: finalDistances, prev: prev };
+    }
+
+    // Compute and display recommendations (IDs are not shown)
+    function runRecommendations() {
+      if (selectedSet.size === 0) {
+        recsPanel.style.display = 'none';
+        return;
+      }
+
+      var adj = buildAdjacency();
+      var sources = Array.from(selectedSet).filter(function (s) { return adj.has(String(s)); });
+
+      if (!sources.length) {
+        recsEl.innerHTML = '<div style="color:#888">None of the selected items exist in the graph; cannot compute recommendations.</div>';
+        recsPanel.style.display = 'block';
+        return;
+      }
+
+      var result = computeDistancesMultiSource(adj, sources);
+      var distances = result.distancesMap;
+
+      var candidates = [];
+      distances.forEach(function (dist, nodeId) {
+        if (selectedSet.has(nodeId)) return;
+        if (!isFinite(dist)) return;
+
+        var node = nodesMap.get(nodeId);
+        var label = node ? (node.title || node.name || '') : '';
+
+        candidates.push({ id: nodeId, title: label, distance: dist });
+      });
+
+      candidates.sort(function (a, b) {
+        return a.distance - b.distance;
+      });
+
+      var best = candidates.slice(0, 60);
+      var worst = candidates.slice(-4); // the 4 worse
+
+      renderRecommendations(best.concat(worst));
+    }
+
+    function renderRecommendations(list) {
+      recsEl.innerHTML = '';
+
+      if (!list.length) {
+        recsEl.innerHTML = '<div style="color:#888">No recommendations found.</div>';
+        recsPanel.style.display = 'block';
+        return;
+      }
+
+      var ul = document.createElement('ul');
+      ul.className = 'list';
+
+      list.forEach(function (it) {
+        var node = nodesMap.get(it.id) || {};
+        var genres = (node.value && node.value.genre) || node.genre || node.genres || [];
+        var genreStr = Array.isArray(genres) ? genres.join(', ') : (genres || '');
+
+        var scaledScore = (1 / it.distance) * selectedSet.size;
+        var scoreStr = scaledScore.toFixed(4);
+
+        var li = document.createElement('li');
+
+        var left = document.createElement('div');
+        left.style.maxWidth = '70%';
+        left.innerHTML = escapeHtml(it.title) + (genreStr ? ('<div class="genre-line">' + escapeHtml(genreStr) + '</div>') : '');
+
+        var right = document.createElement('div');
+        right.className = 'badge';
+        right.textContent = scoreStr;
+
+        li.appendChild(left);
+        li.appendChild(right);
+
+        li.style.cursor = 'pointer';
+        li.addEventListener('click', function () {
+          selectedSet.add(it.id);
+          updateSelectedBar();
+          var ch = Array.from(resultsEl.children).find(function (c) { return c.dataset && c.dataset.id === it.id; });
+          if (ch) ch.classList.add('selected', 'selected-multi');
+          runRecommendations();
+        });
+
+        ul.appendChild(li);
+      });
+
+      recsEl.appendChild(ul);
+      recsPanel.style.display = 'block';
+    }
+
+    // initial UI setup
+    updateSelectedBar();
+    load();
   </script>
 </body>
 </html>
