@@ -121,7 +121,7 @@ function toggleSelect(id, el) {
 
 function updateSelectedBar() {
     selectedBar.innerHTML = '';
-    if (selectedSet.size === 0) { selectedBar.innerHTML = '<div style="color:#888">No anime selected — click items to add them.</div>'; return; }
+    if (selectedSet.size === 0) { selectedBar.innerHTML = '<div style="color:#888">No anime selected - click items to add them.</div>'; return; }
 
     Array.from(selectedSet).forEach(function (id) {
         var node = nodesMap.get(id) || { title: '(no title)' };
@@ -132,7 +132,6 @@ function updateSelectedBar() {
         var pill = document.createElement('div');
         pill.className = 'sel-pill';
 
-        // small background thumbnail inside pill to keep the banner feel
         var imgUrl = getNodeImg(node);
         if (imgUrl) {
             var small = document.createElement('div');
@@ -155,10 +154,6 @@ function updateSelectedBar() {
         titleDiv.style.whiteSpace = 'nowrap'; titleDiv.style.overflow = 'hidden'; titleDiv.style.textOverflow = 'ellipsis'; titleDiv.style.maxWidth = '180px';
         titleDiv.textContent = title;
         inner.appendChild(titleDiv);
-
-        if (genreStr) {
-            var g = document.createElement('div'); g.className = 'pill-genres'; g.textContent = genreStr; inner.appendChild(g);
-        }
 
         var rem = document.createElement('button'); rem.textContent = '✕'; rem.title = 'Remove';
         rem.addEventListener('click', function () {
