@@ -12,6 +12,8 @@ router.post('/rowadb/fights',      require('./rowa2/rowa_fights.js')       );
 
 router.get('/anime2/data',         require('./anime2/data.js')             );
 router.get('/anime3/data',         require('./anime3/data.js')             );
+router.get('/anime3/coords',       require('./anime3/coords.js')           );
+
 
 router.get('/rblx',                require('./api_rblx.js')                );
 router.get('/logs',                require('./api_logs.js')                );

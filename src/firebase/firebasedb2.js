@@ -52,4 +52,15 @@ async function downloadAsBase64() {
   return assembled.toString('base64');
 }
 
-module.exports = { upload, downloadAsBase64 };
+const coordsRef = firestore.collection('def').doc('animeCoords');
+async function coordsAsBase64() {
+  const metaSnap = await coordsRef.get();
+  if (!metaSnap.exists) throw new Error('Document metadata not found');
+
+  const chunksSnap = await coordsRef.collection('chunks').orderBy('index').get();
+  const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
+  const assembled = Buffer.concat(bufs);
+  return assembled.toString('base64');
+}
+
+module.exports = { upload, downloadAsBase64, coordsAsBase64};

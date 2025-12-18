@@ -1,8 +1,8 @@
-const { downloadAsBase64 } = require('../../../firebase/firebasedb2.js')
+const { coordsAsBase64 } = require('../../../firebase/firebasedb2.js')
 
 module.exports = async (req, res) => {
   try {
-    const b64data = await downloadAsBase64();
+    const b64data = await coordsAsBase64();
     res.json({ data: b64data });
   } catch (err) {
     console.error('[anime3 get api] error:', err);
