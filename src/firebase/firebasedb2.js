@@ -52,6 +52,8 @@ async function downloadAsBase64() {
   return assembled.toString('base64');
 }
 
+//
+
 const coordsRef = firestore.collection('def').doc('animeCoords');
 async function coordsAsBase64() {
   const metaSnap = await coordsRef.get();
@@ -63,4 +65,18 @@ async function coordsAsBase64() {
   return assembled.toString('base64');
 }
 
-module.exports = { upload, downloadAsBase64, coordsAsBase64};
+//
+
+const coordsRef2 = firestore.collection('def').doc('animeCoords2');
+async function coordsAsBase64_2() {
+  const metaSnap = await coordsRef2.get();
+  if (!metaSnap.exists) throw new Error('Document metadata not found');
+
+  const chunksSnap = await coordsRef2.collection('chunks').orderBy('index').get();
+  const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
+  const assembled = Buffer.concat(bufs);
+  return assembled.toString('base64');
+}
+
+
+module.exports = { upload, downloadAsBase64, coordsAsBase64, coordsAsBase64_2};
