@@ -62,6 +62,8 @@ async function coordsAsBase64() {
   const chunksSnap = await coordsRef.collection('chunks').orderBy('index').get();
   const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
   const assembled = Buffer.concat(bufs);
+
+    console.log("got coords1")
   return assembled.toString('base64');
 }
 
@@ -75,6 +77,8 @@ async function coordsAsBase64_2() {
   const chunksSnap = await coordsRef2.collection('chunks').orderBy('index').get();
   const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
   const assembled = Buffer.concat(bufs);
+
+  console.log("got coords2")
   return assembled.toString('base64');
 }
 
