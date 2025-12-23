@@ -31,7 +31,7 @@ function jsEscape(s) {
 }
 
 async function loadCoords() {
-    var res = await fetch('/api/anime3/coords');
+    var res = await fetch('/api/anime3/coords?v=2');
     if (!res.ok) throw new Error('fetch failed: ' + res.status);
     var json = await res.json();
     var b64 = json.data || '';
@@ -49,7 +49,7 @@ async function loadCoords() {
 
     //
 
-    const size = 1600;
+    const size = 800;
 
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -72,29 +72,29 @@ async function loadCoords() {
 
     // === helpers ===
     function worldToScreen(x, y) {
-    return {
-        x: (x * size) * scale + offsetX,
-        y: (y * size) * scale + offsetY
-    };
+        return {
+            x: (x * size) * scale + offsetX,
+            y: (y * size) * scale + offsetY
+        };
     }
 
     const GENRE_COLORS = {
-        Comedy:        [255, 235,  59],  // yellow
-        Sports:        [0, 180, 255],    // electric blue
-        Action:        [255, 165, 0],    // orange
-        Drama:         [156,  39, 176],  // purple
-        Mystery:       [ 33, 150, 243],  // deep blue
-        Psychological: [ 106, 92, 195],  // blue purple
-        Romance:       [255, 105, 180],  // pink
-        Ecchi:         [255, 105, 180],  // pink
-        Supernatural:  [  0, 188, 212],  // cyan
-        "Sci-Fi":      [135, 155, 255],  // light eltric blue
-        "Slice of Life":[139, 195,  74], // soft green
-        Horror:        [ 78,  19, 122],  // dark violet
-        Fantasy:       [149, 117, 205],  // lavender purple
-        Adventure:     [ 2, 182,  14],  // forest green
-        Hentai:        [255, 20, 147],   // hot pink
-        Music:         [0, 229, 255],    // electric cyan
+        Comedy: [255, 235, 59],  // yellow
+        Sports: [0, 180, 255],    // electric blue
+        Action: [255, 165, 0],    // orange
+        Drama: [156, 39, 176],  // purple
+        Mystery: [33, 150, 243],  // deep blue
+        Psychological: [106, 92, 195],  // blue purple
+        Romance: [255, 105, 180],  // pink
+        Ecchi: [255, 105, 180],  // pink
+        Supernatural: [0, 188, 212],  // cyan
+        "Sci-Fi": [135, 155, 255],  // light eltric blue
+        "Slice of Life": [139, 195, 74], // soft green
+        Horror: [78, 19, 122],  // dark violet
+        Fantasy: [149, 117, 205],  // lavender purple
+        Adventure: [2, 182, 14],  // forest green
+        Hentai: [255, 20, 147],   // hot pink
+        Music: [0, 229, 255],    // electric cyan
     };
     const GENRE_WEIGHTS = {
         Action: 0.3,
@@ -149,6 +149,29 @@ async function loadCoords() {
         return neighbors ? neighbors.length : 0;
     }
 
+    function getNeighborsWithinDistance(startId, maxDistance) {
+        const result = new Set();
+        const visited = new Set([startId]);
+        const queue = [{ id: startId, dist: 0 }];
+
+        while (queue.length > 0) {
+            const { id, dist } = queue.shift();
+
+            if (dist === maxDistance) continue;
+
+            const neighbors = adj.get(id) ?? [];
+            for (const neighbor of neighbors) { // maybe trim only top 10 or so...
+                const nId = neighbor.to
+                if (!visited.has(nId)) {
+                    visited.add(nId);
+                    result.add(nId);
+                    queue.push({ id: nId, dist: dist + 1 });
+                }
+            }
+        }
+
+        return Array.from(result);
+    }
 
     // --- PRECOMPUTE edges once ---
     const preEdges = []; // array of { paX, paY, pbX, pbY, width }
@@ -173,6 +196,8 @@ async function loadCoords() {
         const fillStyleCol = blendGenres(genres)
 
         preEdges.push({
+            idA: a,
+            idB: b,
             col: fillStyleCol,
             paX: na.x * size,
             paY: na.y * size,
@@ -197,13 +222,15 @@ async function loadCoords() {
 
             const x = v.x
             const y = v.y
-            return {x,y,color,r,text};
+            return { id, x, y, color, r, text };
         })
         .sort((a, b) => b.popularity - a.popularity);
 
     //console.log(nodesSorted)
     //console.log(preEdges.length)
-        
+
+    let focusedNode = null;
+    let focusedNodes = null;
     function draw() {
         ctx.clearRect(0, 0, size, size);
 
@@ -215,6 +242,12 @@ async function loadCoords() {
         let count = 0;
         for (let i = 0; i < preEdges.length; i++) {
             const e = preEdges[i];
+            const idA = e.idA;
+            const idB = e.idB;
+
+            if (focusedNode != null && !(focusedNodes.has(idA) && focusedNodes.has(idB)) && !(idA == focusedNode) && !(idB == focusedNode)) {
+                continue;
+            }
 
             const pax = e.paX * scale + offsetX;
             const pay = e.paY * scale + offsetY;
@@ -230,7 +263,7 @@ async function loadCoords() {
             ) continue;
 
             count++;
-            if (count > 10000) {
+            if (count > 4000) {
                 break;
             }
 
@@ -282,7 +315,10 @@ async function loadCoords() {
             return true;
         }
 
-        for (const { x, y, color, r, text } of nodesSorted) {
+        for (const { id, x, y, color, r, text } of nodesSorted) {
+            if (focusedNode != null && !focusedNodes.has(id) && id != focusedNode) {
+                continue;
+            }
             const p = worldToScreen(x, y);
 
             // skip if offscreen
@@ -293,12 +329,28 @@ async function loadCoords() {
             const cx = p.x
             const cy = p.y
 
+            const isFocused = id === focusedNode;
+            const drawR = isFocused ? r * 2 : r;
+
+            // Draw white outline FIRST (behind)
+            if (isFocused) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, drawR + 4, 0, Math.PI * 2);
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw the circle on top
             ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.arc(cx, cy, drawR, 0, Math.PI * 2);
             ctx.fill();
 
+
             // padding above circle
-            const padding = 4;
+            const padding = isFocused ? 10 : 4;
 
             const labelX = Math.round(cx);
             const labelY = Math.round(cy - r - padding);
@@ -353,6 +405,147 @@ async function loadCoords() {
 
     // === initial draw ===
     draw();
+
+    //
+
+    /* --- SEARCH UI: paste this after `const ctx = canvas.getContext("2d");` --- */
+
+    //// helper: build nodesArr from parsed + nodesMap if not already present
+    let nodesArr = window.nodesArr; // respect a preexisting global if present
+    if (!Array.isArray(nodesArr)) {
+        nodesArr = Object.entries(parsed).map(([id, v]) => {
+            const node = nodesMap.get(id) || {};
+            return {
+                id,
+                title: node.title || node.name || id,
+                x: v.x,
+                y: v.y,
+                genres: node.genre || [],
+                rawNode: node
+            };
+        });
+    }
+
+    //// create search UI
+    const searchWrapper = document.createElement('div');
+    searchWrapper.style.width = size + 'px';
+    searchWrapper.style.margin = '8px auto';
+    searchWrapper.style.textAlign = 'left';
+    searchWrapper.style.fontFamily = 'monospace';
+
+    searchWrapper.innerHTML = `
+  <div style="display:flex;gap:8px;">
+    <input id="node-search-input" placeholder="Search node id or title..." style="flex:1;padding:6px;font-size:13px;border:1px solid #444;background:#111;color:#fff" />
+    <button id="node-search-clear" title="Clear" style="padding:6px;font-size:13px">✕</button>
+  </div>
+  <div id="node-search-results" style="max-height:180px;overflow:auto;margin-top:6px;border:1px solid #333;background:#070707;padding:6px"></div>
+`;
+    document.body.insertBefore(searchWrapper, canvas); // insert above canvas
+
+    const input = searchWrapper.querySelector('#node-search-input');
+    const clearBtn = searchWrapper.querySelector('#node-search-clear');
+    const resultsDiv = searchWrapper.querySelector('#node-search-results');
+
+    function renderResults(results) {
+        resultsDiv.innerHTML = '';
+        if (!results || results.length === 0) {
+            resultsDiv.innerHTML = `<div style="padding:6px;color:#888">no results</div>`;
+            return;
+        }
+        const ul = document.createElement('div');
+        ul.style.display = 'flex';
+        ul.style.flexDirection = 'column';
+        ul.style.gap = '4px';
+
+        results.forEach(n => {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.style.textAlign = 'left';
+            el.style.padding = '6px';
+            el.style.border = '1px solid #222';
+            el.style.background = '#000';
+            el.style.color = '#eee';
+            el.style.cursor = 'pointer';
+            el.style.fontSize = '13px';
+            el.style.whiteSpace = 'nowrap';
+            el.style.overflow = 'hidden';
+            el.style.textOverflow = 'ellipsis';
+            el.textContent = (n.title || n.id);
+            el.title = (n.title || n.id);
+            el.addEventListener('click', () => {
+                focusOnNode(n);
+            });
+            ul.appendChild(el);
+        });
+        resultsDiv.appendChild(ul);
+    }
+
+    function doSearch(q) {
+        q = (q || '').toLowerCase().trim();
+        if (!q) { renderResults(nodesArr.slice(0, 100)); return; }
+        const results = nodesArr.filter(function (n) {
+            var t = (n.title || '').toLowerCase();
+            var i = (n.id || '').toLowerCase();
+            return t.includes(q) || i.includes(q);
+        }).slice(0, 200);
+        renderResults(results);
+    }
+
+    input.addEventListener('input', (e) => doSearch(e.target.value));
+    clearBtn.addEventListener('click', () => {
+        input.value = '';
+        doSearch('');
+        input.focus();
+            
+        focusedNode = null;
+        draw();
+    });
+
+    function focusOnNode(node) {
+        const coords = parsed[node.id];
+        if (!coords) {
+            console.warn('no coords for node', node.id);
+            return;
+        }
+
+        focusedNode = node.id
+        focusedNodes = new Set(getNeighborsWithinDistance(node.id, 1));
+
+        const targetScale = 30;
+
+        // compute target offsets so the node lands centered in canvas
+        const nodeWorldX = coords.x * size;
+        const nodeWorldY = coords.y * size;
+        const targetOffsetX = (size / 2) - (nodeWorldX * targetScale);
+        const targetOffsetY = (size / 2) - (nodeWorldY * targetScale);
+
+        // animate from current scale/offset to target with easing
+        animatePanZoom(scale, offsetX, offsetY, targetScale, targetOffsetX, targetOffsetY);
+    }
+
+    let panAnim = null;
+    function animatePanZoom(startScale, startOffX, startOffY, endScale, endOffX, endOffY) {
+        if (panAnim) cancelAnimationFrame(panAnim.id);
+        const duration = 400; // ms
+        const start = performance.now();
+        function step(now) {
+            const t = Math.min(1, (now - start) / duration);
+            // easeInOutQuad
+            const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            scale = startScale + (endScale - startScale) * ease;
+            offsetX = startOffX + (endOffX - startOffX) * ease;
+            offsetY = startOffY + (endOffY - startOffY) * ease;
+            draw();
+            if (t < 1) {
+                panAnim.id = requestAnimationFrame(step);
+            } else {
+                panAnim = null;
+            }
+        }
+        panAnim = { id: requestAnimationFrame(step) };
+    }
+
+    /* --- END SEARCH UI --- */
 
 
 }
@@ -509,7 +702,9 @@ searchEl.addEventListener('input', function () {
     renderResults(results);
 });
 
-clearBtn.addEventListener('click', function () { searchEl.value = ''; renderResults(nodesArr.slice(0, 100)); });
+clearBtn.addEventListener('click', function () {
+    searchEl.value = ''; renderResults(nodesArr.slice(0, 100));
+});
 
 function buildAdjacency() {
     var adj = new Map();
@@ -523,7 +718,7 @@ function buildAdjacency() {
         var b = String(parts[1].trim());
         var numvotes = Number(v) || 0;
 
-        let weight = 1 / (1 + Math.sqrt(numvotes)) 
+        let weight = 1 / (1 + Math.sqrt(numvotes))
         if (numvotes < 0) {
             weight = 1
         }
@@ -541,6 +736,101 @@ function buildAdjacency() {
     return adj;
 }
 
+
+//
+
+function PageRankSumm(adj, sources) {
+    const alpha = 0.05;
+    const maxIters = 1000;
+    const eps = 1e-6;
+
+    console.log("page rank sum")
+
+    const nodes = Array.from(adj.keys());
+    //const N = nodes.length;
+
+    let r = new Map();
+    let rNew = new Map();
+    const s = new Map();
+
+    for (const n of nodes) {
+        r.set(n, 0);
+        rNew.set(n, 0);
+        s.set(n, 0);
+    }
+
+    const invSources = 1 / sources.length;
+    for (const n of sources) {
+        s.set(n, invSources);
+    }
+
+    // --- precompute transition probabilities ---
+    const P = new Map();
+
+    for (const [v, neighbors] of adj) {
+        let total = 0;
+        for (const nb of neighbors) {
+            total += 1 / nb.w
+        }
+
+        if (total > 0) {
+            const probs = new Map();
+            const invTotal = 1 / total;
+            for (const nb of neighbors) {
+                probs.set(nb.to, (1 / nb.w) * invTotal);
+            }
+            P.set(v, probs);
+        }
+    }
+
+    // --- power iteration ---
+    for (let iter = 0; iter < maxIters; iter++) {
+        // reset rNew
+        for (const v of nodes) {
+            rNew.set(v, alpha * s.get(v));
+        }
+
+        // propagate mass
+        for (const v of nodes) {
+            const rv = r.get(v);
+            if (rv === 0) continue;
+
+            const probs = P.get(v);
+            const mass = (1 - alpha) * rv;
+            for (const [u, p] of probs) {
+                rNew.set(u, rNew.get(u) + mass * p);
+            }
+        }
+
+        // convergence check + swap
+        let diff = 0;
+        for (const v of nodes) {
+            const nv = rNew.get(v);
+            diff += Math.abs(nv - r.get(v));
+            r.set(v, nv);
+        }
+
+        if (diff < eps) {
+            console.log("converged at iter", iter)
+            break;
+        }
+    }
+
+    // reverse rank
+    let max = -Infinity;
+    for (const v of r.values()) if (v > max) max = v;
+
+    const reversed = new Map();
+    for (const [node, v] of r) {
+        reversed.set(node, max - v);
+    }
+
+    return reversed;
+}
+
+//
+
+
 function MinHeap() { this.data = []; }
 MinHeap.prototype.size = function () { return this.data.length; };
 MinHeap.prototype.push = function (x) { this.data.push(x); this._siftUp(this.data.length - 1); };
@@ -548,46 +838,93 @@ MinHeap.prototype.pop = function () { if (this.data.length === 0) return undefin
 MinHeap.prototype._siftUp = function (i) { var a = this.data; while (i > 0) { var p = (i - 1) >> 1; if (a[p].dist <= a[i].dist) break; var tmp = a[p]; a[p] = a[i]; a[i] = tmp; i = p; } };
 MinHeap.prototype._siftDown = function (i) { var a = this.data; var n = a.length; while (true) { var l = 2 * i + 1; var r = l + 1; var smallest = i; if (l < n && a[l].dist < a[smallest].dist) smallest = l; if (r < n && a[r].dist < a[smallest].dist) smallest = r; if (smallest === i) break; var tmp = a[i]; a[i] = a[smallest]; a[smallest] = tmp; i = smallest; } };
 
-function computeDistancesMultiSource(adj, sources) {
+function DijkstrasSumm(adj, sources) {
+    function degreePopularity(id) {
+        const neighbors = adj.get(id);
+        return neighbors ? neighbors.length : 0;
+    }
+
+    const sourceWeights = sources.map(s => {
+        const pop = 1 / degreePopularity(s) ** 0.5;
+        return pop
+    });
+
     var k = sources.length;
     var distancesMap = new Map();
     var prev = new Map();
     adj.forEach(function (_, node) {
-        distancesMap.set(node, new Float64Array(k).fill(Infinity)); prev.set(node, new Array(k).fill(null));
-    }); var heap = new MinHeap();
-    
+        distancesMap.set(node, new Float64Array(k).fill(Infinity));
+        prev.set(node, new Array(k).fill(null));
+    });
+    var heap = new MinHeap();
+
     sources.forEach(function (s, i) {
         if (!adj.has(s)) return;
         distancesMap.get(s)[i] = 0;
         prev.get(s)[i] = null;
-        heap.push({ id: s, src: i, dist: 0 });
+        heap.push({
+            id: s,
+            src: i,
+            dist: 0
+        });
     });
 
     while (heap.size()) {
         var u = heap.pop();
-        console.log(u)
+        //console.log(u)
         var arr = distancesMap.get(u.id);
 
         if (!arr || u.dist !== arr[u.src]) continue;
-        
+
         var neighbors = adj.get(u.id) || [];
         neighbors.forEach(function (nb) {
-            var total = u.dist + nb.w;
-            var nbArr = distancesMap.get(nb.to);
+            let nbWeight = nb.w
+
+            // modern animes stronger!
+            const nbNode = nodesMap.get(nb.to);
+            const uNode = nodesMap.get(u.id);
+            const uYear = uNode.year || 0
+            const nbYear = nbNode.year || 0
+            const uPopular = degreePopularity(u.id)
+            const nbPopular = degreePopularity(nb.to)
+
+            if (nbPopular < uPopular) { // promote less popular anime
+                nbWeight *= 0.5
+            }
+            if (nbYear > uYear) { // promote more recent anime
+                //console.log(nbNode.title, uNode.title)
+                nbWeight *= 0.8
+            }
+
+            const total = u.dist + nbWeight;
+            const nbArr = distancesMap.get(nb.to);
             if (total < nbArr[u.src]) {
-                nbArr[u.src] = total; prev.get(nb.to)[u.src] = u.id;
-                heap.push({ id: nb.to, src: u.src, dist: total });
+                nbArr[u.src] = total;
+                prev.get(nb.to)[u.src] = u.id;
+                heap.push({
+                    id: nb.to,
+                    src: u.src,
+                    dist: total
+                });
             }
         });
     }
-        
+
     var finalDistances = new Map();
-    distancesMap.forEach(function (arr, node) {
+    /*distancesMap.forEach(function (arr, node) {
         var sum = 0;
         for (var i = 0; i < k; i++) sum += arr[i]; finalDistances.set(node, sum);
     });
-    
-    return { distancesMap: finalDistances, prev: prev };
+*/
+    distancesMap.forEach(function (arr, node) {
+        let sum = 0;
+        for (let i = 0; i < k; i++) {
+            sum += arr[i] * sourceWeights[i];
+        }
+        finalDistances.set(node, sum);
+    });
+
+    return finalDistances;
 }
 
 function runRecommendations() {
@@ -603,14 +940,15 @@ function runRecommendations() {
         return;
     }
 
-    var result = computeDistancesMultiSource(adj, sources);
-    var distances = result.distancesMap;
+    var distances = DijkstrasSumm(adj, sources);
+    //var distances = PageRankSumm(adj, sources);
     var candidates = [];
     distances.forEach(function (dist, nodeId) {
-        if (selectedSet.has(nodeId)) return;
-        if (!isFinite(dist)) return;
+        if (selectedSet.has(nodeId)) return; // already in selected...
+
+        //if (!isFinite(dist)) return;
         var node = nodesMap.get(nodeId);
-        var label = node ? (node.title || node.name || '') : '';
+        var label = node.title || node.name || '';;
         candidates.push({ id: nodeId, title: label, distance: dist });
     });
 
@@ -618,7 +956,7 @@ function runRecommendations() {
         return a.distance - b.distance;
     });
 
-    var best = candidates.slice(0, 60);
+    var best = candidates.slice(0, 80);
     var worst = candidates.slice(-4);
 
     renderRecommendations(best.concat(worst));
@@ -642,10 +980,18 @@ function renderRecommendations(list) {
         var overlay = document.createElement('div'); overlay.className = 'rec-overlay';
         var left = document.createElement('div'); left.style.display = 'flex'; left.style.flexDirection = 'column'; left.style.gap = '4px'; left.style.minWidth = 0;
         var t = document.createElement('div'); t.style.fontWeight = '600'; t.style.whiteSpace = 'nowrap'; t.style.overflow = 'hidden'; t.style.textOverflow = 'ellipsis'; t.textContent = it.title || '(no title)'; left.appendChild(t);
-        if (genreStr) { var g = document.createElement('div'); g.className = 'item-sub'; g.textContent = genreStr; left.appendChild(g); }
+        if (genreStr) {
+            var g = document.createElement('div');
+            g.className = 'item-sub';
+            g.textContent = genreStr;
+            left.appendChild(g);
+        }
 
-        var scaledScore = (1 / it.distance) * selectedSet.size; var scoreStr = isFinite(scaledScore) ? scaledScore.toFixed(4) : '0.0000';
-        var right = document.createElement('div'); right.className = 'badge'; right.textContent = scoreStr;
+        var scaledScore = (1 / it.distance) * selectedSet.size;
+        var scoreStr = isFinite(scaledScore) ? scaledScore.toFixed(4) : '0.0000';
+        var right = document.createElement('div');
+        right.className = 'badge';
+        right.textContent = scoreStr + " (" + node.year + ")";
 
         overlay.appendChild(left); overlay.appendChild(right); el.appendChild(overlay);
 
@@ -656,7 +1002,15 @@ function renderRecommendations(list) {
         left.addEventListener('click', function (e) {
             e.stopPropagation();
         });
-        el.addEventListener('click', function () { selectedSet.add(it.id); updateSelectedBar(); var ch = Array.from(resultsEl.children).find(function (c) { return c.dataset && c.dataset.id === it.id; }); if (ch) ch.classList.add('selected'); runRecommendations(); });
+        el.addEventListener('click', function () {
+            selectedSet.add(it.id);
+            updateSelectedBar();
+            var ch = Array.from(resultsEl.children).find(function (c) {
+                return c.dataset && c.dataset.id === it.id;
+            });
+            if (ch) ch.classList.add('selected');
+            runRecommendations();
+        });
 
         recsEl.appendChild(el);
     });
