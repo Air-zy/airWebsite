@@ -1,4 +1,3 @@
-
 function restore(value) {
     if (!value) return value;
     if (value.__type === 'Map') return new Map(value.value.map(function (pair) { return [pair[0], restore(pair[1])]; }));
@@ -20,6 +19,14 @@ var edgesMap = new Map();
 var nodesArr = [];
 var selectedSet = new Set();
 
+var eigenVecMap = new Map();
+var adjMap = new Map();
+
+// --- genre filter state ---
+var genreSet = new Set();
+var selectedGenres = new Set();
+
+
 function getNodeImg(node) {
     if (!node) return '';
     return node.img || (node.value && node.value.img) || node.image || node.banner || '';
@@ -31,6 +38,7 @@ function jsEscape(s) {
 }
 
 async function loadCoords() {
+    var visualPanel = document.getElementById('visual');
     var res = await fetch('/api/anime3/coords?v=2');
     if (!res.ok) throw new Error('fetch failed: ' + res.status);
     var json = await res.json();
@@ -55,10 +63,9 @@ async function loadCoords() {
     canvas.width = size;
     canvas.height = size;
     canvas.style.display = "block";
-    canvas.style.margin = "20px auto";
     canvas.style.border = "1px solid #444";
     canvas.style.background = "#000000ff";
-    document.body.appendChild(canvas);
+    visualPanel.appendChild(canvas);
 
     const ctx = canvas.getContext("2d");
 
@@ -143,7 +150,7 @@ async function loadCoords() {
     }
 
 
-    const adj = buildAdjacency();
+    const adj = adjMap;
     function degreePopularity(id) {
         const neighbors = adj.get(id);
         return neighbors ? neighbors.length : 0;
@@ -428,8 +435,7 @@ async function loadCoords() {
 
     //// create search UI
     const searchWrapper = document.createElement('div');
-    searchWrapper.style.width = size + 'px';
-    searchWrapper.style.margin = '8px auto';
+    searchWrapper.style.width = '400px';
     searchWrapper.style.textAlign = 'left';
     searchWrapper.style.fontFamily = 'monospace';
 
@@ -440,7 +446,7 @@ async function loadCoords() {
   </div>
   <div id="node-search-results" style="max-height:180px;overflow:auto;margin-top:6px;border:1px solid #333;background:#070707;padding:6px"></div>
 `;
-    document.body.insertBefore(searchWrapper, canvas); // insert above canvas
+    visualPanel.insertBefore(searchWrapper, canvas); // insert above canvas
 
     const input = searchWrapper.querySelector('#node-search-input');
     const clearBtn = searchWrapper.querySelector('#node-search-clear');
@@ -482,12 +488,17 @@ async function loadCoords() {
 
     function doSearch(q) {
         q = (q || '').toLowerCase().trim();
-        if (!q) { renderResults(nodesArr.slice(0, 100)); return; }
+        if (!q) {
+            renderResults(nodesArr.slice(0, 10));
+            return;
+        }
+
         const results = nodesArr.filter(function (n) {
             var t = (n.title || '').toLowerCase();
             var i = (n.id || '').toLowerCase();
             return t.includes(q) || i.includes(q);
-        }).slice(0, 200);
+        }).slice(0, 10);
+
         renderResults(results);
     }
 
@@ -496,7 +507,7 @@ async function loadCoords() {
         input.value = '';
         doSearch('');
         input.focus();
-            
+
         focusedNode = null;
         draw();
     });
@@ -550,8 +561,28 @@ async function loadCoords() {
 
 }
 
+function msgHtml(message) {
+    console.log(message);
+
+    let root = document.getElementById("msg-root");
+
+    if (!root) {
+        root = document.createElement("div");
+        root.id = "msg-root";
+        root.style.display = "flex";
+        root.style.justifyContent = "center";
+        root.style.alignItems = "center";
+        root.style.textAlign = "center";
+        root.style.fontSize = "24px";
+        document.body.prepend(root);
+    }
+
+    root.textContent = message || "";
+}
+
 // Load compressed graph data from server, decompress and restore
 async function load() {
+    msgHtml("loading... data")
     try {
         var res = await fetch('/api/anime3/data');
         if (!res.ok) throw new Error('fetch failed: ' + res.status);
@@ -565,22 +596,38 @@ async function load() {
             return arr;
         }
 
+        msgHtml("decompressing data")
+
         var decompressed = pako.inflate(b64toU8(b64), { to: 'string' });
         var parsed = JSON.parse(decompressed);
+
+        msgHtml("parsing data")
 
         nodesMap = restore(parsed.nodes);
         edgesMap = restore(parsed.edges);
 
+        msgHtml("building lookups")
+
+        adjMap = buildAdjacency(edgesMap);
+        eigenVecMap = EigenvectorCentrality(adjMap)
+
+        msgHtml("")
+
         console.log(nodesMap)
 
+        //console.log(eigenVecMap)
+
         nodesArr = Array.from(nodesMap.values()).map(function (n) {
-            var id = String(n.id || n.key || '');
-            var title = String(n.title || n.name || '');
+            var id = String(n.id || '');
+            var title = String(n.title || '');
             if (!nodesMap.has(id)) nodesMap.set(id, Object.assign({}, n, { id: id }));
             return { id: id, title: title };
         }).sort(function (a, b) { return a.title.localeCompare(b.title); });
 
-        renderResults(nodesArr.slice(0, 100));
+        // build genre filter UI now that nodesMap is ready
+        buildGenreFilterUI();
+
+        renderDefaultResults()
         await loadCoords();
     } catch (err) {
         console.warn(err)
@@ -679,7 +726,10 @@ function updateSelectedBar() {
         titleDiv.textContent = title;
         inner.appendChild(titleDiv);
 
-        var rem = document.createElement('button'); rem.textContent = '✕'; rem.title = 'Remove';
+        var rem = document.createElement('button');
+        rem.textContent = '✕';
+        rem.title = 'Remove';
+
         rem.addEventListener('click', function () {
             selectedSet.delete(id);
             updateSelectedBar();
@@ -694,19 +744,47 @@ function updateSelectedBar() {
     });
 }
 
+const byPopularitySort = (a, b) => (eigenVecMap.get(b.id) ?? 0) - (eigenVecMap.get(a.id) ?? 0);
+
 // search handling
 searchEl.addEventListener('input', function () {
-    var q = searchEl.value.trim().toLowerCase();
-    if (!q) { renderResults(nodesArr.slice(0, 100)); return; }
-    var results = nodesArr.filter(function (n) { var t = (n.title || '').toLowerCase(); var i = (n.id || '').toLowerCase(); return t.includes(q) || i.includes(q); }).slice(0, 200);
-    renderResults(results);
+    const q = searchEl.value.trim().toLowerCase();
+
+    let results;
+
+    if (!q) {
+        results = nodesArr.slice();
+    } else {
+        results = nodesArr.filter(function (n) {
+            const t = (n.title || '').toLowerCase();
+            const i = n.id.toLowerCase();
+            return t.includes(q) || i.includes(q);
+        });
+    }
+
+    results.sort(byPopularitySort);
+
+    renderResults(results.slice(0, 100));
 });
+
+
+function renderDefaultResults() {
+    const results = nodesArr.slice();
+    results.sort(byPopularitySort);
+
+    renderResults(results.slice(0, 100));
+}
 
 clearBtn.addEventListener('click', function () {
-    searchEl.value = ''; renderResults(nodesArr.slice(0, 100));
+    selectedSet.clear();
+    updateSelectedBar();
+    searchEl.value = '';
+    renderDefaultResults();
 });
 
-function buildAdjacency() {
+//
+
+function buildAdjacency(edgesMap) {
     var adj = new Map();
     function ensure(n) {
         if (!adj.has(n)) adj.set(n, []);
@@ -736,6 +814,63 @@ function buildAdjacency() {
     return adj;
 }
 
+//
+
+function EigenvectorCentrality(adj, {
+    maxIters = 1000,
+    eps = 1e-6
+} = {}) {
+    const nodes = Array.from(adj.keys());
+    const n = nodes.length;
+
+    // initialize centrality uniformly
+    let c = new Map();
+    let cNew = new Map();
+
+    for (const v of nodes) {
+        c.set(v, 1 / n);
+        cNew.set(v, 0);
+    }
+
+    for (let iter = 0; iter < maxIters; iter++) {
+        // reset
+        for (const v of nodes) cNew.set(v, 0);
+
+        // power iteration
+        for (const v of nodes) {
+            const cv = c.get(v);
+            const neighbors = adj.get(v) || [];
+
+            for (const nb of neighbors) {
+                // invert your distance-like weight
+                const strength = 1 / nb.w;
+                cNew.set(nb.to, cNew.get(nb.to) + cv * strength);
+            }
+        }
+
+        // normalize (L2 norm)
+        let norm = 0;
+        for (const v of nodes) {
+            const x = cNew.get(v);
+            norm += x * x;
+        }
+        norm = Math.sqrt(norm) || 1;
+
+        let diff = 0;
+        for (const v of nodes) {
+            const nv = cNew.get(v) / norm;
+            diff += Math.abs(nv - c.get(v));
+            c.set(v, nv);
+        }
+
+        if (diff < eps) {
+            console.log("Eigenvector centrality converged at iter", iter);
+            break;
+        }
+    }
+
+    return c;
+}
 
 //
 
@@ -830,6 +965,64 @@ function PageRankSumm(adj, sources) {
 
 //
 
+function Summ(adj, sources) {
+    const sourcesSet = new Set(sources.map(String)); // normalize to strings
+
+    var k = sources.length;
+    var distancesMap = new Map();
+    adj.forEach(function (_, node) {
+        distancesMap.set(node, new Float64Array(k).fill(Infinity));
+    })
+
+    //
+    var heap = new MinHeap();
+    sources.forEach(function (s, i) {
+        if (!adj.has(s)) return;
+        distancesMap.get(s)[i] = 0; // set sources to 0...
+        heap.push({
+            id: s,
+            src: i,
+            dist: 0
+        });
+    });
+
+    while (heap.size()) {
+        var u = heap.pop();
+        //var arr = distancesMap.get(u.id);
+
+        var neighbors = adj.get(u.id);
+        if (sourcesSet.has(u.id)) {
+            console.log(u, "|", neighbors)
+        }
+
+        neighbors.forEach(function (nb) {
+            const nbPopular = eigenVecMap.get(nb.to)
+            const weight = 1 + nb.w + nbPopular //nb.w//nb.w * nbPopular
+            const total = u.dist + weight;
+            const nbArr = distancesMap.get(nb.to);
+            if (total < nbArr[u.src]) {
+                nbArr[u.src] = total;
+                heap.push({
+                    id: nb.to,
+                    src: u.src,
+                    dist: total
+                });
+            }
+        });
+    }
+
+    var finalDistances = new Map();
+    distancesMap.forEach(function (arr, node) {
+        let sum = 0;
+        for (let i = 0; i < k; i++) {
+            sum += arr[i];
+        }
+        finalDistances.set(node, sum);
+    });
+    return finalDistances;
+}
+
+//
 
 function MinHeap() { this.data = []; }
 MinHeap.prototype.size = function () { return this.data.length; };
@@ -846,6 +1039,7 @@ function DijkstrasSumm(adj, sources) {
 
     const sourceWeights = sources.map(s => {
         const pop = 1 / degreePopularity(s) ** 0.5;
+        console.log("source weight:", nodesMap.get(s).title, pop)
         return pop
     });
 
@@ -880,20 +1074,24 @@ function DijkstrasSumm(adj, sources) {
         neighbors.forEach(function (nb) {
             let nbWeight = nb.w
 
+            /*
             // modern animes stronger!
             const nbNode = nodesMap.get(nb.to);
             const uNode = nodesMap.get(u.id);
             const uYear = uNode.year || 0
             const nbYear = nbNode.year || 0
-            const uPopular = degreePopularity(u.id)
-            const nbPopular = degreePopularity(nb.to)
-
-            if (nbPopular < uPopular) { // promote less popular anime
-                nbWeight *= 0.5
-            }
+            
             if (nbYear > uYear) { // promote more recent anime
                 //console.log(nbNode.title, uNode.title)
                 nbWeight *= 0.8
+            }*/
+
+            const uPopular = eigenVecMap.get(u.id)
+            const nbPopular = eigenVecMap.get(nb.to)
+            //console.log(uPopular, nbPopular)
+            if (nbPopular < uPopular) {
+                //console.log(uPopular - nbPopular)
+                nbWeight *= 0.5
             }
 
             const total = u.dist + nbWeight;
@@ -911,11 +1109,6 @@ function DijkstrasSumm(adj, sources) {
     }
 
     var finalDistances = new Map();
-    /*distancesMap.forEach(function (arr, node) {
-        var sum = 0;
-        for (var i = 0; i < k; i++) sum += arr[i]; finalDistances.set(node, sum);
-    });
-*/
     distancesMap.forEach(function (arr, node) {
         let sum = 0;
         for (let i = 0; i < k; i++) {
@@ -923,13 +1116,12 @@ function DijkstrasSumm(adj, sources) {
         }
         finalDistances.set(node, sum);
     });
-
     return finalDistances;
 }
 
 function runRecommendations() {
     if (selectedSet.size === 0) { recsPanel.style.display = 'none'; return; }
-    var adj = buildAdjacency();
+    var adj = adjMap;
     var sources = Array.from(selectedSet).filter(function (s) {
         return adj.has(String(s));
     });
@@ -940,9 +1132,10 @@ function runRecommendations() {
         return;
     }
 
-    var distances = DijkstrasSumm(adj, sources);
-    //var distances = PageRankSumm(adj, sources);
-    var candidates = [];
+    //var distances = DijkstrasSumm(adj, sources);
+    //var distance = PageRankSumm(adj, sources)
+    var distances = Summ(adj, sources);
+    let candidates = [];
     distances.forEach(function (dist, nodeId) {
         if (selectedSet.has(nodeId)) return; // already in selected...
 
@@ -951,6 +1144,28 @@ function runRecommendations() {
         var label = node.title || node.name || '';;
         candidates.push({ id: nodeId, title: label, distance: dist });
     });
+
+    // apply genre filtering if enabled
+    if (selectedGenres.size > 0) {
+        const selArr = Array.from(selectedGenres);
+        candidates = candidates.filter(function (it) {
+            const node = nodesMap.get(it.id) || {};
+            let gs = (node.value && node.value.genre) || node.genre || node.genres || [];
+            if (!Array.isArray(gs)) gs = gs ? [gs] : [];
+            const nodeSet = new Set(gs.map(String));
+            // require ALL selected genres to be present (AND semantics)
+            for (const sg of selArr) {
+                if (!nodeSet.has(String(sg))) return false;
+            }
+            return true;
+        });
+
+        if (candidates.length === 0) {
+            recsEl.innerHTML = '<div style="color:#888">No recommendations matching selected genres.</div>';
+            recsPanel.style.display = 'block';
+            return;
+        }
+    }
 
     candidates.sort(function (a, b) {
         return a.distance - b.distance;
@@ -1035,3 +1250,70 @@ function hideTooltip() {
 
 updateSelectedBar();
 load();
+
+// ----------------- Genre filter UI helpers -----------------
+function buildGenreFilterUI() {
+    // remove existing
+    var existing = document.getElementById('genre-filter-wrapper');
+    if (existing) existing.remove();
+
+    // collect genres from nodesMap
+    genreSet.clear();
+    nodesMap.forEach(function (n) {
+        var gs = (n.value && n.value.genre) || n.genre || n.genres || [];
+        if (!Array.isArray(gs)) gs = gs ? [gs] : [];
+        gs.forEach(function (g) { if (g) genreSet.add(g); });
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'genre-filter-wrapper';
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.gap = '6px';
+    wrapper.style.padding = '8px';
+    wrapper.style.borderTop = '1px solid #222';
+
+    const topRow = document.createElement('div');
+    topRow.style.display = 'flex'; topRow.style.alignItems = 'center'; topRow.style.gap = '8px';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'Clear selected genres';
+    clearBtn.addEventListener('click', function () {
+        selectedGenres.clear();
+        updateGenreCheckboxes();
+        runRecommendations();
+    });
+
+    topRow.appendChild(clearBtn);
+    wrapper.appendChild(topRow);
+
+    const genresRow = document.createElement('div');
+    genresRow.style.display = 'flex'; genresRow.style.flexWrap = 'wrap'; genresRow.style.gap = '6px'; genresRow.style.maxHeight = '120px'; genresRow.style.overflow = 'auto';
+
+    const genres = Array.from(genreSet).sort();
+    genres.forEach(function (g) {
+        const id = 'gf_' + String(g).replace(/\s+/g, '_');
+        const label = document.createElement('label'); label.style.display = 'inline-flex'; label.style.alignItems = 'center'; label.style.gap = '4px';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.dataset.genre = g; cb.id = id;
+        cb.addEventListener('change', function (e) {
+            if (e.target.checked) selectedGenres.add(g); else selectedGenres.delete(g);
+            runRecommendations();
+        });
+        const span = document.createElement('span'); span.textContent = g; span.style.fontSize = '12px';
+        label.appendChild(cb); label.appendChild(span);
+        genresRow.appendChild(label);
+    });
+
+    wrapper.appendChild(genresRow);
+
+    // insert wrapper at top of recommendations panel
+    if (recsPanel) recsPanel.insertBefore(wrapper, recsPanel.firstChild);
+
+    updateGenreCheckboxes();
+}
+
+function updateGenreCheckboxes() {
+    const boxes = document.querySelectorAll('#genre-filter-wrapper input[type=checkbox][data-genre]');
+    boxes.forEach(function (cb) { cb.checked = selectedGenres.has(cb.dataset.genre); });
+
+}

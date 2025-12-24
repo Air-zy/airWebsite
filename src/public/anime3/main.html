@@ -16,6 +16,14 @@
       justify-content: space-around;
     }
 
+    #visual {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px
+    }
+
     #recs {overflow-y: auto; overflow-x: hidden; max-height: 90%};
     #search { width: 100%; padding: 8px; margin-bottom: 8px; }
     #results { max-height: calc(100vh - 200px); border: 1px solid #2b2b2b; padding: 8px; max-height: 420px; overflow: auto; }
@@ -75,6 +83,9 @@
     <div id="tooltip" style="position:fixed; z-index:9999; pointer-events:none; max-width:360px; padding:10px 12px; background:rgba(10,10,10,0.95); border:1px solid #333; border-radius:8px; font-size:13px; line-height:1.4; color:#ddd; display:none;"></div>
 
     <script src="./main.js"></script>
+  </div>
+  <div id="visual">
+
   </div>
 </body>
 </html>
