@@ -21,6 +21,7 @@ var selectedSet = new Set();
 
 var eigenVecMap = new Map();
 var adjMap = new Map();
+var topYear = 0;
 
 // --- genre filter state ---
 var genreSet = new Set();
@@ -618,6 +619,7 @@ async function load() {
         //console.log(eigenVecMap)
 
         nodesArr = Array.from(nodesMap.values()).map(function (n) {
+            if (n.year && n.year > topYear) topYear = n.year;
             var id = String(n.id || '');
             var title = String(n.title || '');
             if (!nodesMap.has(id)) nodesMap.set(id, Object.assign({}, n, { id: id }));
@@ -996,6 +998,13 @@ function Summ(adj, sources) {
         }
 
         neighbors.forEach(function (nb) {
+            
+            /*const nbNode = nodesMap.get(nb.to);
+            const uNode = nodesMap.get(u.id);
+            const uAvg = uNode.mean || 0
+            const nbAvg = nbNode.mean || 0
+            const avg = 1 - uAvg/100//(uAvg/100 * nbAvg/100)*/
+            
             const nbPopular = eigenVecMap.get(nb.to)
             const weight = 1 + nb.w + nbPopular //nb.w//nb.w * nbPopular
             const total = u.dist + weight;
@@ -1016,6 +1025,13 @@ function Summ(adj, sources) {
         let sum = 0;
         for (let i = 0; i < k; i++) {
             sum += arr[i];
+        }
+
+        const nnode = nodesMap.get(node);
+        sum *= 1 + (topYear - nnode.year) * 0.02
+
+        if (Number.isFinite(sum) == false) {
+            return;
         }
         finalDistances.set(node, sum);
     });
@@ -1202,11 +1218,17 @@ function renderRecommendations(list) {
             left.appendChild(g);
         }
 
-        var scaledScore = (1 / it.distance) * selectedSet.size;
-        var scoreStr = isFinite(scaledScore) ? scaledScore.toFixed(4) : '0.0000';
+        var scaledScore = it.distance//(1 / it.distance) * selectedSet.size;
+        var scoreStr = isFinite(scaledScore) ? scaledScore.toFixed(3) : '0.000';
         var right = document.createElement('div');
         right.className = 'badge';
-        right.textContent = scoreStr + " (" + node.year + ")";
+        //right.textContent = scoreStr + " (" + node.year + ")<br>★ " + node.avg;
+        right.append(
+            document.createTextNode(scoreStr + " (" + node.year + ")"),
+            document.createElement("br"),
+            document.createTextNode("★ " + node.mean)
+        );
+
 
         overlay.appendChild(left); overlay.appendChild(right); el.appendChild(overlay);
 
