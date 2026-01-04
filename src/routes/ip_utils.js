@@ -31,6 +31,10 @@ function getProjects() {
   return projects;
 }
 
+function setProjects(newProjects) {
+  projects = newProjects;
+}
+
 function getCompressedAnimeMap() {
   return compressedAnimeMap;
 }
@@ -52,6 +56,7 @@ module.exports = {
   bitset,
   getIPData,
   getProjects,
+  setProjects,
   getCompressedAnimeMap,
   referLookup,
   updateAddress,

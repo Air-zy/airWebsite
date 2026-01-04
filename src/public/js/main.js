@@ -17,9 +17,9 @@ function updateSpansLmode() {
     spans.forEach(span => {
       const originalStyles = spanStyles.get(span);
       if (originalStyles) {
-      span.style.color = originalStyles.c;
-      span.style.textShadow = originalStyles.s;
-      span.style.textDecoration = originalStyles.d;
+        span.style.color = originalStyles.c;
+        span.style.textShadow = originalStyles.s;
+        span.style.textDecoration = originalStyles.d;
       }
     });
   } else {
@@ -41,7 +41,7 @@ icons.forEach((icon, index) => {
 function toggleLightMode() {
   const icon = document.getElementById('icon');
   const root = document.documentElement;
-  
+
   if (icon.classList.contains('fa-moon-o')) {
     icon.classList.remove('fa-moon-o');
     icon.classList.add('fa-sun-o');
@@ -58,7 +58,7 @@ function toggleLightMode() {
   } else {
     icon.classList.remove('fa-sun-o');
     icon.classList.add('fa-moon-o');
-    
+
     root.style.setProperty('color-scheme', defaultRootStyle.colorScheme);
     root.style.setProperty('--bg-col', defaultRootStyle.bgCol);
     root.style.setProperty('--bg-rgb-full', defaultRootStyle.bgRgbFull);
@@ -67,7 +67,7 @@ function toggleLightMode() {
     root.style.setProperty('--text-normal', defaultRootStyle.textNormal);
     root.style.setProperty('--frame-bcol', defaultRootStyle.frameBcol);
     root.style.setProperty('--frame-bcol2', defaultRootStyle.frameBcol2);
-    
+
   }
   updateSpansLmode();
 }
@@ -96,18 +96,18 @@ function updateSidebarState() {
 }
 
 function lerpString(initial, final, t) {
-    t = Math.max(0, Math.min(1, t));
-    const numCharsFromFinal = Math.floor(t * final.length);
-    let result = '';
-    for (let i = 0; i < Math.max(initial.length, final.length); i++) {
-        if (i < numCharsFromFinal) {
-            result += final[i] || '';
-        } else {
-            result += initial[i] || '';
-        }
+  t = Math.max(0, Math.min(1, t));
+  const numCharsFromFinal = Math.floor(t * final.length);
+  let result = '';
+  for (let i = 0; i < Math.max(initial.length, final.length); i++) {
+    if (i < numCharsFromFinal) {
+      result += final[i] || '';
+    } else {
+      result += initial[i] || '';
     }
+  }
 
-    return result;
+  return result;
 }
 
 /*toggleLightMode()*/
@@ -115,7 +115,7 @@ updateSidebarState();
 
 document.addEventListener("DOMContentLoaded", function () {
   const name = document.getElementById("airzy");
-  
+
   const targetText = "Airzy";
   const characters = "αβγδεζηθικλμνξοπρστυφχψωπ";
   let currentText = " ".repeat(5);
@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let index = 0;
   let count = 0;
-  
+
   const root = document.documentElement;
   defaultRootStyle = {
     colorScheme: getComputedStyle(root).getPropertyValue('color-scheme'),
@@ -155,8 +155,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (index >= targetText.length) {
       setTimeout(() => {
-      name.classList.add("glow");
-      handleSections()
+        name.classList.add("glow");
+        handleSections()
       }, 400);
       clearInterval(interval);
     }
@@ -167,7 +167,7 @@ function isInViewport(el) {
   const rect = el.getBoundingClientRect(); // TODO optimize this
   return (
     rect.top >= 0 &&
-    rect.bottom-rect.height <= (window.innerHeight || document.documentElement.clientHeight)
+    rect.bottom - rect.height <= (window.innerHeight || document.documentElement.clientHeight)
   );
 }
 
@@ -180,13 +180,110 @@ function handleSections() {
   });
 }
 
+async function requestViewsUpdate(key) {
+  try {
+    fetch('/api/project-edit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: "view",
+        value: key
+      })
+    })
+  } catch (err) {
+    console.log("[ERROR] project view send", err);
+  }
+}
+
+async function makeProjectCard(proj, key) {
+  const cardContainer = document.createElement('div');
+  cardContainer.classList.add('project-container');
+
+  const card = document.createElement('a');
+  card.href = proj.url;
+  card.target = '_blank';
+  card.classList.add('project-card');
+  card.addEventListener('click', (event) => {
+    requestViewsUpdate(key)
+  })
+
+  if (proj.img) {
+    const img = document.createElement('img');
+    img.src = proj.img;
+    img.alt = proj.alt;
+    if (window.innerWidth <= 600) {
+      img.width = 100;
+      img.height = 100;
+    } else {
+      img.width = 200;
+      img.height = 200;
+    }
+    card.appendChild(img);
+  }
+
+  const pTitle = document.createElement('p');
+  pTitle.textContent = proj.title;
+  pTitle.classList.add('proj-title');
+  card.appendChild(pTitle);
+
+  const pStats = document.createElement('p');
+  pStats.classList.add('proj-stats');
+
+  const icon = document.createElement('i');
+  icon.classList.add('fa', 'fa-eye');
+
+  pStats.append(proj.stats.views + ' ');
+  pStats.appendChild(icon);
+  card.appendChild(pStats);
+
+  let textContainer
+  if (window.innerWidth <= 600) {
+    textContainer = document.createElement('details');
+  } else {
+    textContainer = document.createElement('div');
+  }
+
+  proj.text.forEach(line => {
+    const p = document.createElement('p');
+
+    // regex for [link text]("url")
+    const regex = /\[([^\]]+)\]\("([^"]+)"\)/g;
+    let modifiedLine = line;
+
+    // replace with nchor
+    modifiedLine = modifiedLine.replace(regex, (match, linkText, url) => {
+      return `<a href="${url}" target="_blank">${linkText}</a>`;
+    });
+
+    p.innerHTML = modifiedLine;
+    textContainer.appendChild(p);
+  });
+
+  card.appendChild(textContainer);
+
+  const footer = document.createElement('div');
+  footer.classList.add('project-footer');
+
+  proj.tags.forEach(tag => {
+    const p = document.createElement('p');
+    p.textContent = tag;
+    footer.appendChild(p);
+  });
+
+  cardContainer.appendChild(card)
+  cardContainer.appendChild(footer)
+  return cardContainer;
+}
+
 async function reloadProjects() {
   try {
     const projectsFetch = await fetch('/api/projects');
     if (!projectsFetch.ok) {
       throw new Error('Failed to fetch data');
     }
-    
+
     const projects = await projectsFetch.json();
     const projectsMap = new Map(Object.entries(projects));
 
@@ -202,98 +299,11 @@ async function reloadProjects() {
     container.innerHTML = '';
 
     let index = 0;
-    sortedProjects.forEach((proj, key) => setTimeout(() => {
-      const cardContainer = document.createElement('div');
-      cardContainer.classList.add('project-container');
-      
-      const card = document.createElement('a');
-      card.href = proj.url;
-      card.target = '_blank';
-      card.classList.add('project-card');
-      card.addEventListener('click', (event) => {
-        try {
-          fetch('/api/project-edit', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              type: "view",
-              value: key
-            })
-          })
-        } catch(err) {
-          console.log("[ERROR] project view send", err);
-        }
-      })
-      
-      if (proj.img) {
-        const img = document.createElement('img');
-        img.src = proj.img;
-        img.alt = proj.alt;
-        if (window.innerWidth <= 600) {
-          img.width = 100;
-          img.height = 100;
-        } else {
-          img.width = 200;
-          img.height = 200;
-        }
-        card.appendChild(img);
-      }
-      
-      const pTitle = document.createElement('p');
-      pTitle.textContent = proj.title;
-      pTitle.classList.add('proj-title');
-      card.appendChild(pTitle);
-      
-      const pStats = document.createElement('p');
-      pStats.classList.add('proj-stats');
-
-      const icon = document.createElement('i');
-      icon.classList.add('fa', 'fa-eye');
-      
-      pStats.append(proj.stats.views + ' ');
-      pStats.appendChild(icon);
-      card.appendChild(pStats);
-      
-      let textContainer
-      if (window.innerWidth <= 600) {
-        textContainer = document.createElement('details');
-      } else {
-        textContainer = document.createElement('div');
-      }
-      
-      proj.text.forEach(line => {
-        const p = document.createElement('p');
-
-        // regex for [link text]("url")
-        const regex = /\[([^\]]+)\]\("([^"]+)"\)/g;
-        let modifiedLine = line;
-
-        // replace with nchor
-        modifiedLine = modifiedLine.replace(regex, (match, linkText, url) => {
-          return `<a href="${url}" target="_blank">${linkText}</a>`;
-        });
-
-        p.innerHTML = modifiedLine;
-        textContainer.appendChild(p);
-      });
-      
-      card.appendChild(textContainer);
-
-      const footer = document.createElement('div');
-      footer.classList.add('project-footer');
-      
-      proj.tags.forEach(tag => {
-        const p = document.createElement('p');
-        p.textContent = tag;
-        footer.appendChild(p);
-      });
-      
-      cardContainer.appendChild(card)
-      cardContainer.appendChild(footer)
+    sortedProjects.forEach((proj, key) => setTimeout(async () => {
+      const cardContainer = await makeProjectCard(proj, key);
+      console.log(cardContainer)
       container.appendChild(cardContainer);
-    }, index * 100)); 
+    }, index * 100));
 
   } catch (error) {
     let errorMessage = 'Failed to fetch projects: ' + String(error);
@@ -309,24 +319,24 @@ async function loadProjects() {
     return;
   }
   projectsLoaded = true;
-    await fetch('projects.html')
-      .then(response => {
-        if (response.ok) {
-          return response.text();
-        } else {
-          console.log(response)
-          projectsLoaded = false
-        }
-      }).then(htmlContent => {
-        document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
-        updateSpansLmode()
-        handleSections()
-      }).catch(error => {
-        projectsLoaded = false;
-        console.error('Error:', error);
-      });
-  
-    reloadProjects()
+  await fetch('projects.html')
+    .then(response => {
+      if (response.ok) {
+        return response.text();
+      } else {
+        console.log(response)
+        projectsLoaded = false
+      }
+    }).then(htmlContent => {
+      document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
+      updateSpansLmode()
+      handleSections()
+    }).catch(error => {
+      projectsLoaded = false;
+      console.error('Error:', error);
+    });
+
+  reloadProjects()
 }
 
 let introsLoaded = false
@@ -335,22 +345,22 @@ async function loadIntro() {
     return;
   }
   introsLoaded = true;
-    await fetch('intro.html')
-      .then(response => {
-        if (response.ok) {
-          return response.text();
-        } else {
-          console.log(response)
-          introsLoaded = false
-        }
-      }).then(htmlContent => {
-        document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
-        updateSpansLmode()
-        handleSections()
-      }).catch(error => {
-        introsLoaded = false;
-        console.error('Error:', error);
-      });
+  await fetch('intro.html')
+    .then(response => {
+      if (response.ok) {
+        return response.text();
+      } else {
+        console.log(response)
+        introsLoaded = false
+      }
+    }).then(htmlContent => {
+      document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
+      updateSpansLmode()
+      handleSections()
+    }).catch(error => {
+      introsLoaded = false;
+      console.error('Error:', error);
+    });
 }
 
 const userBehavior = {
@@ -368,12 +378,12 @@ mainContentElm.addEventListener("scroll", function () {
   const nav = document.getElementsByTagName("nav")[0];
   const section1 = document.getElementById("s1");
   section1.style.transform = `translateY(${(-scrollTop / 6)}px)`;
-  
+
   if (scrollTop < 800) {
     nav.style.minHeight = `${100 - scrollTop / 8}px`;
   }
 
-  
+
   const adapt = document.getElementById("adapt");
   if (scrollTop > 700 && scrollTop < 740 && adapt.innerText == "develop") {
     let t = 0
@@ -385,8 +395,8 @@ mainContentElm.addEventListener("scroll", function () {
       }
     }, 80);
   }
-  
-  if ((scrollHeight-scrollTop) < 2000 && canLoadContent) {
+
+  if ((scrollHeight - scrollTop) < 2000 && canLoadContent) {
     //fetch('intro.html')
     if (!projectsLoaded) {
       console.log("LOAD")
@@ -399,12 +409,13 @@ mainContentElm.addEventListener("scroll", function () {
       canLoadContent = true;
     }, 500);
   }
-  
-  if ((scrollHeight-scrollTop) < 200 && attemptedUserValidate == false) { attemptedUserValidate = true;
+
+  if ((scrollHeight - scrollTop) < 200 && attemptedUserValidate == false) {
+    attemptedUserValidate = true;
     const payload = {
       sessionDuration: Date.now() - userBehavior.startTime,
     };
-    
+
     fetch('/validate-me', {
       method: 'POST',
       headers: {
@@ -412,98 +423,98 @@ mainContentElm.addEventListener("scroll", function () {
       },
       body: JSON.stringify(payload),
     }).then(response => response.json())
-    .then(data => {
-      const mainEmailP = document.getElementById("main-email")
-      const mainDiscP = document.getElementById("main-discord")
-      const mainLocP = document.getElementById("main-location")
-      if (data && data.valid) {
-       mainEmailP.innerHTML = `
+      .then(data => {
+        const mainEmailP = document.getElementById("main-email")
+        const mainDiscP = document.getElementById("main-discord")
+        const mainLocP = document.getElementById("main-location")
+        if (data && data.valid) {
+          mainEmailP.innerHTML = `
           <a href="mailto:${data.message}" style="text-decoration:none">
             ${data.message}
           </a>
         `;
-        mainDiscP.href = data.cord;
-        
-        mainDiscP.childNodes.forEach(node => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            node.textContent = ` "${data.cordN}" on Discord`; 
-          }
-        });
-        mainLocP.childNodes.forEach(node => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            node.textContent = ` ${data.loc}`; 
-          }
-        });
-      } else if (data.message) {
-        mainEmailP.innerHTML = `
+          mainDiscP.href = data.cord;
+
+          mainDiscP.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.textContent = ` "${data.cordN}" on Discord`;
+            }
+          });
+          mainLocP.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.textContent = ` ${data.loc}`;
+            }
+          });
+        } else if (data.message) {
+          mainEmailP.innerHTML = `
           <a href="mailto:${data.message}" style="text-decoration:none">
             ${data.message}
           </a>
         `;
-      } else {
-        console.log("user validate err", data)
-      }
-    }).catch(error => {
-      const mainEmailP = document.getElementById("main-email")
-      mainEmailP.textContent = "failed to validate human"
-      console.log("user validate:", error);
-      //alert(error)
-    });
-    
+        } else {
+          console.log("user validate err", data)
+        }
+      }).catch(error => {
+        const mainEmailP = document.getElementById("main-email")
+        mainEmailP.textContent = "failed to validate human"
+        console.log("user validate:", error);
+        //alert(error)
+      });
+
   }
-  
+
   handleSections()
   //console.log(`main scrollTop: ${scrollTop}px`);
 });
 
 /* main status */
 function timeDifference(utcDateString) {
-    const now = new Date();
-    const past = new Date(utcDateString); // parse UTC or ISO string corectly
+  const now = new Date();
+  const past = new Date(utcDateString); // parse UTC or ISO string corectly
 
-    let diff = now - past; // diff in ms
+  let diff = now - past; // diff in ms
 
-    const seconds = Math.floor(diff / 1000);
-    if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
 
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
 
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
 
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} day${days !== 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days !== 1 ? 's' : ''} ago`;
 
-    const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
-    if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`;
+  const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
+  if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`;
 
-    const years = Math.floor(months / 12);
-    return `${years} year${years !== 1 ? 's' : ''} ago`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years !== 1 ? 's' : ''} ago`;
 }
 function timeDifferenceSince(utcDateString) {
-    const now = new Date();
-    const past = new Date(utcDateString); // parse UTC or ISO string corectly
+  const now = new Date();
+  const past = new Date(utcDateString); // parse UTC or ISO string corectly
 
-    let diff = now - past; // diff in ms
+  let diff = now - past; // diff in ms
 
-    const seconds = Math.floor(diff / 1000);
-    if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''}`;
 
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
 
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''}`;
 
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} day${days !== 1 ? 's' : ''}`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days !== 1 ? 's' : ''}`;
 
-    const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
-    if (months < 12) return `${months} month${months !== 1 ? 's' : ''}`;
+  const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
+  if (months < 12) return `${months} month${months !== 1 ? 's' : ''}`;
 
-    const years = Math.floor(months / 12);
-    return `${years} year${years !== 1 ? 's' : ''}`;
+  const years = Math.floor(months / 12);
+  return `${years} year${years !== 1 ? 's' : ''}`;
 }
 
 let currentStatus
@@ -573,31 +584,31 @@ function animateScroll(element, targetElm, duration) {
   const startTime = performance.now();
 
   function animate(time) {
-      const elapsedTime = time - startTime;
+    const elapsedTime = time - startTime;
 
-      const progress = Math.min(elapsedTime / duration, 1);
-      //const ease = easeOutQuad(progress);
+    const progress = Math.min(elapsedTime / duration, 1);
+    //const ease = easeOutQuad(progress);
 
-      const rect = targetElm.getBoundingClientRect();
-      const to = rect.top - rect.height/2 + 140;
+    const rect = targetElm.getBoundingClientRect();
+    const to = rect.top - rect.height / 2 + 140;
 
-      const start = element.scrollTop;
-      const change = to //- start;
-    
-      element.scrollTop = start + change * 0.1;
+    const start = element.scrollTop;
+    const change = to //- start;
 
-      if (progress < 1 && Math.abs(to) > 2) {
-          requestAnimationFrame(animate);
+    element.scrollTop = start + change * 0.1;
+
+    if (progress < 1 && Math.abs(to) > 2) {
+      requestAnimationFrame(animate);
       //} else {
-        
-      }
+
+    }
   }
 
   requestAnimationFrame(animate);
 }
 
 function easeOutQuad(t) {
-    return 1 - (1 - t) * (1 - t);
+  return 1 - (1 - t) * (1 - t);
 }
 
 async function scrollTo(targetElm) {
@@ -611,7 +622,7 @@ async function toResources() {
   }
   const targetElm = document.getElementById('projects');
   scrollTo(targetElm)
-  
+
   const overlay = document.getElementById("side-bar");
   overlay.classList.remove("open");
 }
@@ -622,7 +633,7 @@ async function toAirzy() {
   }
   const targetElm = document.getElementById('intro-section');
   scrollTo(targetElm)
-  
+
   const overlay = document.getElementById("side-bar");
   overlay.classList.remove("open");
 }
@@ -641,9 +652,9 @@ async function toContact() {
   }
 
   requestAnimationFrame(lerpColor);
-  
+
   scrollTo(contactFrame)
-  
+
   const overlay = document.getElementById("side-bar");
   overlay.classList.remove("open");
 }

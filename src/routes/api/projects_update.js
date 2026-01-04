@@ -1,5 +1,6 @@
 const { firedbAirsiteSave } = require('../../firebase/firebasedb.js');
-const envDecrypt = require('../../FallbackEncryption/envDecrypt.js')
+const { setProjects } = require('../ip_utils.js');
+const envDecrypt = require('../../FallbackEncryption/envDecrypt.js');
 
 const EXPECTED_TOKEN = envDecrypt(process.env.airKey, process.env.airWebToken)
 
@@ -21,6 +22,9 @@ module.exports = (req, res) => {
     }
   }
   
-  firedbAirsiteSave(req.body)
+  const data = req.body;
+  firedbAirsiteSave(data)
+  console.log(data)
+  setProjects(data)
   return res.status(200).json({ success: true, data: req.body });
 }

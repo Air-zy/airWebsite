@@ -1,8 +1,9 @@
-const { getIPData, bitset, getIP, getProjects } = require('../ip_utils.js');
+const { getIPData, bitset, getIP, getProjects, setProjects } = require('../ip_utils.js');
 const { firedbAirsiteSave } = require('../../firebase/firebasedb.js');
 
 let lastUpdate = 0;
 async function attemptSaveProjectsList(projects) {
+  setProjects(projects);
   const now = Date.now();
   if (now > lastUpdate + 6000) {
     // 1000 ms = 1 second soo 6 second is max update rate limit
