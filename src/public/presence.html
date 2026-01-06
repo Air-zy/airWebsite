@@ -1,37 +1,139 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Presence — Hour & History</title>
-<style>
-  :root{
-    color-scheme: dark;
-    --bg:#0f1113; --muted:#9aa0a6;
-    --online:#2ecc71; --dnd:#e74c3c; --idle:#f1c40f; --offline:#95a5a6;
-  }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Presence — Hour & History (with durations)</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1113;
+      --muted: #9aa0a6;
+      --online: #2ecc71;
+      --dnd: #e74c3c;
+      --idle: #f1c40f;
+      --offline: #95a5a6;
+    }
 
-  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef3;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
-  .wrap{max-width:960px;margin:20px auto;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px}
-  .top{display:flex;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}
-  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
-  canvas{width:100%; height:320px; border-radius:8px; display:block}
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: #e6eef3;
+      font-family: Inter, system-ui, Segoe UI, Roboto, Arial
+    }
 
-  /* history list */
-  .history{margin-top:12px; max-height:300px; overflow:auto; padding:8px; background:rgba(255,255,255,0.01); border-radius:8px;
-           scrollbar-width: thin; /* Firefox */ }
-  /* WebKit thin scrollbar */
-  .history::-webkit-scrollbar{width:8px;height:8px}
-  .history::-webkit-scrollbar-track{background:transparent}
-  .history::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:999px}
+    .wrap {
+      max-width: 960px;
+      margin: 20px auto;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      border-radius: 10px
+    }
 
-  .item{display:flex;justify-content:space-between;gap:12px;padding:8px;border-radius:6px;margin-bottom:6px;align-items:center}
-  .item + .item{border-top:1px solid rgba(255,255,255,0.02)}
-  .badge{min-width:72px;padding:6px 8px;border-radius:999px;font-weight:600;text-transform:capitalize;text-align:center}
-  .date{color:var(--muted);font-size:13px;white-space:nowrap}
-  .empty{color:var(--muted);padding:10px;text-align:center}
-</style>
+    .top {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      vertical-align: -1px
+    }
+
+    canvas {
+      width: 100%;
+      height: 320px;
+      border-radius: 8px;
+      display: block
+    }
+
+    /* history list */
+    .history {
+      margin-top: 12px;
+      max-height: 300px;
+      overflow: auto;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.01);
+      border-radius: 8px;
+      scrollbar-width: thin;
+      /* Firefox */
+    }
+
+    /* WebKit thin scrollbar */
+    .history::-webkit-scrollbar {
+      width: 8px;
+      height: 8px
+    }
+
+    .history::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    .history::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px
+    }
+
+    .item {
+      display: flex;
+      gap: 12px;
+      padding: 8px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      align-items: center
+    }
+
+    .item+.item {
+      border-top: 1px solid rgba(255, 255, 255, 0.02)
+    }
+
+    .badge {
+      min-width: 72px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: capitalize;
+      text-align: center
+    }
+
+    .date {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+      white-space: nowrap
+    }
+
+    .textcol {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 10px;
+      text-align: center
+    }
+  </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="top">
@@ -45,140 +147,307 @@
     <div class="history" id="history" aria-live="polite"></div>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-(async () => {
-  const CSS = getComputedStyle(document.documentElement);
-  const COLORS = {
-    online: CSS.getPropertyValue('--online').trim() || '#2ecc71',
-    dnd:    CSS.getPropertyValue('--dnd').trim()    || '#e74c3c',
-    idle:   CSS.getPropertyValue('--idle').trim()   || '#f1c40f',
-    offline:CSS.getPropertyValue('--offline').trim()|| '#95a5a6'
-  };
-  const STATUSES = ['online','idle','dnd','offline'];
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (async () => {
+      const CSS = getComputedStyle(document.documentElement);
+      const COLORS = {
+        online: CSS.getPropertyValue('--online').trim() || '#2ecc71',
+        dnd: CSS.getPropertyValue('--dnd').trim() || '#e74c3c',
+        idle: CSS.getPropertyValue('--idle').trim() || '#f1c40f',
+        offline: CSS.getPropertyValue('--offline').trim() || '#95a5a6'
+      };
+      const STATUSES = ['online', 'idle', 'dnd', 'offline'];
 
-  const statusEl = document.getElementById('status');
-  const dot = document.getElementById('dot');
-  const lastEl = document.getElementById('last');
-  const countEl = document.getElementById('count');
-  const canvas = document.getElementById('chartHour');
-  const histEl = document.getElementById('history');
+      const statusEl = document.getElementById('status');
+      const dot = document.getElementById('dot');
+      const lastEl = document.getElementById('last');
+      const countEl = document.getElementById('count');
+      const canvas = document.getElementById('chartHour');
+      const histEl = document.getElementById('history');
 
-  const hours = Array.from({length:24}, (_,h) => ({
-    label: `${((h+11)%12)+1} ${h<12?'AM':'PM'}`,
-    counts: { online:0, idle:0, dnd:0, offline:0 }
-  }));
+      // prepare 24 hour buckets (0..23) — store duration in seconds per status
+      const hours = Array.from({ length: 24 }, (_, h) => ({
+        label: `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`,
+        counts: { online: 0, idle: 0, dnd: 0, offline: 0 } // seconds
+      }));
 
-  let history = [];
-  try {
-    const res = await fetch('/api/presence', { cache: 'no-store' });
-    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
-    const payload = await res.json();
+      let history = [];
+      try {
+        const res = await fetch('/api/presence', { cache: 'no-store' });
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        const payload = await res.json();
 
-    statusEl.textContent = payload.status || '—';
-    dot.style.background = COLORS[(payload.status||'').toLowerCase()] || COLORS.offline;
-    lastEl.textContent = payload.lastOn ? 'Last: ' + new Date(payload.lastOn).toLocaleString() : 'Last: —';
+        statusEl.textContent = payload.status || '—';
+        dot.style.background = COLORS[(payload.status || '').toLowerCase()] || COLORS.offline;
 
-    history = Array.isArray(payload.history) ? payload.history : [];
-    countEl.textContent = 'Items: ' + history.length;
+        if (payload.lastOn) {
+          const lastDate = new Date(payload.lastOn);
+          lastEl.textContent = 'Last: ' + formatDateTimeShort(lastDate);
+        } else {
+          lastEl.textContent = 'Last: —';
+        }
 
-    history.forEach(it => {
-      const ts = it.timestamp || it.time;
-      if (!ts) return;
-      const d = new Date(ts);
-      if (isNaN(d)) return;
-      const h = d.getHours();
-      const s = (it.status || 'offline').toLowerCase();
-      const st = STATUSES.includes(s) ? s : 'offline';
-      hours[h].counts[st] = (hours[h].counts[st] || 0) + 1;
-    });
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'error';
-    lastEl.textContent = err.message;
-  }
+        history = Array.isArray(payload.history) ? payload.history : [];
+        countEl.textContent = 'Items: ' + history.length;
 
-  // Format: "NOV 24 2025 · 5:23:19 PM"
-  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  function pad(n){ return String(n).padStart(2,'0'); }
-  function formatDateTimeShort(d){
-    if(!d || isNaN(d)) return '—';
-    const mon = MONTHS[d.getMonth()];
-    const day = d.getDate();
-    const year = d.getFullYear();
-    let h = d.getHours();
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    const m = pad(d.getMinutes());
-    const s = pad(d.getSeconds());
-    return `${mon} ${day} ${year} · ${h}:${m}:${s} ${ampm}`;
-  }
+        // --- compute groups of consecutive same-status events (same logic as renderHistory) ---
+        const groups = buildGroups(history);
 
-  function renderHistory(list) {
-    histEl.innerHTML = '';
-    if (!list.length) { histEl.innerHTML = '<div class="empty">No history</div>'; return; }
-    const sorted = [...list].sort((a,b) => {
-      const ta = new Date(a.timestamp||a.time).getTime() || 0;
-      const tb = new Date(b.timestamp||b.time).getTime() || 0;
-      return tb - ta;
-    });
-    for (const it of sorted) {
-      const ts = it.timestamp || it.time;
-      const d = ts ? new Date(ts) : null;
-      const label = (it.status||'offline').toLowerCase();
-      const badge = document.createElement('div');
-      badge.className = 'badge';
-      badge.textContent = label;
-      badge.style.background = COLORS[label] || COLORS.offline;
-      badge.style.color = '#0a0a0a';
-
-      const date = document.createElement('div');
-      date.className = 'date';
-      date.textContent = formatDateTimeShort(d);
-
-      const row = document.createElement('div');
-      row.className = 'item';
-      row.appendChild(badge);
-      row.appendChild(date);
-      histEl.appendChild(row);
-    }
-  }
-
-  function syncBacking(c) {
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.floor(c.clientWidth * dpr);
-    const h = Math.floor(c.clientHeight * dpr);
-    if (w && h) { c.width = w; c.height = h; }
-  }
-
-  const datasets = STATUSES.map(s => ({
-    label: s,
-    data: hours.map(h => h.counts[s] || 0),
-    backgroundColor: COLORS[s],
-    stack: 'a'
-  }));
-
-  let chart = null;
-  function drawChart() {
-    if (chart) chart.destroy();
-    syncBacking(canvas);
-    chart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: hours.map(h => h.label), datasets },
-      options: {
-        responsive: false, maintainAspectRatio: false,
-        plugins: { legend:{ position:'top', labels:{ color:'#e6eef3' } } },
-        scales: { x:{ stacked:true, ticks:{color:'#cbd5da'} }, y:{ stacked:true, beginAtZero:true, ticks:{color:'#cbd5da', precision:0} } }
+        // accumulate per-hour durations from groups
+        accumulateGroupDurationsIntoHours(groups, hours);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'error';
+        lastEl.textContent = err.message;
       }
-    });
-  }
 
-  renderHistory(history);
-  drawChart();
-  let t;
-  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawChart, 120); });
+      // Formatting helpers (kept from your original)
+      const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      function pad(n) { return String(n).padStart(2, '0'); }
+      function isSameDay(a, b) {
+        return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+      }
+      function isToday(d) { return isSameDay(d, new Date()); }
+      function isNearNow(d) {
+        const NEAR_NOW_MS = 90 * 1000;
+        return Math.abs(Date.now() - d.getTime()) <= NEAR_NOW_MS;
+      }
+      function formatTimeOnly(d) {
+        if (!d || isNaN(d)) return '—';
+        const diffMs = Date.now() - d.getTime();
+        if (diffMs < 0) return 'now';
+        const totalSeconds = Math.floor(diffMs / 1000);
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const totalHours = Math.floor(totalMinutes / 60);
+        if (totalMinutes < 60) {
+          const minutes = totalMinutes;
+          if (minutes === 0) {
+            const seconds = totalSeconds % 60;
+            return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+          }
+          const seconds = totalSeconds % 60;
+          return `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+        }
+        if (totalHours <= 12) {
+          const hours = totalHours;
+          const minutes = totalMinutes % 60;
+          return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+        }
+        let h = d.getHours();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        const m = pad(d.getMinutes());
+        const s = pad(d.getSeconds());
+        return `${h}:${m}:${s} ${ampm}`;
+      }
+      function formatDateShort(d) {
+        if (!d || isNaN(d)) return '—';
+        if (isToday(d)) return 'today';
+        const mon = MONTHS[d.getMonth()];
+        const day = d.getDate();
+        const year = d.getFullYear();
+        return `${mon} ${day} ${year}`;
+      }
+      function formatDateTimeShort(d) {
+        if (!d || isNaN(d)) return '—';
+        const datePart = formatDateShort(d);
+        const timePart = formatTimeOnly(d);
+        return `${datePart} · ${timePart}`;
+      }
+      function formatRange(start, end) {
+        if (!start || !end || isNaN(start) || isNaN(end)) return '—';
+        const sameDay = isSameDay(start, end);
+        if (!sameDay) {
+          return `${formatDateTimeShort(start)} to ${formatDateTimeShort(end)}`;
+        }
+        const datePart = formatDateShort(start);
+        const startTimeOnly = isNearNow(start) ? 'now' : formatTimeOnly(start);
+        const endTime = isNearNow(end) ? 'now' : formatTimeOnly(end);
+        return `${datePart} · ${startTimeOnly} -> ${endTime}`;
+      }
+      function formatDuration(start, end) {
+        if (!start || !end || isNaN(start) || isNaN(end)) return '—';
+        let diff = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
+        const days = Math.floor(diff / 86400); diff %= 86400;
+        const hours = Math.floor(diff / 3600); diff %= 3600;
+        const minutes = Math.floor(diff / 60); const seconds = diff % 60;
+        if (days > 0) return `${days} day${days !== 1 ? 's' : ''} ${hours}h`;
+        if (hours > 0) return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} min`;
+        if (minutes > 0) return `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} sec`;
+        return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+      }
 
-})();
-</script>
+      // --- render history (unchanged except it will re-group internally) ---
+      function renderHistory(list) {
+        histEl.innerHTML = '';
+        if (!list || !list.length) {
+          histEl.innerHTML = '<div class="empty">No history</div>';
+          countEl.textContent = 'Items: 0 (Groups: 0)';
+          return;
+        }
+
+        // use same grouping as compute function
+        const groups = buildGroups(list);
+
+        // show newest groups first
+        const displayGroups = groups.slice().reverse();
+        histEl.innerHTML = '';
+        for (const g of displayGroups) {
+          const badge = document.createElement('div');
+          badge.className = 'badge';
+          badge.textContent = g.count > 1 ? `${g.label} (×${g.count})` : g.label;
+          badge.style.background = COLORS[g.label] || COLORS.offline;
+          badge.style.color = '#0a0a0a';
+
+          const date = document.createElement('div');
+          date.className = 'date';
+          if (g.count > 1 && +g.start !== +g.end) {
+            date.textContent = formatRange(g.start, g.end);
+          } else {
+            date.textContent = formatDateTimeShort(g.start);
+          }
+
+          const row = document.createElement('div');
+          row.className = 'item';
+
+          const textCol = document.createElement('div');
+          textCol.className = 'textcol';
+
+          textCol.appendChild(date);
+
+          if (g.count === 1) {
+            const sub = document.createElement('div');
+            sub.className = 'sub';
+            const endRef = g.to || new Date();
+            const dur = formatDuration(g.start, endRef);
+            sub.textContent = `Duration: ${dur}`;
+            textCol.appendChild(sub);
+          }
+
+          row.appendChild(badge);
+          row.appendChild(textCol);
+          histEl.appendChild(row);
+        }
+
+        countEl.textContent = `Items: ${list.length} (Groups: ${groups.length})`;
+      }
+
+      // --- helper: build groups from raw history array (oldest -> newest) ---
+      function buildGroups(list) {
+        const sorted = [...(list || [])].sort((a, b) => {
+          const ta = new Date(a.timestamp || a.time).getTime() || 0;
+          const tb = new Date(b.timestamp || b.time).getTime() || 0;
+          return ta - tb;
+        });
+
+        const groups = [];
+        for (const it of sorted) {
+          const tsRaw = it.timestamp || it.time;
+          if (!tsRaw) continue;
+          const ts = new Date(tsRaw);
+          if (isNaN(ts)) continue;
+          const label = (it.status || 'offline').toLowerCase();
+          const last = groups[groups.length - 1];
+          if (!last || last.label !== label) {
+            groups.push({ label, start: ts, end: ts, count: 1 });
+          } else {
+            last.end = ts;
+            last.count++;
+          }
+        }
+        // compute 'to' = start of next group, or now
+        for (let i = 0; i < groups.length; i++) {
+          groups[i].to = (i < groups.length - 1) ? groups[i + 1].start : new Date();
+        }
+        return groups;
+      }
+
+      // --- helper: add group's overlap seconds into corresponding hour buckets ---
+      function accumulateGroupDurationsIntoHours(groups, hoursArray) {
+        if (!groups || !groups.length) return;
+
+        for (const g of groups) {
+          const start = g.start;
+          const end = g.to || g.end || new Date();
+          if (!(start instanceof Date) || !(end instanceof Date)) continue;
+          if (end <= start) continue;
+
+          // cursor starts at the hour boundary that contains 'start'
+          let cursor = new Date(start);
+          cursor.setMinutes(0, 0, 0);
+
+          // iterate hour-by-hour while cursor < end
+          while (cursor < end) {
+            const hourStart = new Date(cursor);
+            const hourEnd = new Date(cursor);
+            hourEnd.setHours(hourEnd.getHours() + 1);
+
+            const sliceStart = start > hourStart ? start : hourStart;
+            const sliceEnd = end < hourEnd ? end : hourEnd;
+
+            const overlapSec = Math.max(0, Math.floor((sliceEnd - sliceStart) / 1000));
+            if (overlapSec > 0) {
+              const hourIndex = hourStart.getHours(); // 0..23 — hour of the day
+              const st = (g.label && STATUSES.includes(g.label)) ? g.label : 'offline';
+              hoursArray[hourIndex].counts[st] = (hoursArray[hourIndex].counts[st] || 0) + overlapSec;
+            }
+
+            // advance to next hour
+            cursor = hourEnd;
+          }
+        }
+      }
+
+      // --- chart building: convert seconds -> minutes (rounded two decimals) for readability ---
+      const datasets = STATUSES.map(s => ({
+        label: `${s} (min)`,
+        data: hours.map(h => Number(((h.counts[s] || 0) / 60).toFixed(2))),
+        backgroundColor: COLORS[s],
+        stack: 'a'
+      }));
+
+      let chart = null;
+      function syncBacking(c) {
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.floor(c.clientWidth * dpr);
+        const h = Math.floor(c.clientHeight * dpr);
+        if (w && h) { c.width = w; c.height = h; }
+      }
+
+      function drawChart() {
+        if (chart) chart.destroy();
+        syncBacking(canvas);
+        chart = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: { labels: hours.map(h => h.label), datasets },
+          options: {
+            responsive: false, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { color: '#e6eef3' } } },
+            scales: {
+              x: { stacked: true, ticks: { color: '#cbd5da' } },
+              y: {
+                stacked: true, beginAtZero: true,
+                ticks: {
+                  color: '#cbd5da',
+                  // show minutes with 'min' suffix — ticks are in minutes
+                  callback: (v) => `${v} min`
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // initial render
+      renderHistory(history);
+      drawChart();
+      let t;
+      window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawChart, 120); });
+
+    })();
+  </script>
+
 </body>
+
 </html>
