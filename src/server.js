@@ -59,19 +59,20 @@ app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 app.use('/api/rowadb', require('./routes/middleware/rowadb_middlware.js'))
 
 // routes 
-app.get('/home',       (req, res) => { return res.redirect('/index.html');            });
-app.get('/c4',         (req, res) => { return res.redirect('/c4/connect4.html');      });
-app.get('/avyTos',     (req, res) => { return res.redirect('/avyTOS.html');           });
-app.get('/avyprivacy', (req, res) => { return res.redirect('/avyPrivacy.html');       });
-app.get('/change',     (req, res) => { return res.redirect('/change.html');           });
-app.get('/quad',       (req, res) => { return res.redirect('/quadratic.html');        });
-app.get('/coinsort',   (req, res) => { return res.redirect('/change.html');           });
-app.get('/journal',    (req, res) => { return res.redirect('/journal/journal.html');  });
-app.get('/deepwoken',  (req, res) => { return res.redirect('/deepwoken.html');        });
-app.get('/anime',      (req, res) => { return res.redirect('/anime.html');            });
-app.get('/encryption', (req, res) => { return res.redirect('/encryption/cbc.html');   });
-app.get('/trafic',     (req, res) => { return res.redirect('/api.html');              });
-app.get('/anime2',     (req, res) => { return res.redirect('/anime2/main.html');      });
+const page = file => (req, res) => res.sendFile(file, { root: PRODUCTION_PUBLIC_DIRECTORY });
+app.get('/home',       page('/index.html'));
+app.get('/c4',         page('/c4/connect4.html'));
+app.get('/avyTos',     page('/avyTOS.html'));
+app.get('/avyprivacy', page('/avyPrivacy.html'));
+app.get('/change',     page('/change.html'));
+app.get('/quad',       page('/quadratic.html'));
+app.get('/coinsort',   page('/change.html'));
+app.get('/journal',    page('/journal/journal.html'));
+app.get('/deepwoken',  page('/deepwoken.html'));
+app.get('/anime',      page('/anime.html'));
+app.get('/encryption', page('/encryption/cbc.html'));
+app.get('/trafic',     page('/api.html'));
+app.get('/anime2',     page('/anime2/main.html'));
 
 const apiRoutes = require('./routes/api/apiRouter.js');
 app.use('/api', apiRoutes);
