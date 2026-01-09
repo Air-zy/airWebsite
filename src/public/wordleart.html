@@ -3,18 +3,19 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Wordle Art</title>
+<title>Wordle Art — Stats & Evaluator</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <style>
   :root{color-scheme: dark}
   body{font-family:Arial,Helvetica,sans-serif;background:#000000;color:#e6eef6;margin:0;display:flex;justify-content:center;padding:18px}
-  .card{width:860px;background:rgba(255,255,255,0.03);padding:12px;border-radius:8px}
-  .row{display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .card{width:960px;background:rgba(255,255,255,0.03);padding:14px;border-radius:10px}
+  .row{display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.02);padding:8px 0}
   .left{display:flex;align-items:center;gap:10px;width:360px;flex:0 0 360px}
   .lbl{width:28px}
   .tiles{display:flex;gap:6px}
   .tile{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700}
   .g0{background:#3a3a3a;color:#fff}.g1{background:#c9b458;color:#111}.g2{background:#6aaa64;color:#fff}
-  input,button{padding:8px;border-radius:6px;border:0;background:rgba(255,255,255,0.05);color:inherit}
+  input,button,select{padding:8px;border-radius:6px;border:0;background:rgba(255,255,255,0.05);color:inherit}
   button{background:#2563eb;color:#fff;cursor:pointer}
   .matches{flex:1;display:flex;flex-wrap:nowrap;gap:6px;min-height:44px;align-items:center;padding:2px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch}
   .pill{padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.03);font-family:monospace;flex:0 0 auto;white-space:nowrap}
@@ -22,17 +23,112 @@
   .matches{scrollbar-width: thin}
   .matches::-webkit-scrollbar{height:10px}
   .matches::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);border-radius:6px}
+
+  /* Stats layout */
+  .stats{margin-top:14px;border-top:1px solid rgba(255,255,255,0.03);padding-top:12px}
+  .stats-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .stats-body{display:grid;grid-template-columns:330px 1fr;gap:12px;margin-top:12px}
+  .left-panel{background:rgba(255,255,255,0.01);padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);min-height:320px}
+  .right-panel{background:rgba(255,255,255,0.01);padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);min-height:320px}
+  .stat-controls{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .letter-list{max-height:380px;overflow:auto;margin-top:8px;padding-right:6px}
+  .letter-row{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;margin-bottom:6px;cursor:pointer}
+  .letter-row:hover{background:rgba(255,255,255,0.01)}
+  .letter-h{width:34px;text-align:center;font-weight:700}
+  .letter-meta{font-family:monospace;color:#9aa4b2;font-size:12px;width:84px;text-align:right}
+  .pos-mini{display:flex;gap:4px;flex:1;align-items:center}
+  .pos-mini > div{height:18px;border-radius:4px;flex-basis:0;flex-grow:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;overflow:hidden}
+  .pos0{background:linear-gradient(90deg,#fef3c7,#f59e0b);color:#111}
+  .pos1{background:linear-gradient(90deg,#fde68a,#f97316);color:#111}
+  .pos2{background:linear-gradient(90deg,#c7f9d4,#10b981);color:#033}
+  .pos3{background:linear-gradient(90deg,#bbf7ff,#06b6d4);color:#033}
+  .pos4{background:linear-gradient(90deg,#e9d5ff,#7c3aed);color:#fff}
+
+  .eval-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .eval-stats{display:flex;gap:8px;flex-wrap:wrap}
+  .stat-pill{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:6px;font-family:monospace}
+
+  /* responsive */
+  @media (max-width:1000px){ .card{width:100%} .left{width:280px;flex:0 0 280px} .stats-body{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
   <div class="card">
+    <!-- grid / finder -->
     <div id="grid"></div>
-    <div style="display:flex;gap:8px;margin-top:8px">
+
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
       <input id="answer" placeholder="answer (5 letters)" maxlength="5"/>
       <button id="go">Find</button>
       <div class="small" id="status">loading…</div>
     </div>
+
+    <!-- Stats & Evaluator -->
+    <div class="stats">
+      <div class="stats-head">
+        <div>
+          <div style="font-weight:700">Letter placement statistics & opener evaluator</div>
+          <div class="small">Sort letters, inspect position distributions, and evaluate any 5-letter opener's information value against the loaded word list.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="small">Sort</label>
+          <select id="sortMode" title="Sort letters">
+            <option value="total_desc" selected>Total (desc)</option>
+            <option value="alpha_asc">Alphabetic (A→Z)</option>
+            <option value="pos1_desc">Pos1 (desc)</option>
+            <option value="pos2_desc">Pos2 (desc)</option>
+            <option value="pos3_desc">Pos3 (desc)</option>
+            <option value="pos4_desc">Pos4 (desc)</option>
+            <option value="pos5_desc">Pos5 (desc)</option>
+          </select>
+          <label class="small">Highlight</label>
+          <select id="selectedLetter" title="Pick a letter to view distribution"></select>
+        </div>
+      </div>
+
+      <div class="stats-body">
+        <!-- left: letter list + small bars -->
+        <div class="left-panel">
+          <div class="small">Click a row to view detailed charts. You can also choose a letter above.</div>
+          <div class="letter-list" id="letterList" role="list"></div>
+        </div>
+
+        <!-- right: charts + evaluator -->
+        <div class="right-panel">
+          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between">
+            <div style="flex:1">
+              <canvas id="topLettersChart" height="120"></canvas>
+            </div>
+          </div>
+
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;justify-content:space-between">
+            <div style="flex:1">
+              <canvas id="letterDistChart" height="140"></canvas>
+            </div>
+          </div>
+
+          <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:8px 0" />
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div class="eval-box">
+              <input id="evalWord" placeholder="opener (e.g. TALES)" maxlength="5" style="width:160px"/>
+              <button id="evalGo">Evaluate opener</button>
+              <div class="small">Evaluate how informative a word is as a first guess.</div>
+            </div>
+            <div class="eval-stats" id="evalStats"></div>
+          </div>
+
+          <div style="margin-top:10px">
+            <canvas id="evalHistChart" height="160"></canvas>
+          </div>
+
+        </div>
+      </div>
+    </div>
   </div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
 const GIST = "https://gist.githubusercontent.com/slushman/34e60d6bc479ac8fc698df8c226e4264/raw/cf702f098856c72a81d79f69b11f0a8c333e7d2f/wordle-list";
@@ -41,6 +137,7 @@ const ROWS = 6, COLS = 5;
 const grid = document.getElementById('grid'), status = document.getElementById('status');
 const pattern = Array.from({length:ROWS},()=>Array(COLS).fill(0));
 
+/* build the tile grid UI (same as yours) */
 for(let r=0;r<ROWS;r++){
   const row = document.createElement('div'); row.className='row';
   const left = document.createElement('div'); left.className='left';
@@ -64,10 +161,12 @@ function render(){
 }
 render();
 
+/* fetch word list */
 fetch(GIST).then(r=>r.text()).then(t=>{
   try{ words = JSON.parse(t).map(s=>s.toLowerCase()).filter(s=>/^[a-z]{5}$/.test(s)); }
   catch{ words = (t.match(/\b[a-z]{5}\b/gi)||[]).map(s=>s.toLowerCase()); }
   status.textContent = words.length ? words.length+' words' : 'no words';
+  if(words.length) initStatsAndUI();
 }).catch(()=>status.textContent='fetch fail');
 
 function feedback(guess,answer){
@@ -79,6 +178,247 @@ function feedback(guess,answer){
   return f;
 }
 
+/* helpers for stats */
+const letters = "abcdefghijklmnopqrstuvwxyz".split('');
+function computePosCounts(wordsArr){
+  const n = wordsArr.length;
+  const posCounts = {};
+  letters.forEach(l=>posCounts[l]=[0,0,0,0,0]);
+  const anyCounts = {};
+  letters.forEach(l=>anyCounts[l]=0);
+
+  for(const w of wordsArr){
+    const seen = new Set();
+    for(let i=0;i<5;i++){
+      const ch = w[i];
+      posCounts[ch][i] = (posCounts[ch][i]||0) + 1;
+      seen.add(ch);
+    }
+    seen.forEach(ch => { anyCounts[ch] = (anyCounts[ch]||0) + 1; });
+  }
+  return {posCounts, anyCounts, n};
+}
+
+/* evaluate an opener -> pattern counts, remaining array, entropy etc */
+function analyzeOpener(opener){
+  opener = opener.toLowerCase();
+  const n = words.length;
+  const patternCounts = {};
+  const secretToPatternKey = [];
+  // first pass: patternCounts
+  for(const secret of words){
+    const fb = feedback(opener, secret).join('');
+    patternCounts[fb] = (patternCounts[fb]||0) + 1;
+    secretToPatternKey.push(fb);
+  }
+  // build remaining counts list using mapping
+  const remaining = [];
+  for(const k of secretToPatternKey) remaining.push(patternCounts[k]);
+  // compute entropy bits
+  let entropy = 0;
+  for(const cnt of Object.values(patternCounts)){
+    const p = cnt / n;
+    entropy -= p * Math.log2(p);
+  }
+  // stats
+  const mean = remaining.reduce((a,b)=>a+b,0)/n;
+  const sorted = remaining.slice().sort((a,b)=>a-b);
+  const median = sorted[Math.floor(n/2)];
+  const sumsq = remaining.reduce((s,v)=>s+(v-mean)*(v-mean),0);
+  const std = Math.sqrt(sumsq/n);
+  const unique_patterns = Object.keys(patternCounts).length;
+  return {opener:opener.toUpperCase(), n, mean, median, std, entropy, unique_patterns, remaining, patternCounts};
+}
+
+/* UI + charts */
+let topLettersChart = null;
+let letterDistChart = null;
+let evalHistChart = null;
+
+function initStatsAndUI(){
+  // compute base counts
+  const {posCounts, anyCounts, n} = computePosCounts(words);
+  // build letter rows and selector
+  const letterList = document.getElementById('letterList');
+  const sel = document.getElementById('selectedLetter');
+  letters.forEach(l=>{
+    const opt = document.createElement('option'); opt.value = l; opt.textContent = l.toUpperCase();
+    sel.appendChild(opt);
+  });
+
+  // create Chart.js charts
+  createTopLettersChart(posCounts, anyCounts, n);
+  createLetterDistChart(posCounts, anyCounts, n);
+  // default render list (sorted)
+  renderLetterList(posCounts, anyCounts, n, 'total_desc');
+
+  document.getElementById('sortMode').onchange = (e) => {
+    renderLetterList(posCounts, anyCounts, n, e.target.value);
+  };
+  document.getElementById('selectedLetter').onchange = (e) => {
+    renderLetterDist(posCounts, anyCounts, n, e.target.value);
+  };
+
+  // click handling: when a row is clicked, pick that letter and show distribution
+  letterList.addEventListener('click', (ev)=>{
+    const row = ev.target.closest('.letter-row');
+    if(!row) return;
+    const l = row.dataset.letter;
+    document.getElementById('selectedLetter').value = l;
+    renderLetterDist(posCounts, anyCounts, n, l);
+  });
+
+  // evaluate opener handler
+  document.getElementById('evalGo').onclick = ()=> {
+    const w = (document.getElementById('evalWord').value||'').toLowerCase();
+    if(!/^[a-z]{5}$/.test(w)){ alert('enter a 5-letter word'); return; }
+    const res = analyzeOpener(w);
+    showEvalResults(res);
+  };
+
+  // auto-select A by default
+  document.getElementById('selectedLetter').value = 'a';
+  renderLetterDist(posCounts, anyCounts, n, 'a');
+}
+
+/* render the letter list sorted by chosen mode */
+function renderLetterList(posCounts, anyCounts, n, sortMode){
+  const list = document.getElementById('letterList');
+  list.innerHTML = '';
+  // build array of letter objects
+  const arr = letters.map(l => {
+    const pc = posCounts[l];
+    const total = (pc[0]+pc[1]+pc[2]+pc[3]+pc[4]);
+    return {l, pc, any: anyCounts[l]||0, total, pos0:pc[0], pos1:pc[1], pos2:pc[2], pos3:pc[3], pos4:pc[4]};
+  });
+  // sorting
+  const [key, dir] = sortMode.includes('_') ? sortMode.split('_') : [sortMode,'desc'];
+  arr.sort((a,b)=> {
+    if(key==='alpha') return a.l.localeCompare(b.l);
+    if(dir==='desc') return (b[key]||0) - (a[key]||0);
+    return (a[key]||0) - (b[key]||0);
+  });
+
+  // max for mini bars scaling (for visual stability)
+  const maxTotal = Math.max(...arr.map(x=>x.total), 1);
+
+  for(const item of arr){
+    const row = document.createElement('div'); row.className='letter-row'; row.dataset.letter = item.l;
+    const lh = document.createElement('div'); lh.className='letter-h'; lh.textContent = item.l.toUpperCase();
+    const mini = document.createElement('div'); mini.className='pos-mini';
+    // create 5 mini slices, width proportional to pos count
+    for(let p=0;p<5;p++){
+      const d = document.createElement('div');
+      d.className = 'pos'+p;
+      const widthPct = item.pc[p] / maxTotal;
+      d.style.flexBasis = (widthPct*100)+'%';
+      d.style.flexGrow = item.pc[p];
+      d.style.flexShrink = 1;
+      d.textContent = item.pc[p] ? (p===2 || widthPct>0.08 ? item.pc[p] : '') : '';
+      d.title = `Pos ${p+1}: ${item.pc[p]}`;
+      mini.appendChild(d);
+    }
+    const meta = document.createElement('div'); meta.className='letter-meta';
+    meta.textContent = `${item.any}/${n}`;
+    row.appendChild(lh); row.appendChild(mini); row.appendChild(meta);
+    list.appendChild(row);
+  }
+
+  // update topLettersChart dataset as well
+  updateTopLettersChart(arr.slice(0, 12)); // show top 12 for clarity
+}
+
+/* Chart: top letters horizontal bar */
+function createTopLettersChart(posCounts, anyCounts, n){
+  const ctx = document.getElementById('topLettersChart').getContext('2d');
+  topLettersChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Words containing letter', data: [], borderRadius:6 }] },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display:false }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.data[ctx.dataIndex]} words` } } },
+      scales: { x: { beginAtZero:true }, y:{ ticks:{color:'#e6eef6'} }
+    }
+  }});
+}
+
+/* update top letters chart */
+function updateTopLettersChart(arr){
+  if(!topLettersChart) return;
+  const labels = arr.map(x=>x.l.toUpperCase());
+  const data = arr.map(x=>x.any);
+  topLettersChart.data.labels = labels;
+  topLettersChart.data.datasets[0].data = data;
+  topLettersChart.update();
+}
+
+/* Chart: letter distribution stacked bar (pos1..pos5) */
+function createLetterDistChart(posCounts, anyCounts, n){
+  const ctx = document.getElementById('letterDistChart').getContext('2d');
+  letterDistChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: ['P1','P2','P3','P4','P5'], datasets: [
+      { label:'Count', data:[0,0,0,0,0], backgroundColor: ['#f59e0b','#f97316','#10b981','#06b6d4','#7c3aed'] }
+    ]},
+    options: {
+      plugins:{ legend:{ display:false } },
+      scales: { x:{ ticks:{color:'#e6eef6'} }, y:{ beginAtZero:true, ticks:{color:'#e6eef6'} } }
+    }
+  });
+}
+
+/* render letter distribution into chart */
+function renderLetterDist(posCounts, anyCounts, n, letter){
+  const pc = posCounts[letter] || [0,0,0,0,0];
+  const total = pc.reduce((a,b)=>a+b,0);
+  // update chart
+  if(letterDistChart){
+    letterDistChart.data.datasets[0].data = pc;
+    letterDistChart.options.plugins.title = {display:true,text:`Letter ${letter.toUpperCase()} (total ${total} / ${n})`, color:'#e6eef6'};
+    letterDistChart.update();
+  }
+}
+
+/* show evaluation results and histogram */
+function showEvalResults(res){
+  const cont = document.getElementById('evalStats');
+  cont.innerHTML = '';
+  // create pills
+  const make = (k,v) => { const d = document.createElement('div'); d.className='stat-pill'; d.innerHTML = `<strong>${k}</strong><br>${v}`; cont.appendChild(d); }
+  make('Opener', res.opener);
+  make('Mean', res.mean.toFixed(2));
+  make('Median', res.median);
+  make('Std', res.std.toFixed(2));
+  make('Entropy (bits)', res.entropy.toFixed(3));
+  make('Unique patterns', res.unique_patterns);
+
+  // generate histogram buckets (log scaled buckets might help)
+  const buckets = {}; // bucket size: exact counts grouped
+  for(const v of res.remaining){
+    buckets[v] = (buckets[v]||0) + 1;
+  }
+  // convert to arrays sorted by bucket value
+  const keys = Object.keys(buckets).map(k=>+k).sort((a,b)=>a-b);
+  const labels = keys.map(k=>k.toString());
+  const data = keys.map(k=>buckets[k]);
+
+  // ensure we have a chart
+  const ctx = document.getElementById('evalHistChart').getContext('2d');
+  if(evalHistChart) evalHistChart.destroy();
+  evalHistChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Secrets with this remaining-candidate count', data, backgroundColor:'#60a5fa' }] },
+    options: {
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.data[ctx.dataIndex]} secrets` } } },
+      scales: { x:{ ticks:{color:'#e6eef6'} }, y:{ ticks:{color:'#e6eef6'} , beginAtZero:true } }
+    }
+  });
+}
+
+/* Evaluate on Enter when typing evalWord */
+document.getElementById('evalWord').addEventListener('keydown', (e)=>{ if(e.key==='Enter') document.getElementById('evalGo').click(); });
+
+/* find-by-pattern functionality (existing) */
 document.getElementById('go').onclick = ()=>{
   const ans = (document.getElementById('answer').value||'').toLowerCase();
   if(!/^[a-z]{5}$/.test(ans)){ status.textContent='enter 5-letter answer'; return; }
@@ -97,6 +437,7 @@ document.getElementById('go').onclick = ()=>{
   }
   status.textContent = 'done';
 };
+
 </script>
 </body>
 </html>
