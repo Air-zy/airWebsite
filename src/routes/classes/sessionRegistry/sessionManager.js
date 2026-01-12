@@ -2,8 +2,8 @@ const Session = require('./session');
 const sessions = new Map();
 
 // returns a session token
-function createSession(id, durationMs = 3600000) {
-  const session = new Session(id, durationMs);
+function createSession(durationMs = 3600000) {
+  const session = new Session(durationMs);
   sessions.set(session.token, session);
   return session;
 }

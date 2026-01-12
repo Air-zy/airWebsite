@@ -1,15 +1,12 @@
+const crypto = require('crypto');
+
 function generateToken(length = 32) {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let token = '';
-  for (let i = 0; i < length; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  const token = crypto.randomBytes(length).toString('base64url'); // safe URL-friendly string
   return "airzy_" + token;
 }
 
-const crypto = require('crypto');
 class Session {
-  constructor(id, durationMs = 3600000) {
+  constructor(durationMs = 3600000) {
     const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
       modulusLength: 2048,
       publicKeyEncoding: {
@@ -22,7 +19,6 @@ class Session {
       }
     });
 
-    this.id = id;
     this.token = generateToken();
     this.createdAt = Date.now();
     this.expiresAt = this.createdAt + durationMs;

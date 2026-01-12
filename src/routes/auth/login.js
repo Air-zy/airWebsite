@@ -10,6 +10,14 @@ module.exports = async (req, res) => {
         const acc = await login(identifier, password);
         if (!acc) return res.status(401).json({ error: 'invalid-credentials' });
 
+        console.log("login name:", acc.name, "session:", acc.currentSession.id)
+        res.cookie('airzy_session', acc.currentSession.token, {
+            httpOnly: true,  // JS cannot access it
+            secure: true,    // Set true if using HTTPS
+            sameSite: 'Lax', // Helps prevent CSRF
+            maxAge: 24 * 60 * 60 * 1000 // 1 day
+        });
+
         return res.json({
             ok: true,
             uid: acc.uid,

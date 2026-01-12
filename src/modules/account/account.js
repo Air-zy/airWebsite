@@ -24,8 +24,8 @@ class Account {
 
     //
 
-    loginSession(clientUID) {
-        const session = sessionManager.createSession(clientUID)
+    loginSession() {
+        const session = sessionManager.createSession()
         session.onlyPublic();
         this.currentSession = session;
         return session;

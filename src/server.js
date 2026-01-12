@@ -52,6 +52,10 @@ app.use(express.json());
 const compression = require('compression');
 app.use(compression({ threshold: 1024 })); // 1kb threshold
 
+app.use(require('./routes/middleware/cookieParser.js'));
+
+//
+
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
 //
@@ -81,6 +85,8 @@ const authRoutes = require('./routes/auth/authRouter.js');
 app.use('/auth', authRoutes);
 
 app.get('/info',                    require('./routes/info.js')                    );
+app.get('/cookies',                 require('./routes/cookies.js')                 );
+
 app.get('/r',                       require('./routes/r.js')                       ); // request token
 
 app.post('/webhook',                require('./routes/webhooks/webhook.js')        );
