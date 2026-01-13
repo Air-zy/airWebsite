@@ -64,6 +64,7 @@ app.use('/api/rowadb', require('./routes/middleware/rowadb_middlware.js'))
 
 // routes 
 const page = file => (req, res) => res.sendFile(file, { root: PRODUCTION_PUBLIC_DIRECTORY });
+app.get('/',           page('/index.html'));
 app.get('/home',       page('/index.html'));
 app.get('/c4',         page('/c4/connect4.html'));
 app.get('/avyTos',     page('/avyTOS.html'));
