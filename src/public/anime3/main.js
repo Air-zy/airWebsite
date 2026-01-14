@@ -746,7 +746,30 @@ function updateSelectedBar() {
     });
 }
 
-const byPopularitySort = (a, b) => (eigenVecMap.get(b.id) ?? 0) - (eigenVecMap.get(a.id) ?? 0);
+const byMyHeuristic = (a, b) => {
+    const nodeA = nodesMap.get(a.id);
+    const nodeB = nodesMap.get(b.id);
+
+    const neighborsA = adjMap.get(a.id) ?? [];
+    const neighborsB = adjMap.get(b.id) ?? [];
+
+    const aZero = neighborsA.length === 0;
+    const bZero = neighborsB.length === 0;
+
+    // zero-neighbor nodes ALWAYS lose
+    if (aZero && !bZero) return 1;
+    if (!aZero && bZero) return -1;
+
+    //const eigenA = eigenVecMap.get(a.id) ?? 0;
+    //const eigenB = eigenVecMap.get(b.id) ?? 0;
+
+    const ratingA = (nodeA.mean || 0);
+    const ratingB = (nodeB.mean || 0);
+
+    const scoreA = 1/(topYear - nodeA.year + 1)*100 + ratingA;
+    const scoreB = 1/(topYear - nodeB.year + 1)*100 + ratingB;
+    return scoreB - scoreA;
+};
 
 // search handling
 searchEl.addEventListener('input', function () {
@@ -764,7 +787,7 @@ searchEl.addEventListener('input', function () {
         });
     }
 
-    results.sort(byPopularitySort);
+    results.sort(byMyHeuristic);
 
     renderResults(results.slice(0, 100));
 });
@@ -772,7 +795,7 @@ searchEl.addEventListener('input', function () {
 
 function renderDefaultResults() {
     const results = nodesArr.slice();
-    results.sort(byPopularitySort);
+    results.sort(byMyHeuristic);
 
     renderResults(results.slice(0, 100));
 }
@@ -1029,6 +1052,8 @@ function Summ(adj, sources) {
 
         const nnode = nodesMap.get(node);
         sum *= 1 + (topYear - nnode.year) * 0.02
+        sum /= nnode.mean/80
+        //console.log(sum)
 
         if (Number.isFinite(sum) == false) {
             return;
