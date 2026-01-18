@@ -1,396 +1,632 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>DisplayName @Username</title>
-<style>
-  :root{--bg:#000000;--card:#0f1720;--muted:#9aa6b2;--accent:#fab760;--glass:rgba(255,255,255,0.03)}
-  html,body{height:100%;margin:0;background:linear-gradient(342deg,var(--bg),#2a2a2a);color:#e6eef6;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
-  .wrap{max-width:920px;margin:36px auto;padding:18px}
-  .card{background:#00000030;border-radius:12px;padding:30px;border:1px solid rgba(255,255,255,0.06)}
-  header{display:flex;align-items:center;justify-content:space-between}
-  .playerHead{display:flex;align-items:center;gap:12px}
-  .avatar{width:64px;height:64px;flex:0 0 64px;display:flex;align-items:center;justify-content:center}
-  .avatar img{width:64px;height:64px;border-radius:999px;object-fit:cover;display:block}
-  .avatar-fallback{width:64px;height:64px;border-radius:999px;background:linear-gradient(135deg,#0b1220,#111419);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--accent);border:2px solid rgba(255,255,255,0.06)}
-  h1{font-size:20px;margin:0;color:#fff;line-height:1}
-  h1 a{color:inherit;text-decoration:none}
-  .sub{color:var(--muted);font-size:13px}
-  .stats{display:flex;gap:30px;flex-wrap:wrap;justify-content:center;margin-right:10%}
-  .stat{min-width:10px;text-align:center}
-  .label{color:var(--muted);font-size:12px}
-  .value{font-size:16px;color:#fff}
-  .big{font-size:28px;color:var(--accent);font-weight:800}
-  main{margin-top:20px;display:grid;grid-template-columns:1fr 320px;gap:14px}
-  details{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;color:var(--muted)}
-  summary{cursor:pointer;font-weight:400;color:#fff}
-  .slots{display:flex;flex-direction:column;gap:8px}
-  .slot{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));border:1px solid rgba(255,255,255,0.02)}
-  .slot h3{margin:0 0 6px 0;font-size:14px}
-  .row{display:flex;gap:40px;flex-wrap:wrap}
-  .kv{min-width:10px;color:var(--muted);font-size:13px}
-  .sm{font-size:12px;color:var(--muted)}
-  .error{color:#ffa3a3}
-  #touchCanvas{width:100%;height:220px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:block}
-  #touchWrap{padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-top:8px}
-  @media(max-width:880px){main{grid-template-columns:1fr}}
-  @media(max-width:560px){
-    .avatar{width:48px;height:48px;flex:0 0 48px}
-    .avatar img,.avatar-fallback{width:48px;height:48px}
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DisplayName @Username</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --card: #0f1720;
+      --muted: #9aa6b2;
+      --accent: #fab760;
+      --glass: rgba(255, 255, 255, 0.03)
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: linear-gradient(342deg, var(--bg), #2a2a2a);
+      color: #e6eef6;
+      font-family: Inter, system-ui, Segoe UI, Roboto, Arial
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 36px auto;
+      padding: 18px
+    }
+
+    .card {
+      background: #00000030;
+      border-radius: 12px;
+      padding: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.06)
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .playerHead {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .avatar {
+      width: 64px;
+      height: 64px;
+      flex: 0 0 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .avatar img {
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      object-fit: cover;
+      display: block
+    }
+
+    .avatar-fallback {
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #0b1220, #111419);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--accent);
+      border: 2px solid rgba(255, 255, 255, 0.06)
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      color: #fff;
+      line-height: 1
+    }
+
+    h1 a {
+      color: inherit;
+      text-decoration: none
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .stats {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-right: 10%
+    }
+
+    .stat {
+      min-width: 10px;
+      text-align: center
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .value {
+      font-size: 16px;
+      color: #fff
+    }
+
+    .big {
+      font-size: 28px;
+      color: var(--accent);
+      font-weight: 800
+    }
+
+    main {
+      margin-top: 20px;
+      display: flex;
+      gap: 14px;
+      flex-direction: column;
+    }
+
+    details {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 10px;
+      border-radius: 8px;
+      color: var(--muted)
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 400;
+      color: #fff
+    }
+
+    .slots {
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .slot {
+      padding: 10px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.005));
+      border: 1px solid rgba(255, 255, 255, 0.02)
+    }
+
+    .slot h3 {
+      margin: 0 0 6px 0;
+      font-size: 14px
+    }
+
+    .row {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap
+    }
+
+    .kv {
+      min-width: 10px;
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .sm {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .error {
+      color: #ffa3a3
+    }
+
+    #touchCanvas {
+      width: 100%;
+      height: 220px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent);
+      display: block
+    }
+
+    #touchWrap {
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.01);
+      margin-top: 8px
+    }
+
+    /* new plrStats styling */
+    .combat {
+      padding: 12px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.02);
+    }
+
+    .combat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px 12px;
+    }
+
+    .combat-item {
+      padding: 8px;
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.005), transparent);
+      border: 1px solid rgba(255,255,255,0.02);
+    }
+
+    .combat-item .k { color: var(--muted); font-size: 12px }
+    .combat-item .v { font-size:12px }
+
+    @media(max-width:880px) {
+      .combat-grid { grid-template-columns: 1fr }
+    }
+
+    @media(max-width:560px) {
+      .avatar {
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px
+      }
+
+      .avatar img,
+      .avatar-fallback {
+        width: 48px;
+        height: 48px
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <div class="card">
-    <header>
-      <div class="playerHead">
-        <div class="avatar" id="avatarContainer">
-          <!-- either the img or fallback DIV will be inserted here by JS -->
-        </div>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <div class="playerHead">
+          <div class="avatar" id="avatarContainer">
+            <!-- either the img or fallback DIV will be inserted here by JS -->
+          </div>
 
-        <div>
-          <h1 id="playerId"><a id="playerLink" href="#" target="_blank" rel="noopener">—</a></h1>
-          <div class="sub" id="sub">Fetching /api/rowa/{id}</div>
-        </div>
-      </div>
-
-      <div class="stats" id="stats"></div>
-    </header>
-
-    <main>
-      <section>
-        <div class="sm" style="margin-bottom:6px">Slots</div>
-        <div class="slots" id="slots"><div class="sm">Loading...</div></div>
-      </section>
-
-      <aside>
-        <div style="margin-bottom:12px">
-          <div class="sm">Meta</div>
-          <div style="padding:12px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.02);">
-            <div class="sm">First seen</div>
-            <div id="metaFirst" class="value">—</div>
-            <div class="sm" id="playtime">Total playtime —</div>
+          <div>
+            <h1 id="playerId"><a id="playerLink" href="#" target="_blank" rel="noopener">—</a></h1>
+            <div class="sub" id="sub">Fetching /api/rowa/{id}</div>
           </div>
         </div>
 
-        <details>
-          <summary>Keybinds <span id="kcount" class="sm"></span></summary>
-          <pre id="kbPre" style="margin-top:8px;white-space:pre-wrap;color:var(--muted)"></pre>
-        </details>
+        <div class="stats" id="stats"></div>
+      </header>
 
-        <details style="margin-top:10px">
-          <summary>Touch Data <span id="tcount" class="sm"></span></summary>
-
-          <div id="touchWrap">
-            <!-- canvas visualization (drawn if data exists) -->
-            <canvas id="touchCanvas" aria-label="Touch visualization"></canvas>
-
-            <!-- raw JSON fallback / debug -->
-            <pre id="touchPre" style="margin-top:8px;white-space:pre-wrap;color:var(--muted)"></pre>
+      <main>
+        <section>
+          <div class="sm" style="margin-bottom:6px">Combat Stats</div>
+          <div id="plrStatsWrap" class="combat">
+            <div id="plrStatsGrid" class="combat-grid">
+              <div class="sm">Loading...</div>
+            </div>
           </div>
-        </details>
-      </aside>
-    </main>
+
+          <div class="sm" style="margin-bottom:6px">Slots</div>
+          <div class="slots" id="slots">
+            <div class="sm">Loading...</div>
+          </div>
+        </section>
+
+        <aside>
+          <div style="margin-bottom:12px">
+            <div class="sm">Meta</div>
+            <div style="padding:12px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.02);">
+              <div class="sm">First seen</div>
+              <div id="metaFirst" class="value">—</div>
+              <div class="sm" id="playtime">Total playtime —</div>
+            </div>
+          </div>
+
+          <details>
+            <summary>Keybinds <span id="kcount" class="sm"></span></summary>
+            <pre id="kbPre" style="margin-top:8px;white-space:pre-wrap;color:var(--muted)"></pre>
+          </details>
+
+          <details style="margin-top:10px">
+            <summary>Touch Data <span id="tcount" class="sm"></span></summary>
+
+            <div id="touchWrap">
+              <!-- canvas visualization (drawn if data exists) -->
+              <canvas id="touchCanvas" aria-label="Touch visualization"></canvas>
+
+              <!-- raw JSON fallback / debug -->
+              <pre id="touchPre" style="margin-top:8px;white-space:pre-wrap;color:var(--muted)"></pre>
+            </div>
+          </details>
+        </aside>
+      </main>
+    </div>
   </div>
-</div>
 
-<script>
-(async function(){
-  const segments = location.pathname.split('/').filter(Boolean);
-  const id = segments.at(-1) || 'unknown';
+  <script>
+    (async function () {
+      const segments = location.pathname.split('/').filter(Boolean);
+      const id = segments.at(-1) || 'unknown';
 
-  const link = document.getElementById('playerLink');
-  const sub = document.getElementById('sub');
-  const stats = document.getElementById('stats');
-  const slots = document.getElementById('slots');
-  const metaF = document.getElementById('metaFirst');
-  const play = document.getElementById('playtime');
-  const kb = document.getElementById('kbPre');
-  const touch = document.getElementById('touchPre');
-  const kc = document.getElementById('kcount');
-  const tc = document.getElementById('tcount');
-  const canvas = document.getElementById('touchCanvas');
-  const avatarContainer = document.getElementById('avatarContainer');
+      const link = document.getElementById('playerLink');
+      const sub = document.getElementById('sub');
+      const stats = document.getElementById('stats');
+      const slots = document.getElementById('slots');
+      const metaF = document.getElementById('metaFirst');
+      const play = document.getElementById('playtime');
+      const kb = document.getElementById('kbPre');
+      const touch = document.getElementById('touchPre');
+      const kc = document.getElementById('kcount');
+      const tc = document.getElementById('tcount');
+      const canvas = document.getElementById('touchCanvas');
+      const avatarContainer = document.getElementById('avatarContainer');
+      const plrStatsGrid = document.getElementById('plrStatsGrid');
 
-  const esc = s => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;')
-                            .replaceAll('>','&gt;').replaceAll('"','&quot;')
-                            .replaceAll("'",'&#39;');
+      const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
 
-  // DisplayName + Username from <title>
-  const t = document.title.trim();
-  let display = id;
-  const match = t.match(/^(.+?)\s*@(.+)$/);
-  if (match) {
-    const [_, d, n] = match;
-    display = `${esc(d)} (@${esc(n)})`;
-  }
+      // DisplayName + Username from <title>
+      const t = document.title.trim();
+      let display = id;
+      const match = t.match(/^(.+?)\s*@(.+)$/);
+      if (match) {
+        const [_, d, n] = match;
+        display = `${esc(d)} (@${esc(n)})`;
+      }
 
-  // avatar: read meta tags (server injects og:image / twitter:image / link rel=image_src)
-  const ogImg = document.querySelector('meta[property="og:image"]')?.content
-              || document.querySelector('meta[name="twitter:image"]')?.content
-              || document.querySelector('link[rel="image_src"]')?.href
-              || null;
-  const ogAlt = document.querySelector('meta[property="og:image:alt"]')?.content || display;
+      // avatar: read meta tags (server injects og:image / twitter:image / link rel=image_src)
+      const ogImg = document.querySelector('meta[property="og:image"]')?.content
+        || document.querySelector('meta[name="twitter:image"]')?.content
+        || document.querySelector('link[rel="image_src"]')?.href
+        || null;
+      const ogAlt = document.querySelector('meta[property="og:image:alt"]')?.content || display;
 
-  // build avatar element(s)
-  avatarContainer.innerHTML = ''; // clear
-  if (ogImg) {
-    const img = document.createElement('img');
-    img.src = ogImg;
-    img.alt = ogAlt;
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.onerror = function(){
-      // fallback to initials if the image fails to load
-      avatarContainer.innerHTML = '';
-      const fb = document.createElement('div');
-      fb.className = 'avatar-fallback';
-      fb.textContent = (display && display[0]) ? display[0].toUpperCase() : '?';
-      avatarContainer.appendChild(fb);
-    };
-    avatarContainer.appendChild(img);
-  } else {
-    const fb = document.createElement('div');
-    fb.className = 'avatar-fallback';
-    fb.textContent = (display && display[0]) ? display[0].toUpperCase() : '?';
-    avatarContainer.appendChild(fb);
-  }
+      // build avatar element(s)
+      avatarContainer.innerHTML = ''; // clear
+      if (ogImg) {
+        const img = document.createElement('img');
+        img.src = ogImg;
+        img.alt = ogAlt;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = function () {
+          // fallback to initials if the image fails to load
+          avatarContainer.innerHTML = '';
+          const fb = document.createElement('div');
+          fb.className = 'avatar-fallback';
+          fb.textContent = (display && display[0]) ? display[0].toUpperCase() : '?';
+          avatarContainer.appendChild(fb);
+        };
+        avatarContainer.appendChild(img);
+      } else {
+        const fb = document.createElement('div');
+        fb.className = 'avatar-fallback';
+        fb.textContent = (display && display[0]) ? display[0].toUpperCase() : '?';
+        avatarContainer.appendChild(fb);
+      }
 
-  link.href = `https://www.roblox.com/users/${encodeURIComponent(id)}/profile`;
-  link.textContent = display;
-  sub.textContent = '/rowa/' + id;
+      link.href = `https://www.roblox.com/users/${encodeURIComponent(id)}/profile`;
+      link.textContent = display;
+      sub.textContent = '/rowa/' + id;
 
-  const fmtDate = s => {
-    if (!s) return '—';
-    const n = Number(s);
-    if (isNaN(n)) return '—';
-    return new Date(n*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-  };
-  const fmtPlay = sec => {
-    if (!sec && sec !== 0) return '—';
-    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
-    return `${h}h ${m}m`;
-  };
+      const fmtDate = s => {
+        if (!s) return '—';
+        const n = Number(s);
+        if (isNaN(n)) return '—';
 
-  // Action names for keybindData
-  const keybindNames = {
-    1:"sprint",2:"parry",3:"dash",4:"feint",5:"slide",
-    6:"heavy",7:"light",8:"ability",
-    9:"hotbar1",10:"hotbar2",11:"hotbar3",12:"hotbar4",
-    13:"hotbar5",14:"hotbar6",15:"hotbar7",16:"hotbar8",
-    17:"hotbar9",18:"hotbar10"
-  };
+        return new Date(n * 1000).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      };
 
-  // Friendly names for special/large keycodes (optional)
-  const specialKeyNames = {
-    306: "LeftCntrl",
-    305: "RightCntrl",
-    307: "RightAlt",
-    308: "LeftAlt",
-    0: "M1",
-    1: "M2",
-    2: "M3",
-    3: "M4",
-    4: "M5",
-    5: "M6",
-    13: "Enter",
-    27: "Escape",
-    32: "Space",
-    37: "ArrowLeft",
-    38: "ArrowUp",
-    39: "ArrowRight",
-    40: "ArrowDown",
-  };
+      const fmtPlay = sec => {
+        if (sec == null) return '—';
 
-  function prettyKey(code) {
-    if (code === -1) return "None";
-    if (code == null) return "None";
-    if (specialKeyNames[code]) return `${specialKeyNames[code]}`;
-    if (code >= 32 && code <= 126) {
-      const ch = String.fromCharCode(code);
-      if (/[a-zA-Z0-9]/.test(ch)) return `${ch.toUpperCase()}`;
-      return `${ch} (${code})`;
-    }
-    return `Key(${code})`;
-  }
+        const days = Math.floor(sec / 86400);
+        const hours = Math.floor((sec % 86400) / 3600);
+        const minutes = Math.floor((sec % 3600) / 60);
 
-  function clearCanvas() {
-    const ctx = canvas.getContext('2d');
-    ctx.save();
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.restore();
-  }
+        if (days > 0) {
+          return `${days}d ${hours}h ${minutes}m`;
+        }
 
-  function renderTouch(tdata) {
-    // tdata expected: [[x,y,size], ...]
-    const ctx = canvas.getContext('2d');
-    // resize canvas for crispness (use client size + DPR)
-    const DPR = window.devicePixelRatio || 1;
-    const cw = Math.max(200, canvas.clientWidth || 300);
-    const ch = Math.max(120, canvas.clientHeight || 220);
-    canvas.style.height = ch + 'px';
-    canvas.width = Math.round(cw * DPR);
-    canvas.height = Math.round(ch * DPR);
-    ctx.scale(DPR, DPR);
-    ctx.clearRect(0,0,cw,ch);
+        return `${hours}h ${minutes}m`;
+      };
 
-    if (!Array.isArray(tdata) || tdata.length === 0) {
-      // draw "no data" message
-      ctx.font = '13px system-ui, Inter, Arial';
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.fillRect(0,0,cw,ch);
-      ctx.fillStyle = 'var(--muted)';
-      ctx.textAlign = 'center';
-      ctx.fillText('No touch data to visualize', cw/2, ch/2);
-      return;
-    }
 
-    // filter valid points: ensure numbers
-    const pts = tdata.map(p => [Number(p[0]), Number(p[1]), Number(p[2])]).filter(p => !Number.isNaN(p[0]) && !Number.isNaN(p[1]));
-    if (pts.length === 0) {
-      ctx.fillStyle = 'var(--muted)';
-      ctx.textAlign = 'center';
-      ctx.fillText('No valid touch points', cw/2, ch/2);
-      return;
-    }
+      // Action names for keybindData
+      const keybindNames = {
+        1: "sprint", 2: "parry", 3: "dash", 4: "feint", 5: "slide",
+        6: "heavy", 7: "light", 8: "ability",
+        9: "hotbar1", 10: "hotbar2", 11: "hotbar3", 12: "hotbar4",
+        13: "hotbar5", 14: "hotbar6", 15: "hotbar7", 16: "hotbar8",
+        17: "hotbar9", 18: "hotbar10"
+      };
 
-    // compute bounds
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    pts.forEach(p => {
-      if (p[0] < minX) minX = p[0];
-      if (p[0] > maxX) maxX = p[0];
-      if (p[1] < minY) minY = p[1];
-      if (p[1] > maxY) maxY = p[1];
-    });
+      // Friendly names for special/large keycodes (optional)
+      const specialKeyNames = {
+        306: "LeftCntrl",
+        305: "RightCntrl",
+        307: "RightAlt",
+        308: "LeftAlt",
+        0: "M1",
+        1: "M2",
+        2: "M3",
+        3: "M4",
+        4: "M5",
+        5: "M6",
+        13: "Enter",
+        27: "Escape",
+        32: "Space",
+        37: "ArrowLeft",
+        38: "ArrowUp",
+        39: "ArrowRight",
+        40: "ArrowDown",
+      };
 
-    // if degenerate, expand a little to avoid zero scale
-    if (minX === maxX) { minX -= 1; maxX += 1; }
-    if (minY === maxY) { minY -= 1; maxY += 1; }
+      function prettyKey(code) {
+        if (code === -1) return "None";
+        if (code == null) return "None";
+        if (specialKeyNames[code]) return `${specialKeyNames[code]}`;
+        if (code >= 32 && code <= 126) {
+          const ch = String.fromCharCode(code);
+          if (/[a-zA-Z0-9]/.test(ch)) return `${ch.toUpperCase()}`;
+          return `${ch} (${code})`;
+        }
+        return `Key(${code})`;
+      }
 
-    // padding (pixels)
-    const pad = Math.min(40, Math.min(cw, ch) * 0.12);
+      function clearCanvas() {
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
 
-    const usableW = cw - pad * 2;
-    const usableH = ch - pad * 2;
+      function renderTouch(tdata) {
+        // tdata expected: [[x,y,size], ...]
+        const ctx = canvas.getContext('2d');
+        // resize canvas for crispness (use client size + DPR)
+        const DPR = window.devicePixelRatio || 1;
+        const cw = Math.max(200, canvas.clientWidth || 300);
+        const ch = Math.max(120, canvas.clientHeight || 220);
+        canvas.style.height = ch + 'px';
+        canvas.width = Math.round(cw * DPR);
+        canvas.height = Math.round(ch * DPR);
+        ctx.scale(DPR, DPR);
+        ctx.clearRect(0, 0, cw, ch);
 
-    const dataW = maxX - minX;
-    const dataH = maxY - minY;
+        if (!Array.isArray(tdata) || tdata.length === 0) {
+          // draw "no data" message
+          ctx.font = '13px system-ui, Inter, Arial';
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+          ctx.fillRect(0, 0, cw, ch);
+          ctx.fillStyle = 'var(--muted)';
+          ctx.textAlign = 'center';
+          ctx.fillText('No touch data to visualize', cw / 2, ch / 2);
+          return;
+        }
 
-    const scaleX = usableW / dataW;
-    const scaleY = usableH / dataH;
-    // keep aspect: choose the smaller scale so everything fits
-    const scale = Math.min(scaleX, scaleY);
+        // filter valid points: ensure numbers
+        const pts = tdata.map(p => [Number(p[0]), Number(p[1]), Number(p[2])]).filter(p => !Number.isNaN(p[0]) && !Number.isNaN(p[1]));
+        if (pts.length === 0) {
+          ctx.fillStyle = 'var(--muted)';
+          ctx.textAlign = 'center';
+          ctx.fillText('No valid touch points', cw / 2, ch / 2);
+          return;
+        }
 
-    // center the data in the usable area
-    const drawnW = dataW * scale;
-    const drawnH = dataH * scale;
-    const offsetX = pad + ((usableW - drawnW) / 2) - minX * scale;
-    const offsetY = pad + ((usableH - drawnH) / 2) - minY * scale;
+        // compute bounds
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        pts.forEach(p => {
+          if (p[0] < minX) minX = p[0];
+          if (p[0] > maxX) maxX = p[0];
+          if (p[1] < minY) minY = p[1];
+          if (p[1] > maxY) maxY = p[1];
+        });
 
-    // background
-    ctx.fillStyle = 'rgba(255,255,255,0.01)';
-    ctx.fillRect(0,0,cw,ch);
+        // if degenerate, expand a little to avoid zero scale
+        if (minX === maxX) { minX -= 1; maxX += 1; }
+        if (minY === maxY) { minY -= 1; maxY += 1; }
 
-    // draw bounding box (input bounds)
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.setLineDash([5,4]);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(offsetX, offsetY, drawnW, drawnH);
-    ctx.restore();
+        // padding (pixels)
+        const pad = Math.min(40, Math.min(cw, ch) * 0.12);
 
-    // draw points
-    pts.forEach((p, i) => {
-      const x = offsetX + p[0] * scale;
-      const y = offsetY + p[1] * scale;
-      const radius = Math.max(2, (p[2] || 8) * 0.5 * scale); // size interpreted as diameter-ish; scale it
-      // filled translucent circle
-      ctx.beginPath();
-      ctx.fillStyle = 'rgba(96,165,250,0.12)'; // semi-transparent accent
-      ctx.arc(x, y, radius, 0, Math.PI*2);
-      ctx.fill();
-      // outline
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = 'rgba(96,165,250,0.9)';
-      ctx.stroke();
+        const usableW = cw - pad * 2;
+        const usableH = ch - pad * 2;
 
-      // index label (small)
-      ctx.font = '10px system-ui, Inter, Arial';
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.textAlign = 'center';
-      ctx.fillText(String(i+1), x, y - radius - 6);
-    });
+        const dataW = maxX - minX;
+        const dataH = maxY - minY;
 
-    // draw min/max label text
-    ctx.font = '11px system-ui, Inter, Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.textAlign = 'left';
-    ctx.fillText(`x: ${minX} → ${maxX}`, 8, ch - 28);
-    ctx.fillText(`y: ${minY} → ${maxY}`, 8, ch - 12);
-  }
+        const scaleX = usableW / dataW;
+        const scaleY = usableH / dataH;
+        // keep aspect: choose the smaller scale so everything fits
+        const scale = Math.min(scaleX, scaleY);
 
-  try {
-    const res = await fetch('/api/rowa/' + encodeURIComponent(id));
-    if (!res.ok) {
-      slots.innerHTML = '<div class="sm error">Failed to load</div>';
-      sub.textContent = 'Error: ' + res.status;
-      return;
-    }
-    const j = await res.json();
+        // center the data in the usable area
+        const drawnW = dataW * scale;
+        const drawnH = dataH * scale;
+        const offsetX = pad + ((usableW - drawnW) / 2) - minX * scale;
+        const offsetY = pad + ((usableH - drawnH) / 2) - minY * scale;
 
-    // Stats
-    const wins = +j.wins || 0, loss = +j.loss || 0, total = wins + loss;
-    const winrate = total ? (wins/total*100).toFixed(2)+'%' : '—';
-    const elo = j.elo ?? '—', seed = j.seed ?? '—';
-    const stat = (l,v,b) => `<div class="stat"><div class="label">${l}</div><div class="${b?'big':'value'}">${v}</div></div>`;
-    stats.innerHTML = stat('WON', wins) + stat('LOST', loss) + stat('WINRATE', winrate) + stat('ELO', esc(elo)) + stat('SEED', esc(seed));
+        // background
+        ctx.fillStyle = 'rgba(255,255,255,0.01)';
+        ctx.fillRect(0, 0, cw, ch);
 
-    // Meta
-    metaF.textContent = fmtDate(j.meta?.first);
-    play.textContent = 'Total playtime - ' + fmtPlay(j.meta?.totalPlaytime || j.meta?.total || 0);
+        // draw bounding box (input bounds)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.setLineDash([5, 4]);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(offsetX, offsetY, drawnW, drawnH);
+        ctx.restore();
 
-    // Keybinds — now pretty-printed with key names
-    const k = j.keybindData || [];
-    kc.textContent = '(' + k.length + ')';
-    let out = "";
-    for (let i = 0; i < k.length; i++) {
-      const name = keybindNames[i+1] || `action${i+1}`;
-      const pair = k[i] || [];
-      const b1 = (pair.length>0) ? pair[0] : -1;
-      const b2 = (pair.length>1) ? pair[1] : -1;
-      out += `${name}: ${prettyKey(b1)}, ${prettyKey(b2)}\n`;
-    }
-    kb.textContent = out;
+        // draw points
+        pts.forEach((p, i) => {
+          const x = offsetX + p[0] * scale;
+          const y = offsetY + p[1] * scale;
+          const radius = Math.max(2, (p[2] || 8) * 0.5 * scale); // size interpreted as diameter-ish; scale it
+          // filled translucent circle
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(96,165,250,0.12)'; // semi-transparent accent
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          // outline
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = 'rgba(96,165,250,0.9)';
+          ctx.stroke();
 
-    // Touch Data
-    const td = j.touchData || [];
-    touch.textContent = JSON.stringify(td, null, 2);
-    tc.textContent = '(' + td.length + ')';
-    // render visualization (if present)
-    try {
-      renderTouch(td);
-    } catch (err) {
-      console.error('renderTouch failed', err);
-      // fallback: clear canvas and print error
-      clearCanvas();
-      const ctx = canvas.getContext('2d');
-      ctx.font = '13px system-ui, Inter, Arial';
-      ctx.fillStyle = 'var(--muted)';
-      ctx.textAlign = 'center';
-      ctx.fillText('Visualization error', canvas.clientWidth/2, canvas.clientHeight/2);
-    }
+          // index label (small)
+          ctx.font = '10px system-ui, Inter, Arial';
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.textAlign = 'center';
+          ctx.fillText(String(i + 1), x, y - radius - 6);
+        });
 
-    // Slots
-    slots.innerHTML = '';
-    (j.slots||[]).forEach((s,i)=>{
-      const name = esc(s[0] || `Slot ${i+1}`);
-      const sSeed = esc(s[1] ?? '—');
-      const first = fmtDate(s[3]?.first);
-      const sElo = esc(s[5] ?? '—'), sW = s[6] ?? 0, sL = s[7] ?? 0;
-      slots.innerHTML += `
+        // draw min/max label text
+        ctx.font = '11px system-ui, Inter, Arial';
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.textAlign = 'left';
+        ctx.fillText(`x: ${minX} → ${maxX}`, 8, ch - 28);
+        ctx.fillText(`y: ${minY} → ${maxY}`, 8, ch - 12);
+      }
+
+      try {
+        const res = await fetch('/api/rowa/' + encodeURIComponent(id));
+        if (!res.ok) {
+          slots.innerHTML = '<div class="sm error">Failed to load</div>';
+          sub.textContent = 'Error: ' + res.status;
+          return;
+        }
+        const plrData = await res.json();
+
+        // Stats
+        const wins = +plrData.wins || 0
+        const loss = +plrData.loss || 0
+        const total = wins + loss;
+        const winrate = total ? (wins / total * 100).toFixed(2) + '%' : '—';
+        const elo = plrData.elo ?? '—';
+        const seed = plrData.seed ?? '—';
+        const stat = (l, v, b) => `<div class="stat"><div class="label">${l}</div><div class="${b ? 'big' : 'value'}">${v}</div></div>`;
+        stats.innerHTML = stat('WON', wins) + stat('LOST', loss) + stat('WINRATE', winrate) + stat('ELO', esc(elo)) + stat('SEED', esc(seed));
+
+        // Meta
+        const plrMeta = plrData.meta || {};
+        metaF.textContent = fmtDate(plrMeta.first);
+        play.textContent = 'Total playtime - ' + fmtPlay(plrMeta.totalPlaytime || 0);
+
+        // Keybinds — now pretty-printed with key names
+        const k = plrData.keybindData || [];
+        kc.textContent = '(' + k.length + ')';
+        let out = "";
+        for (let i = 0; i < k.length; i++) {
+          const name = keybindNames[i + 1] || `action${i + 1}`;
+          const pair = k[i] || [];
+          const b1 = (pair.length > 0) ? pair[0] : -1;
+          const b2 = (pair.length > 1) ? pair[1] : -1;
+          out += `${name}: ${prettyKey(b1)}, ${prettyKey(b2)}\n`;
+        }
+        kb.textContent = out;
+
+        // Touch Data
+        const td = plrData.touchData || [];
+        touch.textContent = JSON.stringify(td, null, 2);
+        tc.textContent = '(' + td.length + ')';
+        // render visualization (if present)
+        try {
+          renderTouch(td);
+        } catch (err) {
+          console.error('renderTouch failed', err);
+          // fallback: clear canvas and print error
+          clearCanvas();
+          const ctx = canvas.getContext('2d');
+          ctx.font = '13px system-ui, Inter, Arial';
+          ctx.fillStyle = 'var(--muted)';
+          ctx.textAlign = 'center';
+          ctx.fillText('Visualization error', canvas.clientWidth / 2, canvas.clientHeight / 2);
+        }
+
+        // Slots
+        slots.innerHTML = '';
+        (plrData.slots || []).forEach((s, i) => {
+          const name = esc(s[0] || `Slot ${i + 1}`);
+          const sSeed = esc(s[1] ?? '—');
+          const first = fmtDate(s[3]?.first);
+          const sElo = esc(s[5] ?? '—'), sW = s[6] ?? 0, sL = s[7] ?? 0;
+          slots.innerHTML += `
         <div class="slot">
           <h3>${name}</h3>
           <div class="row">
@@ -401,29 +637,153 @@
             <div class="kv"><div class="sm">LOST</div><div class="value">${sL}</div></div>
           </div>
         </div>`;
-    });
+        });
 
-  } catch (err) {
-    slots.innerHTML = '<div class="sm error">Failed to load</div>';
-    sub.textContent = 'Network error';
-    console.error(err);
-  }
+        // NEW: render plrStats — simplified, landscape colors applied to outgoing as well
+        (function renderPlrStats() {
+          const statsArr = plrData.plrStats || [];
+          // labels correspond to each index in the provided array
+          const labels = [
+            'Parried', // [count, total dmg] (times I parried)
+            'Blocked',
+            'Dodged',
+            'Damage Taken',
+            'Parried By', // enemies parried my attacks
+            'Blocked By',
+            'Dodged By',
+            'Damage Dealt',
+            'Feinted Basic', // single number
+            'Feinted Ability' // single number
+          ];
 
-  // redraw on resize to keep crispness and fit
-  let resizeTimeout;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      // re-render using current JSON content in the pre (if any)
-      try {
-        const data = JSON.parse(touch.textContent || '[]');
-        renderTouch(data);
-      } catch (e) {
-        // ignore
+          const fmtN = n => (typeof n === 'number' ? n.toLocaleString() : esc(String(n)));
+
+          // helper to extract pair or number
+          const getPair = i => {
+            const v = statsArr[i];
+            if (Array.isArray(v) && v.length >= 2) return { count: Number(v[0]) || 0, dmg: Number(v[1]) || 0 };
+            if (typeof v === 'number') return { count: Number(v) || 0, dmg: 0 };
+            return { count: 0, dmg: 0 };
+          };
+
+          // incoming event indices (how incoming attacks resolved for the player)
+          const incomingIdx = [0, 1, 2, 3]; // parried, blocked, dodged, dmgTaken
+          const incoming = incomingIdx.map(getPair);
+          const totalIncomingCount = incoming.reduce((s, p) => s + p.count, 0);
+
+          // outgoing event indices (how enemies resolved my attacks)
+          const outgoingIdx = [4, 5, 6]; // parriedBy, blockedBy, dodgedBy
+          const damageDealt = getPair(7); // counts + dmg for my successful hits
+          const outgoing = outgoingIdx.map(getPair);
+          const totalOutgoingCount = outgoing.reduce((s, p) => s + p.count, 0) + (damageDealt.count || 0);
+
+          // color map shared for both incoming and outgoing corresponding types
+          const sharedColors = {
+            parry: 'linear-gradient(90deg,var(--accent), #d99b3a)', // gold
+            block: 'linear-gradient(90deg,#60a5fa, #2b78e6)', // blue
+            dodge: 'linear-gradient(90deg,#86efac, #43c46b)', // light green
+            damage: 'linear-gradient(90deg,#ff8b8b, #ff4b4b)' // red
+          };
+
+          // mapping from index -> shared color key
+          const idxColorKey = {
+            0: 'parry',
+            1: 'block',
+            2: 'dodge',
+            3: 'damage',
+            4: 'parry', // parriedBy -> gold
+            5: 'block', // blockedBy -> blue
+            6: 'dodge', // dodgedBy -> light green
+            7: 'damage' // damageDealt -> red (same as damageTaken)
+          };
+
+          plrStatsGrid.innerHTML = '';
+
+          for (let i = 0; i < labels.length; i++) {
+            const lab = labels[i] || `stat${i}`;
+            const v = statsArr[i];
+            const item = document.createElement('div');
+            item.className = 'combat-item';
+
+            // Incoming indices: show "count (X dmg)" and a big percent
+            if (incomingIdx.includes(i)) {
+              const p = getPair(i);
+              const count = p.count;
+              const dmg = p.dmg;
+              const pct = totalIncomingCount ? (count / totalIncomingCount * 100) : 0;
+
+              const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,var(--accent),#79b8ff)';
+
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
+
+            // Damage Dealt special case (outgoing success)
+            } else if (i === 7) {
+              const p = getPair(i);
+              const count = p.count;
+              const dmg = p.dmg;
+              const pct = totalOutgoingCount ? (count / totalOutgoingCount * 100) : 0;
+              const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,var(--accent),#79b8ff)';
+
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
+
+            // Outgoing indices: same treatment but use outgoing totals and mapped colors
+            } else if (outgoingIdx.includes(i)) {
+              const p = getPair(i);
+              const count = p.count;
+              const dmg = p.dmg;
+              const pct = totalOutgoingCount ? (count / totalOutgoingCount * 100) : 0;
+              const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,#9dd3ff,#60a5fa)';
+
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
+
+            // single-number feints or unknowns
+            } else if (typeof v === 'number') {
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div class="v">${fmtN(v)}</div>\n              `;
+
+            } else {
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div class="v">—</div>\n              `;
+            }
+
+            plrStatsGrid.appendChild(item);
+          }
+
+          // Add a small summary row below the grid explaining the defensive distribution
+          const summary = document.createElement('div');
+          summary.style.gridColumn = '1 / -1';
+          summary.style.marginTop = '6px';
+          summary.style.fontSize = '12px';
+          summary.style.color = 'var(--muted)';
+
+          const avoidedCount = incoming.slice(0, 3).reduce((s, p) => s + p.count, 0);
+          const avoidancePct = totalIncomingCount ? (avoidedCount / totalIncomingCount * 100) : 0;
+          const outgoingSuccessPct = totalOutgoingCount ? (damageDealt.count / totalOutgoingCount * 100) : 0;
+
+          summary.textContent = `Avoided incoming: ${avoidedCount} / ${totalIncomingCount} (${avoidancePct ? avoidancePct.toFixed(1) + '%' : '—'}). Outgoing hits: ${damageDealt.count} / ${totalOutgoingCount} (${outgoingSuccessPct ? outgoingSuccessPct.toFixed(1) + '%' : '—'}).`;
+          plrStatsGrid.appendChild(summary);
+        })();
+
+      } catch (err) {
+        slots.innerHTML = '<div class="sm error">Failed to load</div>';
+        sub.textContent = 'Network error';
+        console.error(err);
       }
-    }, 120);
-  });
-})();
-</script>
+
+      // redraw on resize to keep crispness and fit
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          // re-render using current JSON content in the pre (if any)
+          try {
+            const data = JSON.parse(touch.textContent || '[]');
+            renderTouch(data);
+          } catch (e) {
+            // ignore
+          }
+        }, 120);
+      });
+    })();
+  </script>
 </body>
+
 </html>
