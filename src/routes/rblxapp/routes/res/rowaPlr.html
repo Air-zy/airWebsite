@@ -639,7 +639,7 @@
         </div>`;
         });
 
-        // NEW: render plrStats — simplified, landscape colors applied to outgoing as well
+        // plrStats
         (function renderPlrStats() {
           const statsArr = plrData.plrStats || [];
           // labels correspond to each index in the provided array
@@ -669,13 +669,13 @@
           // incoming event indices (how incoming attacks resolved for the player)
           const incomingIdx = [0, 1, 2, 3]; // parried, blocked, dodged, dmgTaken
           const incoming = incomingIdx.map(getPair);
-          const totalIncomingCount = incoming.reduce((s, p) => s + p.count, 0);
+          const totalIncoming = incoming.reduce((s, p) => s + p.dmg, 0);
 
           // outgoing event indices (how enemies resolved my attacks)
           const outgoingIdx = [4, 5, 6]; // parriedBy, blockedBy, dodgedBy
           const damageDealt = getPair(7); // counts + dmg for my successful hits
           const outgoing = outgoingIdx.map(getPair);
-          const totalOutgoingCount = outgoing.reduce((s, p) => s + p.count, 0) + (damageDealt.count || 0);
+          const totalOutgoing = outgoing.reduce((s, p) => s + p.dmg, 0) + (damageDealt.dmg || 0);
 
           // color map shared for both incoming and outgoing corresponding types
           const sharedColors = {
@@ -710,7 +710,7 @@
               const p = getPair(i);
               const count = p.count;
               const dmg = p.dmg;
-              const pct = totalIncomingCount ? (count / totalIncomingCount * 100) : 0;
+              const pct = totalIncoming ? (dmg / totalIncoming * 100) : 0;
 
               const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,var(--accent),#79b8ff)';
 
@@ -721,7 +721,7 @@
               const p = getPair(i);
               const count = p.count;
               const dmg = p.dmg;
-              const pct = totalOutgoingCount ? (count / totalOutgoingCount * 100) : 0;
+              const pct = totalOutgoing ? (dmg / totalOutgoing * 100) : 0;
               const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,var(--accent),#79b8ff)';
 
               item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
@@ -731,7 +731,7 @@
               const p = getPair(i);
               const count = p.count;
               const dmg = p.dmg;
-              const pct = totalOutgoingCount ? (count / totalOutgoingCount * 100) : 0;
+              const pct = totalOutgoing ? (dmg / totalOutgoing * 100) : 0;
               const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,#9dd3ff,#60a5fa)';
 
               item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
@@ -746,20 +746,6 @@
 
             plrStatsGrid.appendChild(item);
           }
-
-          // Add a small summary row below the grid explaining the defensive distribution
-          const summary = document.createElement('div');
-          summary.style.gridColumn = '1 / -1';
-          summary.style.marginTop = '6px';
-          summary.style.fontSize = '12px';
-          summary.style.color = 'var(--muted)';
-
-          const avoidedCount = incoming.slice(0, 3).reduce((s, p) => s + p.count, 0);
-          const avoidancePct = totalIncomingCount ? (avoidedCount / totalIncomingCount * 100) : 0;
-          const outgoingSuccessPct = totalOutgoingCount ? (damageDealt.count / totalOutgoingCount * 100) : 0;
-
-          summary.textContent = `Avoided incoming: ${avoidedCount} / ${totalIncomingCount} (${avoidancePct ? avoidancePct.toFixed(1) + '%' : '—'}). Outgoing hits: ${damageDealt.count} / ${totalOutgoingCount} (${outgoingSuccessPct ? outgoingSuccessPct.toFixed(1) + '%' : '—'}).`;
-          plrStatsGrid.appendChild(summary);
         })();
 
       } catch (err) {
