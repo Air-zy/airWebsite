@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ROWA2 leaderboard — History Slider + Clusters (right)</title>
+<title>ROWA2 leaderboard</title>
 <style>
   :root{color-scheme:dark;--bg:#222222;--card:rgba(30,30,30);--muted:#a6a6a6;--panel:#1b1b1b;}
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;}
@@ -24,11 +24,11 @@
     top:0;
     height:100%;
     width: 50%;
-    min-width: 400px;
+    min-width: 320px;
     max-width:50%;
     background:var(--panel);
     border-left:1px solid rgba(255,255,255,0.03);
-    transform:translateX(0);
+    transform:translateX(100%); /* hidden by default */
     transition:transform .22s ease, right .22s ease;
     z-index:80;
     padding:16px;
@@ -58,28 +58,15 @@
   .chart-wrap{background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-bottom:12px}
   canvas{width:100% !important;height:180px !important}
 
-  /* history controls */
-  .history-controls{display:flex;align-items:center;gap:8px;margin:12px 0;width: 100%;}
-  .history-controls .label{font-size:13px;color:var(--muted);min-width:140px}
+  /* controls */
+  .controls{display:flex;gap:8px;align-items:center;margin-bottom:8px}
   .btn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:#cfe6ff;padding:6px 8px;border-radius:6px;cursor:pointer}
-  .range{flex:1}
   .small-muted-inline{font-size:12px;color:var(--muted)}
 
-  /* colored id pill */
-  .id-pill{display:inline-flex;align-items:center;gap:8px}
-  .id-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 10px;box-shadow:0 0 0 3px rgba(0,0,0,0.25) inset}
-
-  /* cluster panel on right */
-  .cluster-panel{position:fixed;right:0;top:0;height:100%;width:360px;background:var(--panel);border-left:1px solid rgba(255,255,255,0.03);padding:16px;box-sizing:border-box;transform:translateX(100%);transition:transform .22s ease;z-index:90;overflow:auto;scrollbar-width: thin;}
-  .cluster-panel.open{transform:translateX(0)}
-  .cluster-item{padding:4px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.02);display:flex;justify-content:space-between;align-items:center}
-  .cluster-members{font-size:13px;margin-bottom:30px}
   .dimmed{opacity:0.28}
 
-  /* small responsive tweak when panel widths stack */
   @media (max-width:900px){
-    .cluster-panel{width:320px}
-    .panel{min-width:320px}
+    .panel{min-width:300px}
   }
 </style>
 </head>
@@ -88,47 +75,17 @@
     <div class="card" id="app">
       <h1>player elo leaderboard (simulated)</h1>
 
-      <!-- History controls: slider, play, step -->
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <div class="history-controls" id="historyControls" aria-hidden="true" style="display:none">
-          <div class="label"><span id="historyLabel">Fight: —</span> <span class="small-muted-inline">(index <span id="historyIndex">—</span> / <span id="historyTotal">—</span>)</span></div>
-          <button id="playBtn" class="btn">Play ▶</button>
-          <button id="stepBack" class="btn">◀</button>
-          <input id="historySlider" class="range" type="range" min="0" max="0" value="0" />
-          <button id="stepForward" class="btn">▶</button>
-        </div>
-
+      <div class="controls">
+        <button id="sortBtn" class="btn">Sort: Peak ▼</button>
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-          <button id="openClusterBtn" class="btn">Clusters</button>
-          <div class="small" style="color:var(--muted)">K-means group/clan view (right)</div>
+          <div class="small" style="color:var(--muted)">hi</div>
         </div>
       </div>
 
       <div id="output">Loading…</div>
-      <div class="small">simulated using a custom elo algorithm that takes into account of frequency... Click an ID to see all their fights and rating history (use the timeline slider to view past snapshots)</div>
+      <div class="small">simulated using a custom elo algorithm that takes into account of frequency... Click an ID to open the player panel and see their fights/rating history (panel closes with ✕).</div>
     </div>
   </div>
-
-  <!-- cluster right panel -->
-  <aside id="clusterPanel" class="cluster-panel" aria-hidden="true">
-    <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h2 style="margin:0">Cluster view</h2>
-      <div>
-        <button id="closeClusterBtn" class="close">Close ✕</button>
-      </div>
-    </header>
-
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <label style="font-size:13px;color:var(--muted);min-width:64px">Clusters (k)</label>
-      <input id="clusterKRange" type="range" min="2" max="12" value="4" style="flex:1">
-      <div id="clusterKVal" style="width:36px;text-align:center;font-weight:600">4</div>
-      <button id="runCluster" class="btn">Run</button>
-    </div>
-
-    <div id="clusterSummary" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
-    <div id="clusterList"></div>
-    <div style="margin-top:12px;font-size:12px;color:var(--muted)">Click a cluster to highlight its members on the leaderboard. Use "Focus" to filter only that cluster.</div>
-  </aside>
 
   <aside id="panel" class="panel" aria-hidden="true">
     <header>
@@ -152,52 +109,24 @@
 (async function(){
   const API = '/api/rowa/fights/recent?limit=10000';
   const INITIAL_RATING = 800;
-  const KValue = 32*3;
+  const KValue = 32*2;
 
-  // deterministic color generator for ids (hsl)
   function colorForId(id, lightness=80, sat=85){
     if(!id) return '#cfe6ff';
-    let h = 0;
-    for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) % 360;
+    let h = 0; for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) % 360;
     return `hsl(${h},${sat}%,${lightness}%)`;
   }
 
-  // Elo helpers
   const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA)/400));
-  const applyElo = (rW, rL, K) => {
-    const eW = expected(rW, rL);
-    return [ rW + K * (1 - eW), rL + K * (0 - (1 - eW)) ];
-  };
+  const applyElo = (rW, rL, K) => { const eW = expected(rW, rL); return [ rW + K * (1 - eW), rL + K * (0 - (1 - eW)) ]; };
 
-  // pair freq stuff
-  const DECAY_START = 10;   // fights without meeting
-  const DECAY_RATE  = 0.2;  // recovery speed
-
-  // UI refs
   const out = document.getElementById('output');
   const panel = document.getElementById('panel');
   const panelTitle = document.getElementById('panelTitle');
   const panelContent = document.getElementById('panelContent');
   const closeBtn = document.getElementById('closeBtn');
   const chartCanvas = document.getElementById('ratingChart');
-
-  const clusterPanel = document.getElementById('clusterPanel');
-  const openClusterBtn = document.getElementById('openClusterBtn');
-  const closeClusterBtn = document.getElementById('closeClusterBtn');
-  const clusterKRange = document.getElementById('clusterKRange');
-  const clusterKVal = document.getElementById('clusterKVal');
-  const runCluster = document.getElementById('runCluster');
-  const clusterList = document.getElementById('clusterList');
-  const clusterSummary = document.getElementById('clusterSummary');
-
-  const historyControls = document.getElementById('historyControls');
-  const historyLabel = document.getElementById('historyLabel');
-  const historyIndex = document.getElementById('historyIndex');
-  const historyTotal = document.getElementById('historyTotal');
-  const historySlider = document.getElementById('historySlider');
-  const playBtn = document.getElementById('playBtn');
-  const stepBack = document.getElementById('stepBack');
-  const stepForward = document.getElementById('stepForward');
+  const sortBtn = document.getElementById('sortBtn');
 
   let contributions = [];
   try {
@@ -205,446 +134,192 @@
     if(!res.ok) throw new Error('fetch status ' + res.status);
     const json = await res.json();
     contributions = Array.isArray(json.contributions) ? json.contributions.slice() : [];
-    console.log('contribs', contributions.length);
   } catch(err) {
     out.textContent = 'Failed to load fights feed: ' + (err && err.message ? err.message : String(err));
     console.error(err);
     return;
   }
 
-  // sort contributions by numeric fight_id ascending
   contributions.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0));
 
-  // Build maps: per-fight grouping and gather unique ids
-  const fightsById = new Map(); // fight_id -> array of contributions
-  const idsSet = new Set();
-
+  const fightsById = new Map();
   for(const c of contributions){
     const fid = String(c.fight_id ?? '');
     if(!fightsById.has(fid)) fightsById.set(fid, []);
     fightsById.get(fid).push(c);
-
-    if(c.killer_id) idsSet.add(String(c.killer_id));
-    if(c.victim_id) idsSet.add(String(c.victim_id));
   }
 
-  // Prepare ordered list of fight ids (chronological)
   const sortedFightIds = Array.from(fightsById.keys()).sort((a,b)=> (Number(a)||0) - (Number(b)||0));
 
-  // Data structures for simulation
-  const pairStats = new Map(); // "a|b" -> {count,lastFightIndex}
+  const pairStats = new Map();
   let fightIndex = 0;
+  const DECAY_START = 10, DECAY_RATE = 0.2;
   function pairKey(a,b){ return a+'|'+b }
-  function effectiveFrequency(stats, now){
-    if(!stats) return 1;
-    const gap = now - stats.lastFightIndex;
-    if(gap <= DECAY_START) return stats.count;
-    const steps = gap - DECAY_START;
-    return Math.max(1, 1 + (stats.count-1)*Math.exp(-DECAY_RATE*steps));
-  }
+  function effectiveFrequency(stats, now){ if(!stats) return 1; const gap = now - stats.lastFightIndex; if(gap <= DECAY_START) return stats.count; const steps = gap - DECAY_START; return Math.max(1, 1 + (stats.count-1)*Math.exp(-DECAY_RATE*steps)); }
 
-  // per-player structures
-  const ratings = {}; // id -> rating (floats)
-  const wins = {};    // id -> int
-  const unfairWins = {}; // id -> int
-  const losses = {};  // id -> int
-  const playerHistory = new Map(); // id -> array of {fight_id, before, after}
+  const ratings = {};
+  const wins = {};
+  const unfairWins = {};
+  const losses = {};
+  const playerHistory = new Map();
+  const fightEloDeltas = new Map();
+  const fightRatingsBefore = new Map();
+  const fightRatingsAfter = new Map();
 
-  // per-fight maps
-  const fightEloDeltas = new Map();   // fight_id -> Map(id -> delta rounded)
-  const fightRatingsBefore = new Map();// fight_id -> Map(id -> rating before fight, float)
-  const fightRatingsAfter = new Map(); // fight_id -> Map(id -> rating after fight, float)
+  function ensure(id){ if(!(id in ratings)) ratings[id] = INITIAL_RATING; if(!(id in wins)) wins[id] = 0; if(!(id in losses)) losses[id] = 0; if(!playerHistory.has(id)) playerHistory.set(id, []); }
 
-  function ensure(id){
-    if(!(id in ratings)) ratings[id] = INITIAL_RATING;
-    if(!(id in wins)) wins[id] = 0;
-    if(!(id in losses)) losses[id] = 0;
-    if(!playerHistory.has(id)) playerHistory.set(id, []);
-  }
+  const snapshots = [];
 
-  // We'll create snapshots after each fight so the UI can move along a timeline
-  const snapshots = []; // { fight_id, index, rows: [ {id, currentRating, peakRating, wins, unfairWins, lost} ], ratingsById }
-
-  // Simulate fight-by-fight in chronological order and capture snapshots
   for(const fid of sortedFightIds){
     const parts = fightsById.get(fid) || [];
     const allPlayers = new Set();
-    for (const part of parts) {
-      if (part.killer_id) allPlayers.add(String(part.killer_id));
-      if (part.victim_id) allPlayers.add(String(part.victim_id));
-    }
+    for (const part of parts){ if(part.killer_id) allPlayers.add(String(part.killer_id)); if(part.victim_id) allPlayers.add(String(part.victim_id)); }
     allPlayers.forEach(id => ensure(id));
 
-    // record ratings before
-    const beforeMap = new Map();
-    allPlayers.forEach(id => beforeMap.set(id, ratings[id]));
+    const beforeMap = new Map(); allPlayers.forEach(id => beforeMap.set(id, ratings[id]));
     fightRatingsBefore.set(fid, beforeMap);
     fightEloDeltas.set(fid, new Map());
 
     const numParts = parts.length;
-    for (const part of parts) {
-      const k = String(part.killer_id);
-      const v = String(part.victim_id);
+    for (const part of parts){
+      const k = String(part.killer_id); const v = String(part.victim_id);
       const fairness = (Number(part.enemy_focus_percent||0)/100) * (Number(part.my_focus_percent||0)/100) / (1+Number(part.last_hit||0)/60);
+      const key = pairKey(k,v); const stats = pairStats.get(key); const freq = effectiveFrequency(stats, fightIndex);
+      let freqFactor = 1; if(numParts > 1) freqFactor = 1/Math.sqrt(freq);
+      let thisKValue = (KValue * fairness * freqFactor) / numParts; if (Number(part.last_hit||0)*2 > Number(part.since_fight_start||0)) thisKValue = 0;
 
-      let freqFactor = 1
-      const key = pairKey(k,v);
-      const stats = pairStats.get(key);
-      const freq = effectiveFrequency(stats, fightIndex);
-
-      if (numParts > 1) {
-        freqFactor = 1/Math.sqrt(freq);
-      }
-
-      let thisKValue = (KValue * fairness * freqFactor) / numParts;
-      if (Number(part.last_hit||0)*2 > Number(part.since_fight_start||0)) {
-        thisKValue = 0;
-      }
-
-      // count win/loss
-      if (thisKValue == 0) {
-        unfairWins[k] = (unfairWins[k] || 0) + 1/numParts;
-      } else {
-        wins[k] = (wins[k] || 0) + 1/numParts;
-      }
+      if (thisKValue == 0) unfairWins[k] = (unfairWins[k] || 0) + 1/numParts; else wins[k] = (wins[k] || 0) + 1/numParts;
       losses[v] = (losses[v] || 0) + 1/numParts;
 
-      // apply Elo
-      const rK = ratings[k];
-      const rV = ratings[v];
-      let [newK, newV] = applyElo(rK, rV, thisKValue);
-      ratings[k] = newK;
-      ratings[v] = newV;
+      const rK = ratings[k]; const rV = ratings[v]; let [newK, newV] = applyElo(rK, rV, thisKValue);
+      if (newK < 1000) newK += 1; if (newV < 1000) newV += 1;
+      ratings[k] = newK; ratings[v] = newV;
 
-      // update pair stats after
-      if(!stats) pairStats.set(key,{count:1,lastFightIndex:fightIndex});
-      else{ stats.count++; stats.lastFightIndex=fightIndex; }
+      if(!stats) pairStats.set(key,{count:1,lastFightIndex:fightIndex}); else{ stats.count++; stats.lastFightIndex=fightIndex; }
     }
 
-    // after fight compute deltas and append to playerHistory
-    const afterMap = new Map();
-    allPlayers.forEach(id => {
-      const before = beforeMap.get(id) || INITIAL_RATING;
-      const after = ratings[id];
-      const delta = Math.round(after - before);
-      fightEloDeltas.get(fid).set(id, delta);
-      afterMap.set(id, after);
-
-      const hist = playerHistory.get(id) || [];
-      hist.push({ fight_id: fid, before: before, after: after });
-      playerHistory.set(id, hist);
-    });
+    const afterMap = new Map(); allPlayers.forEach(id => { const before = beforeMap.get(id) || INITIAL_RATING; const after = ratings[id]; const delta = Math.round(after - before); fightEloDeltas.get(fid).set(id, delta); afterMap.set(id, after); const hist = playerHistory.get(id) || []; hist.push({ fight_id: fid, before: before, after: after }); playerHistory.set(id, hist); });
     fightRatingsAfter.set(fid, afterMap);
 
-    // build snapshot rows (leaderboard at this point)
-    const rows = Array.from(Object.keys(ratings)).map(id => {
-      const current = ratings[id];
-      const hist = playerHistory.get(id) || [];
-      const peak = hist.length ? Math.max(...hist.map(h => Math.round(h.after))) : Math.round(current);
-      return {
-        id,
-        peakRating: peak,
-        currentRating: Math.round(current),
-        wins: Math.ceil(wins[id]) || 0,
-        unfairWins: Math.ceil(unfairWins[id]) || 0,
-        lost: Math.ceil(losses[id]) || 0
-      };
-    });
+    const rows = Array.from(Object.keys(ratings)).map(id => { const current = ratings[id]; const hist = playerHistory.get(id) || []; const peak = hist.length ? Math.max(...hist.map(h => Math.round(h.after))) : Math.round(current); return { id, peakRating: peak, currentRating: Math.round(current), wins: Math.ceil(wins[id]) || 0, unfairWins: Math.ceil(unfairWins[id]) || 0, lost: Math.ceil(losses[id]) || 0 }; });
     rows.sort((a,b) => b.peakRating - a.peakRating || a.id.localeCompare(b.id));
-
     snapshots.push({ index: fightIndex, fight_id: fid, rows, ratings: Object.assign({}, ratings) });
-
     fightIndex++;
   }
 
-  // If no fights
   if(snapshots.length === 0){ out.textContent = 'No players found in feed.'; return; }
 
-  // Initialize history controls
-  historyControls.style.display = 'flex';
-  historySlider.min = 0;
-  historySlider.max = Math.max(0, snapshots.length - 1);
-  historySlider.value = snapshots.length - 1; // start on latest
-  historyIndex.textContent = snapshots.length - 1;
-  historyTotal.textContent = snapshots.length - 1;
-  historyLabel.textContent = `Fight: #${snapshots[snapshots.length-1].fight_id}`;
-
-  let playInterval = null;
-  function setPlay(v){
-    if(v){
-      playBtn.textContent = 'Pause ⏸';
-      playBtn.dataset.playing = '1';
-      playInterval = setInterval(()=>{
-        const v = Number(historySlider.value);
-        if(v < Number(historySlider.max)) historySlider.value = v+1;
-        else historySlider.value = historySlider.min;
-        renderSnapshot(Number(historySlider.value));
-      }, 50);
-    } else {
-      playBtn.textContent = 'Play ▶';
-      playBtn.dataset.playing = '';
-      if(playInterval) { clearInterval(playInterval); playInterval = null; }
-    }
-  }
-
-  playBtn.addEventListener('click', ()=>{ setPlay(!playBtn.dataset.playing); });
-  stepBack.addEventListener('click', ()=>{ historySlider.value = Math.max(Number(historySlider.min), Number(historySlider.value) - 1); renderSnapshot(Number(historySlider.value)); });
-  stepForward.addEventListener('click', ()=>{ historySlider.value = Math.min(Number(historySlider.max), Number(historySlider.value) + 1); renderSnapshot(Number(historySlider.value)); });
-  historySlider.addEventListener('input', (e)=>{ renderSnapshot(Number(e.target.value)); });
-
-  // Render snapshot into the table
   let currentSnapshotIndex = snapshots.length - 1;
-  const table = document.createElement('table');
-  out.innerHTML = '';
-  out.appendChild(table);
 
-  // state for cluster interactions
-  let lastClusters = null; // {k, assignments: Map(id->cluster), centroids: []}
-  let highlightedCluster = null; // index
+  const table = document.createElement('table'); out.innerHTML = ''; out.appendChild(table);
+
+  // sorting mode
+  let sortMode = 'peak';
+  function updateSortButton(){ sortBtn.textContent = sortMode === 'peak' ? 'Sort: Peak ▼' : 'Sort: Current ▼'; }
+  updateSortButton();
+  sortBtn.addEventListener('click', ()=>{ sortMode = sortMode === 'peak' ? 'current' : 'peak'; updateSortButton(); renderSnapshot(currentSnapshotIndex); });
+
+  function compareRows(a,b){ if(sortMode === 'peak') return b.peakRating - a.peakRating || a.id.localeCompare(b.id); return b.currentRating - a.currentRating || a.id.localeCompare(b.id); }
 
   function renderSnapshot(idx){
-    currentSnapshotIndex = idx;
-    const snap = snapshots[idx];
-    historyIndex.textContent = idx;
-    historyLabel.textContent = `Fight: #${snap.fight_id}`;
+    currentSnapshotIndex = idx; const snap = snapshots[idx]; const rows = snap.rows.slice(); rows.sort(compareRows);
+    const rowsHtml = rows.map((r,i)=>{ const color = colorForId(r.id, 72, 85); return `
+        <tr class="clickable" data-id="${r.id}">
+          <td>${i+1}</td>
+          <td class="mono"><button class="id-btn mono" data-id="${r.id}" style="color:${color};">${r.id}</button></td>
+          <td>${r.peakRating}</td>
+          <td>${r.currentRating}</td>
+          <td>${r.wins} <span style="font-size: 10px; color:gray">+ (${r.unfairWins})</span></td>
+          <td>${r.lost}</td>
+        </tr>`; }).join('');
 
-    const rows = snap.rows;
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th style="width:48px">#</th>
+          <th>ID</th>
+          <th style="width:110px">Peak Rating</th>
+          <th style="width:110px">Current Rating</th>
+          <th style="width:80px">Wins</th>
+          <th style="width:80px">Lost</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>`;
 
-    // build rows html using colorForId
-    const rowsHtml = rows.map((r,i)=>{
-      const color = colorForId(r.id, 72, 85);
-      // if a cluster is highlighted, dim non-members
-      const dimClass = (lastClusters && highlightedCluster !== null && lastClusters.assignments.get(r.id) !== highlightedCluster) ? 'dimmed' : '';
-      return `\n        <tr class="clickable ${dimClass}" data-id="${r.id}">\n          <td>${i+1}</td>\n          <td class="mono"><button class="id-btn mono" data-id="${r.id}" style="color:${color};">${r.id}</button></td>\n          <td>${r.peakRating}</td>\n          <td>${r.currentRating}</td>\n          <td>${r.wins} <span style="font-size: 10px; color:gray">+ (${r.unfairWins})</span></td>\n          <td>${r.lost}</td>\n        </tr>`;
-    }).join('');
-
-    table.innerHTML = `\n      <thead>\n        <tr>\n          <th style="width:48px">#</th>\n          <th>ID</th>\n          <th style="width:110px">Peak Rating</th>\n          <th style="width:110px">Current Rating</th>\n          <th style="width:80px">Wins</th>\n          <th style="width:80px">Lost</th>\n        </tr>\n      </thead>\n      <tbody>\n        ${rowsHtml}\n      </tbody>`;
-
-    // reattach click handler
     table.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', ev => { const id = tr.getAttribute('data-id'); if(id) openPanelFor(id); }));
-
-    // attach direct id button handlers (in case user clicks name)
     table.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if(id) openPanelFor(id); }));
   }
 
-  // initial render (latest)
   renderSnapshot(currentSnapshotIndex);
 
-  // Chart instance
   let ratingChart = null;
 
-  // Utilities to classify fights for a selected id
   function classifyFight(selectedId, fightContribs){
-    const killers = new Set();
-    const victims = new Set();
-    for(const p of fightContribs){
-      if(p.killer_id) killers.add(String(p.killer_id));
-      if(p.victim_id) victims.add(String(p.victim_id));
-    }
-    const numKillers = killers.size;
-    const numVictims = victims.size;
-
-    const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
-
+    const killers = new Set(); const victims = new Set(); for(const p of fightContribs){ if(p.killer_id) killers.add(String(p.killer_id)); if(p.victim_id) victims.add(String(p.victim_id)); }
+    const numKillers = killers.size; const numVictims = victims.size; const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
     let my_focus = 0, enemy_focus = 0, me_dmg_enemy = 0, enemy_dmg_me = 0;
-    if(myContribs.length > 0){
-      const prefer = myContribs.find(p => String(p.killer_id) === selectedId) || myContribs[0];
-      my_focus = Number(prefer.my_focus_percent ?? 0);
-      enemy_focus = Number(prefer.enemy_focus_percent ?? 0);
-      me_dmg_enemy = Number(prefer.me_dmg_enemy ?? 0);
-      enemy_dmg_me = Number(prefer.enemy_dmg_me ?? 0);
-    } else {
-      for(const p of fightContribs){
-        for(const v of Object.values(p)){
-          if(String(v) === selectedId){
-            my_focus = Number(p.my_focus_percent ?? 0);
-            enemy_focus = Number(p.enemy_focus_percent ?? 0);
-            me_dmg_enemy = Number(p.me_dmg_enemy ?? 0);
-            enemy_dmg_me = Number(p.enemy_dmg_me ?? 0);
-            break;
-          }
-        }
-      }
-    }
-
-    const didKill = fightContribs.some(p => String(p.killer_id) === selectedId);
-    const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
-    const participatedByDamage = me_dmg_enemy > 0;
-    const bossRaided = (numKillers >= 2 && numVictims === 1);
-    const focusDiff = Math.abs(my_focus - enemy_focus);
-
-    let outcomeText = 'Participated';
-    let classTag = 'Unknown';
-
-    if(didKill){
-      outcomeText = 'Won';
-      if(bossRaided) {
-        if (wasVictim) {
-          classTag = 'Boss-raided (win)'
-        } else {
-          classTag = 'helped gank (win)'
-        }
-      } else if (numKillers > 1 && numVictims > 1) classTag = 'Group win';
-      else {
-        if(focusDiff <= 25) classTag = 'Fair win';
-        else if(my_focus > enemy_focus) classTag = 'Won (???)';
-        else classTag = 'unfair Win (did not focus enough on victim|enemy)';
-      }
-    } else if (wasVictim){
-      outcomeText = 'Lost';
-      if(bossRaided) {
-        classTag = 'got ganked (loss)';
-      } else {
-        if(focusDiff <= 25) classTag = 'Fair loss';
-        else if(enemy_focus > my_focus) classTag = 'unfair Loss (did not focus enough on victim|enemy)';
-        else classTag = 'Lost (???)';
-      }
-    } else if (participatedByDamage){
-      outcomeText = 'Assisted';
-      classTag = 'Assisted a kill';
-    } else {
-      outcomeText = 'unknown';
-      classTag = 'unknown? no dmg';
-    }
-
-    return {
-      outcomeText, classTag,
-      numKillers, numVictims,
-      my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me,
-      killers: Array.from(killers), victims: Array.from(victims)
-    };
+    if(myContribs.length > 0){ const prefer = myContribs.find(p => String(p.killer_id) === selectedId) || myContribs[0]; my_focus = Number(prefer.my_focus_percent ?? 0); enemy_focus = Number(prefer.enemy_focus_percent ?? 0); me_dmg_enemy = Number(prefer.me_dmg_enemy ?? 0); enemy_dmg_me = Number(prefer.enemy_dmg_me ?? 0); } else { for(const p of fightContribs){ for(const v of Object.values(p)){ if(String(v) === selectedId){ my_focus = Number(p.my_focus_percent ?? 0); enemy_focus = Number(p.enemy_focus_percent ?? 0); me_dmg_enemy = Number(p.me_dmg_enemy ?? 0); enemy_dmg_me = Number(p.enemy_dmg_me ?? 0); break; } } } }
+    const didKill = fightContribs.some(p => String(p.killer_id) === selectedId); const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId); const participatedByDamage = me_dmg_enemy > 0; const bossRaided = (numKillers >= 2 && numVictims === 1); const focusDiff = Math.abs(my_focus - enemy_focus);
+    let outcomeText = 'Participated'; let classTag = 'Unknown';
+    if(didKill){ outcomeText = 'Won'; if(bossRaided){ if(wasVictim) classTag = 'Boss-raided (win)'; else classTag = 'helped gank (win)'; } else if (numKillers > 1 && numVictims > 1) classTag = 'Group win'; else { if(focusDiff <= 25) classTag = 'Fair win'; else if(my_focus > enemy_focus) classTag = 'Won (???)'; else classTag = 'unfair Win (did not focus enough on victim|enemy)'; } }
+    else if (wasVictim){ outcomeText = 'Lost'; if(bossRaided) classTag = 'got ganked (loss)'; else { if(focusDiff <= 25) classTag = 'Fair loss'; else if(enemy_focus > my_focus) classTag = 'unfair Loss (did not focus enough on victim|enemy)'; else classTag = 'Lost (???)'; } }
+    else if (participatedByDamage){ outcomeText = 'Assisted'; classTag = 'Assisted a kill'; } else { outcomeText = 'unknown'; classTag = 'unknown? no dmg'; }
+    return { outcomeText, classTag, numKillers, numVictims, my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me, killers: Array.from(killers), victims: Array.from(victims) };
   }
 
-  // Build list of fights for a selected id (all fights where they appear as killer or victim) but limited to current snapshot
   function getFightsForId(selectedId){
-    const maxFightId = snapshots[currentSnapshotIndex].fight_id;
-    const list = [];
-    for(const [fid, parts] of fightsById.entries()){
-      if(Number(fid) > Number(maxFightId)) continue; // only include fights up to the current snapshot
-      const appears = parts.some(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
-      if(appears){ list.push({ fight_id: fid, parts }); }
-    }
-    list.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0)); // chronological asc
-    return list;
+    const maxFightId = snapshots[currentSnapshotIndex].fight_id; const list = [];
+    for(const [fid, parts] of fightsById.entries()){ if(Number(fid) > Number(maxFightId)) continue; const appears = parts.some(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId); if(appears) list.push({ fight_id: fid, parts }); }
+    list.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0)); return list;
   }
 
-  // Render Chart for a selected player (limited to current snapshot)
-  function renderChartForPlayer(id, fightsList){
-    const histFull = playerHistory.get(id) || [];
-    const maxFightId = snapshots[currentSnapshotIndex].fight_id;
-    const hist = histFull.filter(h => Number(h.fight_id) <= Number(maxFightId));
-
-    if(hist.length === 0){
-      if(ratingChart){ ratingChart.destroy(); ratingChart = null; }
-      const ctx = chartCanvas.getContext('2d'); ctx.clearRect(0,0,chartCanvas.width,chartCanvas.height); return;
-    }
-
+  function renderChartForPlayer(id){
+    const histFull = playerHistory.get(id) || []; const maxFightId = snapshots[currentSnapshotIndex].fight_id; const hist = histFull.filter(h => Number(h.fight_id) <= Number(maxFightId));
+    if(hist.length === 0){ if(ratingChart) { ratingChart.destroy(); ratingChart = null; } const ctx = chartCanvas.getContext('2d'); ctx.clearRect(0,0,chartCanvas.width,chartCanvas.height); return; }
     const labels = hist.map(h => `#${h.fight_id}`);
     const beforeData = hist.map(h => Math.round(h.before));
-    const afterData = hist.map(h => Math.round(h.after));
-
-    const winLossPerFight = hist.map(h => {
-      const fid = String(h.fight_id);
-      const parts = fightsById.get(fid) || [];
-      if(parts.some(p => String(p.killer_id) === id)) return 1;
-      if(parts.some(p => String(p.victim_id) === id)) return -1;
-      return 0;
-    });
-
-    const gainData = []; let running = 0;
-    for(let i=0;i<winLossPerFight.length;i++){ running += winLossPerFight[i]; gainData.push(running); }
-
-    const ctx = chartCanvas.getContext('2d');
-    if(ratingChart) ratingChart.destroy();
-
-    ratingChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Rating', data: beforeData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y' },
-          { label: 'Gain (+1 win, -1 loss)', data: gainData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y1' }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: { tooltip: { callbacks: { label: function(ctx){ const d = ctx.dataset.label || ''; const idx = ctx.dataIndex; if((d||'').toLowerCase().includes('gain')){ const v = gainData[idx]; return `${d}: ${v}`; } else { const before = beforeData[idx]; const after = afterData[idx]; return `${d}: ${before} → ${after}`; } } } }, legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: false, ticks: { precision: 0 } }, y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { precision: 0 } } }
-      }
-    });
+    const winLossPerFight = hist.map(h => { const fid = String(h.fight_id); const parts = fightsById.get(fid) || []; if(parts.some(p => String(p.killer_id) === id)) return 1; if(parts.some(p => String(p.victim_id) === id)) return -1; return 0; });
+    const gainData = []; let running = 0; for(let i=0;i<winLossPerFight.length;i++){ running += winLossPerFight[i]; gainData.push(running); }
+    const ctx = chartCanvas.getContext('2d'); if(ratingChart) ratingChart.destroy();
+    ratingChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [ { label: 'Rating', data: beforeData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y' }, { label: 'Gain (+1 win, -1 loss)', data: gainData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y1' } ] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { tooltip: { callbacks: { label: function(ctx){ const d = ctx.dataset.label || ''; const idx = ctx.dataIndex; if((d||'').toLowerCase().includes('gain')){ const v = gainData[idx]; return `${d}: ${v}`; } else { const before = beforeData[idx]; return `${d}: ${before}`; } } } }, legend: { position: 'bottom' } }, scales: { y: { beginAtZero: false, ticks: { precision: 0 } }, y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { precision: 0 } } } } });
   }
 
-  // open panel and render selected player's fights (up to current snapshot)
   function openPanelFor(id){
     panelTitle.textContent = 'Player: ' + id + ` · Won ${wins[id] || 0} / Lost ${losses[id] || 0} / UnfairWin ${Math.floor((unfairWins[id]/(wins[id]||1))*100) || 0}%`;
     panelContent.innerHTML = '';
-
     const fightsList = getFightsForId(id);
-    if(fightsList.length === 0){
-      panelContent.innerHTML = '<div class="small-muted">No fights found for this player in the current feed snapshot.</div>';
-      renderChartForPlayer(id, []);
-      panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); return;
+    renderChartForPlayer(id);
+
+    // allies/enemies summary (simple)
+    const allyCounts = new Map(); const enemyCounts = new Map();
+    for(const f of fightsList){ const parts = f.parts || []; const killers = Array.from(new Set(parts.filter(p=>p.killer_id).map(p=>String(p.killer_id)))); const victims = Array.from(new Set(parts.filter(p=>p.victim_id).map(p=>String(p.victim_id)))); if(killers.includes(id)) for(const k of killers){ if(k===id) continue; allyCounts.set(k, (allyCounts.get(k)||0)+1); } if(victims.includes(id)) for(const k of killers){ if(k===id) continue; enemyCounts.set(k, (enemyCounts.get(k)||0)+1); } }
+
+    function topNFromMap(m, n, exclude = new Set()) {
+      return Array.from(m.entries())
+        .filter(([name]) => !exclude.has(name))
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, n);
     }
 
-    renderChartForPlayer(id, fightsList);
+    const topAllies = topNFromMap(allyCounts, 3);
 
-    // compute allies/enemies limited to snapshot
-    const allyCounts = new Map();
-    const enemyCounts = new Map();
-    for(const f of fightsList){
-      const parts = f.parts || [];
-      const killers = Array.from(new Set(parts.filter(p=>p.killer_id).map(p=>String(p.killer_id))));
-      const victims = Array.from(new Set(parts.filter(p=>p.victim_id).map(p=>String(p.victim_id))));
-
-      if(killers.includes(id)) for(const k of killers){ if(k===id) continue; allyCounts.set(k, (allyCounts.get(k)||0)+1); }
-      if(victims.includes(id)) for(const k of killers){ if(k===id) continue; enemyCounts.set(k, (enemyCounts.get(k)||0)+1); }
-
-      // simple adjust between ally/enemy counts
-      for (const [k, allyVal] of allyCounts.entries()) {
-        const enemyVal = enemyCounts.get(k) || 0;
-        if (enemyVal > 0) {
-          const diff = Math.min(allyVal, enemyVal)*2;
-          allyCounts.set(k, Math.max(0, allyVal - diff));
-          enemyCounts.set(k, Math.max(0, enemyVal - diff));
-        }
-      }
-    }
-
-    function topNFromMap(m, n){ return Array.from(m.entries()).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,n); }
-    const topAllies = topNFromMap(allyCounts, 2);
-    const topEnemies = topNFromMap(enemyCounts, 2);
+    // exclude ally names when picking enemies
+    const allyNames = new Set(topAllies.map(([name]) => name));
+    const topEnemies = topNFromMap(enemyCounts, 3, allyNames);
 
     const listsWrap = document.createElement('div'); listsWrap.style.display='flex'; listsWrap.style.gap='12px'; listsWrap.style.marginBottom='10px';
-    const alliesDiv = document.createElement('div');
-    alliesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top allies</div>` + (topAllies.length===0? '<div class="small-muted">No allies found</div>' : '<ul style="margin:0;padding-left:18px">' + topAllies.map(([aid,cnt])=>`<li><button class="id-btn mono" data-id="${aid}" style="color:${colorForId(aid)}">${aid}</button> - contributed ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
-
-    const enemiesDiv = document.createElement('div');
-    enemiesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top enemies</div>` + (topEnemies.length===0? '<div class="small-muted">No enemies found</div>' : '<ul style="margin:0;padding-left:18px">' + topEnemies.map(([eid,cnt])=>`<li><button class="id-btn mono" data-id="${eid}" style="color:${colorForId(eid)}">${eid}</button> - contributed in ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
-
+    const alliesDiv = document.createElement('div'); alliesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top allies</div>` + (topAllies.length===0? '<div class="small-muted">No allies found</div>' : '<ul style="margin:0;padding-left:18px">' + topAllies.map(([aid,cnt])=>`<li><button class="id-btn mono" data-id="${aid}" style="color:${colorForId(aid)}">${aid}</button> - ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
+    const enemiesDiv = document.createElement('div'); enemiesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top enemies</div>` + (topEnemies.length===0? '<div class="small-muted">No enemies found</div>' : '<ul style="margin:0;padding-left:18px">' + topEnemies.map(([eid,cnt])=>`<li><button class="id-btn mono" data-id="${eid}" style="color:${colorForId(eid)}">${eid}</button> - ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
     listsWrap.appendChild(alliesDiv); listsWrap.appendChild(enemiesDiv); panelContent.appendChild(listsWrap);
 
-    panelContent.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', (ev) => { ev.stopPropagation(); const targetId = btn.getAttribute('data-id'); if(targetId) openPanelFor(targetId); }));
-
-    // render fight cards (reverse chronological within snapshot)
+    // fight cards (recent first)
     fightsList.sort((a,b) => (Number(b.fight_id)||0) - (Number(a.fight_id)||0));
-
-    for(const f of fightsList){
-      const info = classifyFight(id, f.parts);
-      const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map();
-      const ratingBeforeFloat = beforeMap.get(id);
-      const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING);
-      const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map();
-      const eloDelta = fmap.get(id) || 0;
-      const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero');
-      const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
-
-      // build killers/victims colored buttons
+    for(const f of fightsList){ const info = classifyFight(id, f.parts); const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map(); const ratingBeforeFloat = beforeMap.get(id); const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING); const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map(); const eloDelta = fmap.get(id) || 0; const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero'); const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
       const killersHtml = info.killers.map(k => `<button class="id-btn mono" data-id="${k}" style="color:${colorForId(k)}">${k}</button>`).join(', ');
       const victimsHtml = info.victims.map(v => `<button class="id-btn mono" data-id="${v}" style="color:${colorForId(v)}">${v}</button>`).join(', ');
-
-      const div = document.createElement('div'); div.className = 'fight';
-      const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
+      const div = document.createElement('div'); div.className = 'fight'; const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
       div.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
@@ -669,11 +344,8 @@
           <span class="tag">me_dmg ${info.me_dmg_enemy}</span>
           <span class="tag">enemy_dmg ${info.enemy_dmg_me}</span>
         </div>
-      `;
-      panelContent.appendChild(div);
-    }
+      `; panelContent.appendChild(div); }
 
-    // attach handlers for id buttons in panel (again, after fight cards appended)
     panelContent.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if(id) openPanelFor(id); }));
 
     panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); panel.scrollTop = 0;
@@ -681,149 +353,6 @@
 
   function closePanel(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); }
   closeBtn.addEventListener('click', closePanel);
-
-  // ---- Clustering utilities (simple KMeans on current ratings) ----
-  function currentRatingsArray(){
-    const snap = snapshots[currentSnapshotIndex];
-    const arr = [];
-    for(const r of snap.rows){
-      arr.push({ id: r.id, x: (snap.ratings[r.id] || INITIAL_RATING) });
-    }
-    return arr;
-  }
-
-  function kmeans(data, k, maxIt=40){
-    if(data.length === 0) return null;
-    // initialize centroids by sampling k unique points
-    const centroids = [];
-    // deterministic spread: pick k quantiles
-    const sorted = data.map(d=>d.x).slice().sort((a,b)=>a-b);
-    for(let i=0;i<k;i++){
-      const qi = Math.floor((i + 0.5) * sorted.length / k);
-      centroids.push(sorted[Math.min(sorted.length-1, Math.max(0, qi))]);
-    }
-
-    let assignments = new Array(data.length).fill(0);
-    for(let it=0; it<maxIt; it++){
-      let changed = false;
-      // assign
-      for(let i=0;i<data.length;i++){
-        let best = 0, bestd = Math.abs(data[i].x - centroids[0]);
-        for(let c=1;c<centroids.length;c++){
-          const d = Math.abs(data[i].x - centroids[c]);
-          if(d < bestd){ best = c; bestd = d; }
-        }
-        if(assignments[i] !== best){ changed = true; assignments[i] = best; }
-      }
-      // recompute centroids
-      const sums = new Array(centroids.length).fill(0);
-      const counts = new Array(centroids.length).fill(0);
-      for(let i=0;i<data.length;i++){ const c = assignments[i]; sums[c] += data[i].x; counts[c]++; }
-      for(let c=0;c<centroids.length;c++){
-        if(counts[c] > 0) centroids[c] = sums[c] / counts[c];
-      }
-      if(!changed) break;
-    }
-    // build map id->cluster
-    const map = new Map();
-    for(let i=0;i<data.length;i++) map.set(data[i].id, assignments[i]);
-    return { assignments: map, centroids };
-  }
-
-  // open/close cluster panel (and shift main player panel so they don't overlap)
-  openClusterBtn.addEventListener('click', ()=>{
-    clusterPanel.classList.add('open'); clusterPanel.setAttribute('aria-hidden','false');
-    // shift the player panel to the left by cluster width to avoid overlap
-    const w = clusterPanel.offsetWidth;
-    panel.style.right = w + 'px';
-    // run default clustering for current k
-    renderClusters(Number(clusterKRange.value));
-  });
-  closeClusterBtn.addEventListener('click', ()=>{ clusterPanel.classList.remove('open'); clusterPanel.setAttribute('aria-hidden','true'); panel.style.right = '0px'; });
-
-  // keep panel shifted correctly on resize while cluster panel is open
-  window.addEventListener('resize', ()=>{ if(clusterPanel.classList.contains('open')) panel.style.right = clusterPanel.offsetWidth + 'px'; });
-
-  function renderClusters(k){
-    const data = currentRatingsArray();
-    if(data.length === 0) { clusterSummary.textContent = 'No players to cluster.'; return; }
-    const res = kmeans(data, k);
-    if(!res) { clusterSummary.textContent = 'Clustering failed.'; return; }
-    lastClusters = { k, assignments: res.assignments, centroids: res.centroids };
-    highlightedCluster = null;
-
-    // build clusters lists
-    const buckets = new Array(k).fill(0).map(()=>[]);
-    for(const d of data){ const idx = res.assignments.get(d.id); buckets[idx].push(d); }
-
-    clusterList.innerHTML = '';
-    for(let i=0;i<k;i++){
-      const members = buckets[i];
-      const color = `hsl(${(i*53)%360},75%,62%)`;
-      const div = document.createElement('div'); div.className = 'cluster-item';
-      div.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:12px;height:12px;border-radius:4px;background:${color}"></div>
-          <div>
-            <div style="font-weight:600">Cluster[${i+1}] · ${members.length} members</div>
-            <div style="font-size:12px;color:var(--muted)">centroid ${Math.round(res.centroids[i])}</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn" data-cluster="${i}" style="margin-right:6px">Highlight</button>
-          <button class="btn" data-focus="${i}">Focus</button>
-        </div>
-      `;
-      const membersDiv = document.createElement('div'); membersDiv.className = 'cluster-members';
-      membersDiv.innerHTML = members.slice(0,12).map(m=>`<button class="id-btn mono" data-id="${m.id}" style="color:${colorForId(m.id)};margin-right:6px">${m.id}</button>`).join('');
-      clusterList.appendChild(div);
-      clusterList.appendChild(membersDiv);
-    }
-
-    clusterSummary.textContent = `Clusters computed for snapshot #${snapshots[currentSnapshotIndex].fight_id}`;
-
-    // attach handlers
-    clusterList.querySelectorAll('button[data-cluster]').forEach(btn=>btn.addEventListener('click', ()=>{
-      const idx = Number(btn.getAttribute('data-cluster'));
-      highlightedCluster = idx;
-      renderSnapshot(currentSnapshotIndex);
-    }));
-    clusterList.querySelectorAll('button[data-focus]').forEach(btn=>btn.addEventListener('click', ()=>{
-      const idx = Number(btn.getAttribute('data-focus'));
-      // filter leaderboard to only cluster members
-      const ids = new Set();
-      for(const [id, cidx] of lastClusters.assignments.entries()) if(cidx === idx) ids.add(id);
-      // rebuild table showing only members
-      const snap = snapshots[currentSnapshotIndex];
-      const rows = snap.rows.filter(r=>ids.has(r.id));
-      // sort by peak
-      rows.sort((a,b)=>b.peakRating - a.peakRating || a.id.localeCompare(b.id));
-      const rowsHtml = rows.map((r,i)=>`\n        <tr class="clickable" data-id="${r.id}">\n          <td>${i+1}</td>\n          <td class="mono"><button class="id-btn mono" data-id="${r.id}" style="color:${colorForId(r.id)}">${r.id}</button></td>\n          <td>${r.peakRating}</td>\n          <td>${r.currentRating}</td>\n          <td>${r.wins} <span style="font-size: 10px; color:gray">+ (${r.unfairWins})</span></td>\n          <td>${r.lost}</td>\n        </tr>`).join('');
-      table.innerHTML = `\n      <thead>\n        <tr>\n          <th style="width:48px">#</th>\n          <th>ID</th>\n          <th style="width:110px">Peak Rating</th>\n          <th style="width:110px">Current Rating</th>\n          <th style="width:80px">Wins</th>\n          <th style="width:80px">Lost</th>\n        </tr>\n      </thead>\n      <tbody>\n        ${rowsHtml}\n      </tbody>`;
-      // attach handlers like usual
-      table.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', ev => { const id = tr.getAttribute('data-id'); if(id) openPanelFor(id); }));
-      table.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if(id) openPanelFor(id); }));
-
-    }));
-
-  }
-
-  runCluster.addEventListener('click', ()=>{
-    const k = Math.max(2, Math.min(12, Number(clusterKRange.value) || 4));
-    clusterKVal.textContent = String(k);
-    renderClusters(k);
-  });
-
-  // update value display while sliding and auto-run clusters (no typing needed)
-  clusterKRange.addEventListener('input', ()=>{ 
-    const k = Math.max(2, Math.min(12, Number(clusterKRange.value) || 4));
-    clusterKVal.textContent = String(k);
-    // auto-run as user slides
-    if(clusterPanel.classList.contains('open')) renderClusters(k);
-  });
-
-  // auto-run on open (latest snapshot)
-  openClusterBtn.addEventListener('click', ()=>{ clusterKVal.textContent = clusterKRange.value; renderClusters(Number(clusterKRange.value || 4)); });
 
 })();
 </script>
