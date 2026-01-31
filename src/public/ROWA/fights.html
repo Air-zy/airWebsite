@@ -192,7 +192,10 @@
       losses[v] = (losses[v] || 0) + 1/numParts;
 
       const rK = ratings[k]; const rV = ratings[v]; let [newK, newV] = applyElo(rK, rV, thisKValue);
-      if (newK < 1000) newK += 1; if (newV < 1000) newV += 1;
+
+      if (newK < 1000) newK += (thisKValue/KValue)*freqFactor;
+      if (newV < 1000) newV += (thisKValue/KValue)*freqFactor;
+
       ratings[k] = newK; ratings[v] = newV;
 
       if(!stats) pairStats.set(key,{count:1,lastFightIndex:fightIndex}); else{ stats.count++; stats.lastFightIndex=fightIndex; }

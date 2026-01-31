@@ -284,7 +284,16 @@
             <div style="padding:12px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.02);">
               <div class="sm">First seen</div>
               <div id="metaFirst" class="value">—</div>
-              <div class="sm" id="playtime">Total playtime —</div>
+
+              <div class="sm" style="margin-top:8px">Last seen</div>
+              <div id="metaLast" class="value">—</div>
+
+              <div class="sm" id="playtime" style="margin-top:8px">Total playtime —</div>
+
+              <div class="sm" style="margin-top:8px">Followed IDs</div>
+              <div id="followedWrap" style="padding-top:6px">
+                <div id="followedList" class="sm">—</div>
+              </div>
             </div>
           </div>
 
@@ -319,7 +328,9 @@
       const stats = document.getElementById('stats');
       const slots = document.getElementById('slots');
       const metaF = document.getElementById('metaFirst');
+      const metaL = document.getElementById('metaLast');
       const play = document.getElementById('playtime');
+      const followedList = document.getElementById('followedList');
       const kb = document.getElementById('kbPre');
       const touch = document.getElementById('touchPre');
       const kc = document.getElementById('kcount');
@@ -452,7 +463,7 @@
         const ctx = canvas.getContext('2d');
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, 0, canvas.width, canvas.height);
         ctx.restore();
       }
 
@@ -581,12 +592,84 @@
         const elo = plrData.elo ?? '—';
         const seed = plrData.seed ?? '—';
         const stat = (l, v, b) => `<div class="stat"><div class="label">${l}</div><div class="${b ? 'big' : 'value'}">${v}</div></div>`;
-        stats.innerHTML = stat('WON', wins) + stat('LOST', loss) + stat('WINRATE', winrate) + stat('ELO', esc(elo)) + stat('SEED', esc(seed));
+
+        let statInnerHTML = stat('WON', wins)
+        + stat('LOST', loss)
+        + stat('WINRATE', winrate)
+        + stat('ELO', esc(elo))
+        //+ stat('SEED', esc(seed));
 
         // Meta
         const plrMeta = plrData.meta || {};
-        metaF.textContent = fmtDate(plrMeta.first);
-        play.textContent = 'Total playtime - ' + fmtPlay(plrMeta.totalPlaytime || 0);
+        const firstJoined = plrMeta.first ? fmtDate(plrMeta.first) : '-';
+        const lastPlayed = plrMeta.last ? fmtDate(plrMeta.last) : '-';
+        metaF.textContent = firstJoined;
+        metaL.textContent = lastPlayed;
+        play.textContent = 'plrSeed - ' + esc(seed)//'Total playtime - ' + fmtPlay(plrMeta.totalPlaytime || 0);
+
+        // followedIds display (robust: accepts array, object or single number)
+        try {
+          const raw = plrMeta.followedIds;
+          if (!raw) {
+            followedList.textContent = '—';
+          } else {
+            let arr = [];
+            if (Array.isArray(raw)) {
+              arr = raw.map(Number).filter(n => !Number.isNaN(n));
+            } else if (typeof raw === 'object') {
+              // common shape: { "123": true, "456": true } OR { "0":123, "1":456 }
+              const keysAsNums = Object.keys(raw).map(k => Number(k)).filter(n => !Number.isNaN(n));
+              const valsAsNums = Object.values(raw).map(v => Number(v)).filter(n => !Number.isNaN(n));
+              arr = Array.from(new Set(keysAsNums.concat(valsAsNums)));
+            } else if (typeof raw === 'number' || (typeof raw === 'string' && /^\d+$/.test(raw))) {
+              const n = Number(raw);
+              if (!Number.isNaN(n)) arr = [n];
+            }
+
+            if (!arr || arr.length === 0) {
+              followedList.textContent = '—';
+            } else {
+              // limit how many we render for UI clarity
+              const maxShow = 10;
+              const show = arr.slice(0, maxShow);
+              followedList.innerHTML = show.map(iid => `
+                <a href="https://www.roblox.com/users/${encodeURIComponent(iid)}/profile" target="_blank" rel="noopener">${esc(iid)}</a>
+              `).join(', ');
+              if (arr.length > maxShow) {
+                followedList.innerHTML += ` and ${arr.length - maxShow} more`;
+              }
+            }
+          }
+        } catch (e) {
+          followedList.textContent = '—';
+        }
+
+        if (plrMeta.totalPlaytime) {
+          statInnerHTML += stat('PlAYTIME', fmtPlay(plrMeta.totalPlaytime || 0));
+        }
+
+        if (plrMeta.clientInfo) {
+          function emojiToTwemojiURL(emoji) {
+            // Convert each character to lowercase hex
+            const codePoints = Array.from(emoji).map(c => c.codePointAt(0).toString(16)).join('-');
+            return `https://twemoji.maxcdn.com/v/latest/72x72/${codePoints}.png`;
+          }
+
+            let info = esc(plrMeta.clientInfo); // escape text
+
+            // Match all flag emojis: two regional indicators (U+1F1E6–U+1F1FF)
+            const flagRegex = /[\u{1F1E6}-\u{1F1FF}]{2}/gu;
+
+            info = info.replace(flagRegex, match => {
+              const url = emojiToTwemojiURL(match);
+              return `<img src="${url}" alt="${match}" style="width:18px;height:18px;vertical-align:middle;margin-left:2px;">`;
+            });
+
+            statInnerHTML += stat('CLIENT INFO', info);
+        }
+
+
+        stats.innerHTML = statInnerHTML
 
         // Keybinds — now pretty-printed with key names
         const k = plrData.keybindData || [];
@@ -714,7 +797,7 @@
 
               const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,var(--accent),#79b8ff)';
 
-              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">\n                  <div class="v">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style="font-weight:800;font-size:15px;margin-left:8px">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style="height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden">\n                  <div style="height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease"></div>\n                </div>\n              `;
 
             // Damage Dealt special case (outgoing success)
             } else if (i === 7) {
@@ -724,7 +807,7 @@
               const pct = totalOutgoing ? (dmg / totalOutgoing * 100) : 0;
               const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,var(--accent),#79b8ff)';
 
-              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">\n                  <div class="v">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style="font-weight:800;font-size:15px;margin-left:8px">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style="height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden">\n                  <div style="height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease"></div>\n                </div>\n              `;
 
             // Outgoing indices: same treatment but use outgoing totals and mapped colors
             } else if (outgoingIdx.includes(i)) {
@@ -734,7 +817,7 @@
               const pct = totalOutgoing ? (dmg / totalOutgoing * 100) : 0;
               const color = sharedColors[idxColorKey[i]] || 'linear-gradient(90deg,#9dd3ff,#60a5fa)';
 
-              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style=\"display:flex;align-items:center;justify-content:space-between;margin-top:6px\">\n                  <div class=\"v\">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style=\"font-weight:800;font-size:15px;margin-left:8px\">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style=\"height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden\">\n                  <div style=\"height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease\"></div>\n                </div>\n              `;
+              item.innerHTML = `\n                <div class="k">${esc(lab)}</div>\n                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">\n                  <div class="v">${fmtN(count)} (${fmtN(dmg)} dmg)</div>\n                  <div style="font-weight:800;font-size:15px;margin-left:8px">${pct ? pct.toFixed(1) + '%' : '—'}</div>\n                </div>\n                <div style="height:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-top:8px;overflow:hidden">\n                  <div style="height:100%;width:${pct.toFixed(2)}%;background:${color};transition:width .4s ease"></div>\n                </div>\n              `;
 
             // single-number feints or unknowns
             } else if (typeof v === 'number') {
