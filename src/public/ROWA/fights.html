@@ -1,75 +1,255 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ROWA2 leaderboard</title>
-<style>
-  :root{color-scheme:dark;--bg:#222222;--card:rgba(30,30,30);--muted:#a6a6a6;--panel:#1b1b1b;}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;}
-  .wrap{min-height:100%;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px;box-sizing:border-box;gap:16px}
-  .card{width:min(880px,95%);border-radius:10px;padding:18px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,0.6);border:1px solid rgb(42,42,42);} 
-  h1{margin:0 0 10px 0;font-size:18px;}
-  table{width:100%;border-collapse:collapse;font-size:14px;}
-  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);} 
-  th{font-weight:600;color:#cfe6ff;}
-  tr.clickable{cursor:pointer;} 
-  tr.clickable:hover{background:rgba(255,255,255,0.015);} 
-  .mono{font-family:ui-monospace,Menlo,Monaco,Roboto Mono,monospace;} 
-  .small{color:var(--muted);font-size:13px;margin-top:8px;} 
-  /* side panel */
-  .panel {
-    position:fixed;
-    right:0; /* default right */
-    top:0;
-    height:100%;
-    width: 50%;
-    min-width: 320px;
-    max-width:50%;
-    background:var(--panel);
-    border-left:1px solid rgba(255,255,255,0.03);
-    transform:translateX(100%); /* hidden by default */
-    transition:transform .22s ease, right .22s ease;
-    z-index:80;
-    padding:16px;
-    box-sizing:border-box;
-    overflow:auto;
-    scrollbar-width: thin;
-  }
-  .panel.open{transform:translateX(0);} 
-  .panel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;} 
-  .panel h2{margin:0;font-size:16px;} 
-  .close{background:transparent;border:0;color:#9fb0d3;cursor:pointer;font-size:14px;padding:6px 8px;border-radius:6px;} 
-  .fight {padding:10px;border-radius:8px;margin-bottom:8px;background:rgb(20 20 20);border:1px solid rgba(255,255,255,0.02);} 
-  .meta{font-size:13px;color:var(--muted);margin-top:6px;} 
-  .tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;margin-right:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.01);} 
-  .outcome-win{color:#b9f6c1;font-weight:700;} 
-  .outcome-lose{color:#ffb4b4;font-weight:700;} 
-  .small-muted{color:var(--muted);font-size:12px} 
-  .klist{font-size:13px;color:#dbeafe;margin-top:6px} 
-  .id-btn{background:transparent;border:0;color:#cfe6ff;cursor:pointer;padding:0;font-family:inherit;font-size:13px}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ROWA2 leaderboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #222222;
+      --card: rgba(30, 30, 30);
+      --muted: #a6a6a6;
+      --panel: #1b1b1b;
+    }
 
-/* Elo delta styles */
-  .delta-plus{color:#b9f6c1;font-weight:700;} 
-  .delta-minus{color:#ffb4b4;font-weight:700;} 
-  .delta-zero{color:var(--muted);font-weight:600;} 
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: var(--bg);
+      color: #e6eef8;
+    }
 
-  /* chart container */
-  .chart-wrap{background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-bottom:12px}
-  canvas{width:100% !important;height:180px !important}
+    .wrap {
+      min-height: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 20px;
+      box-sizing: border-box;
+      gap: 16px
+    }
 
-  /* controls */
-  .controls{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-  .btn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:#cfe6ff;padding:6px 8px;border-radius:6px;cursor:pointer}
-  .small-muted-inline{font-size:12px;color:var(--muted)}
+    .card {
+      width: min(880px, 95%);
+      border-radius: 10px;
+      padding: 18px;
+      background: var(--card);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgb(42, 42, 42);
+    }
 
-  .dimmed{opacity:0.28}
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+    }
 
-  @media (max-width:900px){
-    .panel{min-width:300px}
-  }
-</style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    th {
+      font-weight: 600;
+      color: #cfe6ff;
+    }
+
+    tr.clickable {
+      cursor: pointer;
+    }
+
+    tr.clickable:hover {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .mono {
+      font-family: ui-monospace, Menlo, Monaco, Roboto Mono, monospace;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    /* side panel */
+    .panel {
+      position: fixed;
+      right: 0;
+      /* default right */
+      top: 0;
+      height: 100%;
+      width: 50%;
+      min-width: 320px;
+      max-width: 50%;
+      background: var(--panel);
+      border-left: 1px solid rgba(255, 255, 255, 0.03);
+      transform: translateX(100%);
+      /* hidden by default */
+      transition: transform .22s ease, right .22s ease;
+      z-index: 80;
+      padding: 16px;
+      box-sizing: border-box;
+      overflow: auto;
+      scrollbar-width: thin;
+    }
+
+    .panel.open {
+      transform: translateX(0);
+    }
+
+    .panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .close {
+      background: transparent;
+      border: 0;
+      color: #9fb0d3;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 6px 8px;
+      border-radius: 6px;
+    }
+
+    .fight {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: rgb(20 20 20);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      margin-right: 6px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.01);
+    }
+
+    .outcome-win {
+      color: #b9f6c1;
+      font-weight: 700;
+    }
+
+    .outcome-lose {
+      color: #ffb4b4;
+      font-weight: 700;
+    }
+
+    .small-muted {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .klist {
+      font-size: 13px;
+      color: #dbeafe;
+      margin-top: 6px
+    }
+
+    .id-btn {
+      background: transparent;
+      border: 0;
+      color: #cfe6ff;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      font-size: 13px
+    }
+
+    /* Elo delta styles */
+    .delta-plus {
+      color: #b9f6c1;
+      font-weight: 700;
+    }
+
+    .delta-minus {
+      color: #ffb4b4;
+      font-weight: 700;
+    }
+
+    .delta-zero {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    /* chart container */
+    .chart-wrap {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 12px
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 180px !important
+    }
+
+    /* controls */
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      color: #cfe6ff;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer
+    }
+
+    .small-muted-inline {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .dimmed {
+      opacity: 0.28
+    }
+
+    @media (max-width:900px) {
+      .panel {
+        min-width: 300px
+      }
+    }
+  </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="card" id="app">
@@ -103,184 +283,289 @@
     <div id="panelContent" style="font-size: 12px"></div>
   </aside>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-(async function(){
-  const API = '/api/rowa/fights/recent?limit=10000';
-  const INITIAL_RATING = 800;
-  const KValue = 32*2;
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (async function () {
+      const API = '/api/rowa/fights/recent?limit=10000';
+      const INITIAL_RATING = 800;
+      const KValue = 32 * 2;
 
-  function colorForId(id, lightness=80, sat=85){
-    if(!id) return '#cfe6ff';
-    let h = 0; for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) % 360;
-    return `hsl(${h},${sat}%,${lightness}%)`;
-  }
-
-  // format ISO timestamp into "JAN 1 2026 2AM" using America/Edmonton timezone
-  function formatFightCreatedAt(iso) {
-    if (!iso) return '';
-    try {
-      const dt = new Date(iso);
-      // Use Intl to get parts in the America/Edmonton timezone
-      const fmt = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Edmonton',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        hour12: true
-      });
-      const parts = fmt.formatToParts(dt).reduce((acc, p) => {
-        acc[p.type] = p.value;
-        return acc;
-      }, {});
-      // parts.month -> "Jan", parts.day -> "25", parts.year -> "2026"
-      // parts.hour -> "10", parts.dayPeriod -> "PM"
-      const mon = (parts.month || '').toUpperCase(); // "JAN"
-      const day = parts.day || '';
-      const year = parts.year || '';
-      const hour = (parts.hour || '').replace(/^0+/, '') || '0';
-      const period = (parts.dayPeriod || '').toUpperCase().replace(/\s+/g, '');
-      // produce: "JAN 25 2026 10PM" (no space before AM/PM per requested format)
-      return `${mon} ${day} ${year} ${hour}${period}`;
-    } catch (err) {
-      // fallback: try local formatting
-      try {
-        const d = new Date(iso);
-        const mon = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-        const day = d.getDate();
-        const year = d.getFullYear();
-        let hour = d.getHours();
-        const period = hour >= 12 ? 'PM' : 'AM';
-        hour = hour % 12 || 12;
-        return `${mon} ${day} ${year} ${hour}${period}`;
-      } catch (e) {
-        return iso;
+      function colorForId(id, lightness = 80, sat = 85) {
+        if (!id) return '#cfe6ff';
+        let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+        return `hsl(${h},${sat}%,${lightness}%)`;
       }
-    }
-  }
 
-  const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA)/400));
-  const applyElo = (rW, rL, K) => { const eW = expected(rW, rL); return [ rW + K * (1 - eW), rL + K * (0 - (1 - eW)) ]; };
+      function formatFightCreatedAt(iso) {
+        if (!iso) return '';
+        try {
+          const dt = new Date(iso);
 
-  const out = document.getElementById('output');
-  const panel = document.getElementById('panel');
-  const panelTitle = document.getElementById('panelTitle');
-  const panelContent = document.getElementById('panelContent');
-  const closeBtn = document.getElementById('closeBtn');
-  const chartCanvas = document.getElementById('ratingChart');
-  const sortBtn = document.getElementById('sortBtn');
+          // Format with Intl in America/Edmonton and get parts
+          const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Edmonton',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
 
-  let contributions = [];
-  try {
-    const res = await fetch(API, {cache:'no-store'});
-    if(!res.ok) throw new Error('fetch status ' + res.status);
-    const json = await res.json();
-    contributions = Array.isArray(json.contributions) ? json.contributions.slice() : [];
-  } catch(err) {
-    out.textContent = 'Failed to load fights feed: ' + (err && err.message ? err.message : String(err));
-    console.error(err);
-    return;
-  }
+          const parts = fmt.formatToParts(dt).reduce((acc, p) => {
+            acc[p.type] = p.value;
+            return acc;
+          }, {});
 
-  contributions.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0));
+          // Month: "Jan" -> ensure proper casing "Jan"
+          let mon = parts.month || '';
+          mon = mon.charAt(0).toUpperCase() + mon.slice(1).toLowerCase();
 
-  const fightsById = new Map();
-  for(const c of contributions){
-    const fid = String(c.fight_id ?? '');
-    if(!fightsById.has(fid)) fightsById.set(fid, []);
-    fightsById.get(fid).push(c);
-  }
+          const day = parts.day || '';
+          const year = parts.year ? Number(parts.year) : NaN;
+          let hour = (parts.hour || '').replace(/^0+/, '') || '0';
+          const minute = parts.minute || '00';
+          const period = (parts.dayPeriod || '').toUpperCase();
 
-  const sortedFightIds = Array.from(fightsById.keys()).sort((a,b)=> (Number(a)||0) - (Number(b)||0));
+          // Determine current year in America/Edmonton
+          const nowYear = Number(new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Edmonton',
+            year: 'numeric'
+          }).format(new Date()));
 
-  const pairStats = new Map();
-  let fightIndex = 0;
-  const DECAY_START = 10, DECAY_RATE = 0.2;
-  function pairKey(a,b){ return a+'|'+b }
-  function effectiveFrequency(stats, now){ if(!stats) return 1; const gap = now - stats.lastFightIndex; if(gap <= DECAY_START) return stats.count; const steps = gap - DECAY_START; return Math.max(1, 1 + (stats.count-1)*Math.exp(-DECAY_RATE*steps)); }
+          const includeYear = !Number.isNaN(year) && year !== nowYear;
+          const yearPart = includeYear ? ` ${year}` : '';
 
-  const ratings = {};
-  const wins = {};
-  const unfairWins = {};
-  const losses = {};
-  const playerHistory = new Map();
-  const fightEloDeltas = new Map();
-  const fightRatingsBefore = new Map();
-  const fightRatingsAfter = new Map();
+          return `${mon} ${day}${yearPart} ${hour}:${minute} ${period}`;
+        } catch (err) {
+          // fallback: local formatting (best-effort)
+          try {
+            const d = new Date(iso);
+            const mon = d.toLocaleString('en-US', { month: 'short' });
+            const day = d.getDate();
+            const year = d.getFullYear();
+            let hour = d.getHours();
+            const minute = String(d.getMinutes()).padStart(2, '0');
+            const period = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12 || 12;
 
-  function ensure(id){ if(!(id in ratings)) ratings[id] = INITIAL_RATING; if(!(id in wins)) wins[id] = 0; if(!(id in losses)) losses[id] = 0; if(!playerHistory.has(id)) playerHistory.set(id, []); }
+            const nowYear = new Date().getFullYear();
+            const yearPart = year !== nowYear ? ` ${year}` : '';
 
-  const snapshots = [];
+            return `${mon} ${day}${yearPart} ${hour}:${minute} ${period}`;
+          } catch (e) {
+            return iso;
+          }
+        }
+      }
 
-  for(const fid of sortedFightIds){
-    const parts = fightsById.get(fid) || [];
-    const allPlayers = new Set();
-    for (const part of parts){ if(part.killer_id) allPlayers.add(String(part.killer_id)); if(part.victim_id) allPlayers.add(String(part.victim_id)); }
-    allPlayers.forEach(id => ensure(id));
 
-    const beforeMap = new Map(); allPlayers.forEach(id => beforeMap.set(id, ratings[id]));
-    fightRatingsBefore.set(fid, beforeMap);
-    fightEloDeltas.set(fid, new Map());
+      const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA) / 400));
+      const applyElo = (rW, rL, K) => {
+        //rw is winner
+        //rl is loser
+        const eW = expected(rW, rL);
+        return [
+          rW + K * (1 - eW),
+          rL + K * (0 - (1 - eW))
+        ];
+      };
 
-    const numParts = parts.length;
-    for (const part of parts){
-      const k = String(part.killer_id); const v = String(part.victim_id);
-      const fairness = (Number(part.enemy_focus_percent||0)/100) * (Number(part.my_focus_percent||0)/100) / (1+Number(part.last_hit||0)/60);
-      const key = pairKey(k,v); const stats = pairStats.get(key); const freq = effectiveFrequency(stats, fightIndex);
-      let freqFactor = 1; if(numParts > 1) freqFactor = 1/Math.sqrt(freq);
-      let thisKValue = (KValue * fairness * freqFactor) / numParts; if (Number(part.last_hit||0)*2 > Number(part.since_fight_start||0)) thisKValue = 0;
+      const out = document.getElementById('output');
+      const panel = document.getElementById('panel');
+      const panelTitle = document.getElementById('panelTitle');
+      const panelContent = document.getElementById('panelContent');
+      const closeBtn = document.getElementById('closeBtn');
+      const chartCanvas = document.getElementById('ratingChart');
+      const sortBtn = document.getElementById('sortBtn');
 
-      if (thisKValue == 0) unfairWins[k] = (unfairWins[k] || 0) + 1/numParts; else wins[k] = (wins[k] || 0) + 1/numParts;
-      losses[v] = (losses[v] || 0) + 1/numParts;
+      let contributions = [];
+      try {
+        const res = await fetch(API, { cache: 'no-store' });
+        if (!res.ok) throw new Error('fetch status ' + res.status);
+        const json = await res.json();
+        contributions = Array.isArray(json.contributions) ? json.contributions.slice() : [];
+      } catch (err) {
+        out.textContent = 'Failed to load fights feed: ' + (err && err.message ? err.message : String(err));
+        console.error(err);
+        return;
+      }
 
-      const rK = ratings[k]; const rV = ratings[v]; let [newK, newV] = applyElo(rK, rV, thisKValue);
+      contributions.sort((a, b) => (Number(a.fight_id) || 0) - (Number(b.fight_id) || 0));
 
-      if (newK < 1000) newK += (thisKValue/KValue)*freqFactor;
-      if (newV < 1000) newV += (thisKValue/KValue)*freqFactor;
+      const fightsById = new Map();
+      for (const c of contributions) {
+        const fid = String(c.fight_id ?? '');
+        if (!fightsById.has(fid)) fightsById.set(fid, []);
+        fightsById.get(fid).push(c);
+      }
 
-      ratings[k] = newK; ratings[v] = newV;
+      const sortedFightIds = Array.from(fightsById.keys()).sort((a, b) => (Number(a) || 0) - (Number(b) || 0));
 
-      if(!stats) pairStats.set(key,{count:1,lastFightIndex:fightIndex}); else{ stats.count++; stats.lastFightIndex=fightIndex; }
-    }
+      const pairStats = new Map();
+      let fightIndex = 0;
+      const DECAY_START = 10
+      const DECAY_RATE = 0.2;
+      function pairKey(a, b) { return a + '|' + b }
+      function effectiveFrequency(stats, now) { if (!stats) return 1; const gap = now - stats.lastFightIndex; if (gap <= DECAY_START) return stats.count; const steps = gap - DECAY_START; return Math.max(1, 1 + (stats.count - 1) * Math.exp(-DECAY_RATE * steps)); }
 
-    const afterMap = new Map(); allPlayers.forEach(id => { const before = beforeMap.get(id) || INITIAL_RATING; const after = ratings[id]; const delta = Math.round(after - before); fightEloDeltas.get(fid).set(id, delta); afterMap.set(id, after); const hist = playerHistory.get(id) || []; hist.push({ fight_id: fid, before: before, after: after }); playerHistory.set(id, hist); });
-    fightRatingsAfter.set(fid, afterMap);
+      const ratings = {};
+      const wins = {};
+      const unfairWins = {};
+      const losses = {};
+      const playerHistory = new Map();
+      const fightEloDeltas = new Map();
+      const fightRatingsBefore = new Map();
+      const fightRatingsAfter = new Map();
 
-    const rows = Array.from(Object.keys(ratings)).map(id => { const current = ratings[id]; const hist = playerHistory.get(id) || []; const peak = hist.length ? Math.max(...hist.map(h => Math.round(h.after))) : Math.round(current); return { id, peakRating: peak, currentRating: Math.round(current), wins: Math.ceil(wins[id]) || 0, unfairWins: Math.ceil(unfairWins[id]) || 0, lost: Math.ceil(losses[id]) || 0 }; });
-    rows.sort((a,b) => b.peakRating - a.peakRating || a.id.localeCompare(b.id));
-    snapshots.push({ index: fightIndex, fight_id: fid, rows, ratings: Object.assign({}, ratings) });
-    fightIndex++;
-  }
+      function ensure(id) { if (!(id in ratings)) ratings[id] = INITIAL_RATING; if (!(id in wins)) wins[id] = 0; if (!(id in losses)) losses[id] = 0; if (!playerHistory.has(id)) playerHistory.set(id, []); }
 
-  if(snapshots.length === 0){ out.textContent = 'No players found in feed.'; return; }
+      const snapshots = [];
 
-  let currentSnapshotIndex = snapshots.length - 1;
+      for (const fid of sortedFightIds) {
+        const parts = fightsById.get(fid) || [];
+        const allPlayers = new Set();
 
-  const table = document.createElement('table'); out.innerHTML = ''; out.appendChild(table);
+        let victimId = null;
+        let totalDamage = 0;
+        for (const part of parts) {
+          if (part.victim_id) {
+            const v = String(part.victim_id);
 
-  // sorting mode
-  let sortMode = 'peak';
-  function updateSortButton(){ sortBtn.textContent = sortMode === 'peak' ? 'Sort: Peak ▼' : 'Sort: Current ▼'; }
-  updateSortButton();
-  sortBtn.addEventListener('click', ()=>{ sortMode = sortMode === 'peak' ? 'current' : 'peak'; updateSortButton(); renderSnapshot(currentSnapshotIndex); });
+            if (victimId === null) {
+              victimId = v;
+            } else if (victimId !== v) {
+              throw new Error(
+                `fight ${fid} has multiple diff victims: ${victimId} vs ${v}`
+              );
+            }
+          }
+    
+          totalDamage += Number(part.enemy_dmg_me || 0);
+          if (part.killer_id) allPlayers.add(String(part.killer_id));
+          if (part.victim_id) allPlayers.add(String(part.victim_id));
+        }
 
-  function compareRows(a,b){ if(sortMode === 'peak') return b.peakRating - a.peakRating || a.id.localeCompare(b.id); return b.currentRating - a.currentRating || a.id.localeCompare(b.id); }
+        allPlayers.forEach(id => ensure(id));
 
-  function renderSnapshot(idx){
-    currentSnapshotIndex = idx; const snap = snapshots[idx]; const rows = snap.rows.slice(); rows.sort(compareRows);
-    const rowsHtml = rows.map((r,i)=>{ const color = colorForId(r.id, 72, 85); return `
+        const beforeMap = new Map();
+        allPlayers.forEach(id => beforeMap.set(id, ratings[id]));
+        fightRatingsBefore.set(fid, beforeMap);
+        fightEloDeltas.set(fid, new Map());
+
+        /*const validKillers = new Set();
+        for (const part of parts) {
+          const killer = String(part.killer_id);
+          const victim = victimId//String(part.victim_id);
+          const dmgShare = Number(part.enemy_dmg_me || 0) / totalDamage;
+          //console.log(fid, killer, dmgShare)
+
+          if (dmgShare > 0.1) { // atleast 20% to be considered valid killah
+            validKillers.add(killer);
+          }
+        }*/
+
+        const numValidKillers = parts.length//validKillers.size;
+        //console.log(fid, numValidKillers, parts)
+
+        for (const part of parts) {
+          const killer = String(part.killer_id);
+          const victim = victimId//String(part.victim_id);
+
+          const enemyFocusPercent = Number(part.enemy_focus_percent || 0) / 100;
+          const myFocusPercent = Number(part.my_focus_percent || 0) / 100;
+          const fairness = enemyFocusPercent * myFocusPercent / (1 + Number(part.last_hit || 0) / 60);
+
+          const key = pairKey(killer, victim);
+          const stats = pairStats.get(key);
+          const freq = effectiveFrequency(stats, fightIndex);
+          let freqFactor = 1;
+          if (numValidKillers > 1) freqFactor = 1 / Math.sqrt(freq);
+          let thisKValue = (KValue * fairness * freqFactor) / numValidKillers;
+          
+          if (Number(part.last_hit || 0) * 2 > Number(part.since_fight_start || 0)) {
+            thisKValue = 0;
+          }
+
+
+
+          //
+
+          if (thisKValue == 0) {
+            unfairWins[killer] = (unfairWins[killer] || 0) + 1 / numValidKillers
+           } else {
+            wins[killer] = (wins[killer] || 0) + 1 / numValidKillers;
+           }
+
+          losses[victim] = (losses[victim] || 0) + 1 / numValidKillers;
+
+          let ratingKiller = ratings[killer];
+          let ratingVictim = ratings[victim];
+          let [newK, newV] = applyElo(ratingKiller, ratingVictim, thisKValue);
+          if (newK < 1000) newK += (thisKValue / KValue) * freqFactor;
+          if (newV < 1000) newV += (thisKValue / KValue) * freqFactor;
+
+          ratings[killer] = newK;
+          ratings[victim] = newV;
+
+          if (!stats) pairStats.set(key, { count: 1, lastFightIndex: fightIndex }); else { stats.count++; stats.lastFightIndex = fightIndex; }
+        }
+
+        const afterMap = new Map(); allPlayers.forEach(id => {
+          const before = beforeMap.get(id) || INITIAL_RATING;
+          const after = ratings[id];
+          const delta = Math.round(after - before);
+          fightEloDeltas.get(fid).set(id, delta);
+          afterMap.set(id, after);
+          const hist = playerHistory.get(id) || [];
+          hist.push({ fight_id: fid, before: before, after: after });
+          playerHistory.set(id, hist);
+        });
+
+        fightRatingsAfter.set(fid, afterMap);
+
+        const rows = Array.from(Object.keys(ratings)).map(id => {
+          const current = ratings[id];
+          const hist = playerHistory.get(id) || [];
+          const peak = hist.length ? Math.max(...hist.map(h => Math.round(h.after))) : Math.round(current);
+          return { id, peakRating: peak, currentRating: Math.round(current), wins: Math.ceil(wins[id]) || 0, unfairWins: Math.ceil(unfairWins[id]) || 0, lost: Math.ceil(losses[id]) || 0 };
+        });
+
+        rows.sort((a, b) => b.peakRating - a.peakRating || a.id.localeCompare(b.id));
+        snapshots.push({ index: fightIndex, fight_id: fid, rows, ratings: Object.assign({}, ratings) });
+        fightIndex++;
+      }
+
+      if (snapshots.length === 0) { out.textContent = 'No players found in feed.'; return; }
+
+      let currentSnapshotIndex = snapshots.length - 1;
+
+      const table = document.createElement('table'); out.innerHTML = ''; out.appendChild(table);
+
+      // sorting mode
+      let sortMode = 'peak';
+      function updateSortButton() { sortBtn.textContent = sortMode === 'peak' ? 'Sort: Peak ▼' : 'Sort: Current ▼'; }
+      updateSortButton();
+      sortBtn.addEventListener('click', () => { sortMode = sortMode === 'peak' ? 'current' : 'peak'; updateSortButton(); renderSnapshot(currentSnapshotIndex); });
+
+      function compareRows(a, b) { if (sortMode === 'peak') return b.peakRating - a.peakRating || a.id.localeCompare(b.id); return b.currentRating - a.currentRating || a.id.localeCompare(b.id); }
+
+      function renderSnapshot(idx) {
+        currentSnapshotIndex = idx; const snap = snapshots[idx]; const rows = snap.rows.slice(); rows.sort(compareRows);
+        const rowsHtml = rows.map((r, i) => {
+          const color = colorForId(r.id, 72, 85); return `
         <tr class="clickable" data-id="${r.id}">
-          <td>${i+1}</td>
+          <td>${i + 1}</td>
           <td class="mono"><button class="id-btn mono" data-id="${r.id}" style="color:${color};">${r.id}</button></td>
           <td>${r.peakRating}</td>
           <td>${r.currentRating}</td>
           <td>${r.wins} <span style="font-size: 10px; color:gray">+ (${r.unfairWins})</span></td>
           <td>${r.lost}</td>
-        </tr>`; }).join('');
+        </tr>`;
+        }).join('');
 
-    table.innerHTML = `
+        table.innerHTML = `
       <thead>
         <tr>
           <th style="width:48px">#</th>
@@ -295,100 +580,100 @@
         ${rowsHtml}
       </tbody>`;
 
-    table.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', ev => { const id = tr.getAttribute('data-id'); if(id) openPanelFor(id); }));
-    table.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if(id) openPanelFor(id); }));
-  }
+        table.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', ev => { const id = tr.getAttribute('data-id'); if (id) openPanelFor(id); }));
+        table.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if (id) openPanelFor(id); }));
+      }
 
-  renderSnapshot(currentSnapshotIndex);
+      renderSnapshot(currentSnapshotIndex);
 
-  let ratingChart = null;
+      let ratingChart = null;
 
-  function classifyFight(selectedId, fightContribs){
-    // simplified: only care about who won / lost / assisted / participated
-    const killers = new Set(); const victims = new Set(); for(const p of fightContribs){ if(p.killer_id) killers.add(String(p.killer_id)); if(p.victim_id) victims.add(String(p.victim_id)); }
-    const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
-    let my_focus = 0, enemy_focus = 0, me_dmg_enemy = 0, enemy_dmg_me = 0;
-    if(myContribs.length > 0){ const prefer = myContribs.find(p => String(p.killer_id) === selectedId) || myContribs[0]; my_focus = Number(prefer.my_focus_percent ?? 0); enemy_focus = Number(prefer.enemy_focus_percent ?? 0); me_dmg_enemy = Number(prefer.me_dmg_enemy ?? 0); enemy_dmg_me = Number(prefer.enemy_dmg_me ?? 0); } else { for(const p of fightContribs){ for(const v of Object.values(p)){ if(String(v) === selectedId){ my_focus = Number(p.my_focus_percent ?? 0); enemy_focus = Number(p.enemy_focus_percent ?? 0); me_dmg_enemy = Number(p.me_dmg_enemy ?? 0); enemy_dmg_me = Number(p.enemy_dmg_me ?? 0); break; } } } }
-    const didKill = fightContribs.some(p => String(p.killer_id) === selectedId);
-    const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
-    const participatedByDamage = me_dmg_enemy > 0;
+      function classifyFight(selectedId, fightContribs) {
+        // simplified: only care about who won / lost / assisted / participated
+        const killers = new Set(); const victims = new Set(); for (const p of fightContribs) { if (p.killer_id) killers.add(String(p.killer_id)); if (p.victim_id) victims.add(String(p.victim_id)); }
+        const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
+        let my_focus = 0, enemy_focus = 0, me_dmg_enemy = 0, enemy_dmg_me = 0;
+        if (myContribs.length > 0) { const prefer = myContribs.find(p => String(p.killer_id) === selectedId) || myContribs[0]; my_focus = Number(prefer.my_focus_percent ?? 0); enemy_focus = Number(prefer.enemy_focus_percent ?? 0); me_dmg_enemy = Number(prefer.me_dmg_enemy ?? 0); enemy_dmg_me = Number(prefer.enemy_dmg_me ?? 0); } else { for (const p of fightContribs) { for (const v of Object.values(p)) { if (String(v) === selectedId) { my_focus = Number(p.my_focus_percent ?? 0); enemy_focus = Number(p.enemy_focus_percent ?? 0); me_dmg_enemy = Number(p.me_dmg_enemy ?? 0); enemy_dmg_me = Number(p.enemy_dmg_me ?? 0); break; } } } }
+        const didKill = fightContribs.some(p => String(p.killer_id) === selectedId);
+        const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
+        const participatedByDamage = me_dmg_enemy > 0;
 
-    let outcomeText = 'Participated';
-    if(didKill) outcomeText = 'Won';
-    else if (wasVictim) outcomeText = 'Lost';
-    else if (participatedByDamage) outcomeText = 'Assisted';
+        let outcomeText = 'Participated';
+        if (didKill) outcomeText = 'Won';
+        else if (wasVictim) outcomeText = 'Lost';
+        else if (participatedByDamage) outcomeText = 'Assisted';
 
-    return { outcomeText, my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me, killers: Array.from(killers), victims: Array.from(victims) };
-  }
+        return { outcomeText, my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me, killers: Array.from(killers), victims: Array.from(victims) };
+      }
 
-  function getFightsForId(selectedId){
-    const maxFightId = snapshots[currentSnapshotIndex].fight_id; const list = [];
-    for(const [fid, parts] of fightsById.entries()){ if(Number(fid) > Number(maxFightId)) continue; const appears = parts.some(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId); if(appears) list.push({ fight_id: fid, parts }); }
-    list.sort((a,b) => (Number(a.fight_id)||0) - (Number(b.fight_id)||0)); return list;
-  }
+      function getFightsForId(selectedId) {
+        const maxFightId = snapshots[currentSnapshotIndex].fight_id; const list = [];
+        for (const [fid, parts] of fightsById.entries()) { if (Number(fid) > Number(maxFightId)) continue; const appears = parts.some(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId); if (appears) list.push({ fight_id: fid, parts }); }
+        list.sort((a, b) => (Number(a.fight_id) || 0) - (Number(b.fight_id) || 0)); return list;
+      }
 
-  function renderChartForPlayer(id){
-    const histFull = playerHistory.get(id) || []; const maxFightId = snapshots[currentSnapshotIndex].fight_id; const hist = histFull.filter(h => Number(h.fight_id) <= Number(maxFightId));
-    if(hist.length === 0){ if(ratingChart) { ratingChart.destroy(); ratingChart = null; } const ctx = chartCanvas.getContext('2d'); ctx.clearRect(0,0,chartCanvas.width,chartCanvas.height); return; }
-    const labels = hist.map(h => `#${h.fight_id}`);
-    const beforeData = hist.map(h => Math.round(h.before));
-    const winLossPerFight = hist.map(h => { const fid = String(h.fight_id); const parts = fightsById.get(fid) || []; if(parts.some(p => String(p.killer_id) === id)) return 1; if(parts.some(p => String(p.victim_id) === id)) return -1; return 0; });
-    const gainData = []; let running = 0; for(let i=0;i<winLossPerFight.length;i++){ running += winLossPerFight[i]; gainData.push(running); }
-    const ctx = chartCanvas.getContext('2d'); if(ratingChart) ratingChart.destroy();
-    ratingChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [ { label: 'Rating', data: beforeData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y' }, { label: 'Gain (+1 win, -1 loss)', data: gainData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y1' } ] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { tooltip: { callbacks: { label: function(ctx){ const d = ctx.dataset.label || ''; const idx = ctx.dataIndex; if((d||'').toLowerCase().includes('gain')){ const v = gainData[idx]; return `${d}: ${v}`; } else { const before = beforeData[idx]; return `${d}: ${before}`; } } } }, legend: { position: 'bottom' } }, scales: { y: { beginAtZero: false, ticks: { precision: 0 } }, y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { precision: 0 } } } } });
-  }
+      function renderChartForPlayer(id) {
+        const histFull = playerHistory.get(id) || []; const maxFightId = snapshots[currentSnapshotIndex].fight_id; const hist = histFull.filter(h => Number(h.fight_id) <= Number(maxFightId));
+        if (hist.length === 0) { if (ratingChart) { ratingChart.destroy(); ratingChart = null; } const ctx = chartCanvas.getContext('2d'); ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height); return; }
+        const labels = hist.map(h => `#${h.fight_id}`);
+        const beforeData = hist.map(h => Math.round(h.before));
+        const winLossPerFight = hist.map(h => { const fid = String(h.fight_id); const parts = fightsById.get(fid) || []; if (parts.some(p => String(p.killer_id) === id)) return 1; if (parts.some(p => String(p.victim_id) === id)) return -1; return 0; });
+        const gainData = []; let running = 0; for (let i = 0; i < winLossPerFight.length; i++) { running += winLossPerFight[i]; gainData.push(running); }
+        const ctx = chartCanvas.getContext('2d'); if (ratingChart) ratingChart.destroy();
+        ratingChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Rating', data: beforeData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y' }, { label: 'Gain (+1 win, -1 loss)', data: gainData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y1' }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { tooltip: { callbacks: { label: function (ctx) { const d = ctx.dataset.label || ''; const idx = ctx.dataIndex; if ((d || '').toLowerCase().includes('gain')) { const v = gainData[idx]; return `${d}: ${v}`; } else { const before = beforeData[idx]; return `${d}: ${before}`; } } } }, legend: { position: 'bottom' } }, scales: { y: { beginAtZero: false, ticks: { precision: 0 } }, y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { precision: 0 } } } } });
+      }
 
-  function openPanelFor(id){
-    panelTitle.textContent = 'Player: ' + id + ` · Won ${wins[id] || 0} / Lost ${losses[id] || 0} / UnfairWin ${Math.floor((unfairWins[id]/(wins[id]||1))*100) || 0}%`;
-    panelContent.innerHTML = '';
-    const fightsList = getFightsForId(id);
-    renderChartForPlayer(id);
+      function openPanelFor(id) {
+        panelTitle.textContent = 'Player: ' + id + ` · Won ${wins[id] || 0} / Lost ${losses[id] || 0} / UnfairWin ${Math.floor((unfairWins[id] / (wins[id] || 1)) * 100) || 0}%`;
+        panelContent.innerHTML = '';
+        const fightsList = getFightsForId(id);
+        renderChartForPlayer(id);
 
-    // allies/enemies summary (simple)
-    const allyCounts = new Map(); const enemyCounts = new Map();
-    for(const f of fightsList){ const parts = f.parts || []; const killers = Array.from(new Set(parts.filter(p=>p.killer_id).map(p=>String(p.killer_id)))); const victims = Array.from(new Set(parts.filter(p=>p.victim_id).map(p=>String(p.victim_id)))); if(killers.includes(id)) for(const k of killers){ if(k===id) continue; allyCounts.set(k, (allyCounts.get(k)||0)+1); } if(victims.includes(id)) for(const k of killers){ if(k===id) continue; enemyCounts.set(k, (enemyCounts.get(k)||0)+1); } }
+        // allies/enemies summary (simple)
+        const allyCounts = new Map(); const enemyCounts = new Map();
+        for (const f of fightsList) { const parts = f.parts || []; const killers = Array.from(new Set(parts.filter(p => p.killer_id).map(p => String(p.killer_id)))); const victims = Array.from(new Set(parts.filter(p => p.victim_id).map(p => String(p.victim_id)))); if (killers.includes(id)) for (const k of killers) { if (k === id) continue; allyCounts.set(k, (allyCounts.get(k) || 0) + 1); } if (victims.includes(id)) for (const k of killers) { if (k === id) continue; enemyCounts.set(k, (enemyCounts.get(k) || 0) + 1); } }
 
-    function topNFromMap(m, n, exclude = new Set()) {
-      return Array.from(m.entries())
-        .filter(([name]) => !exclude.has(name))
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .slice(0, n);
-    }
+        function topNFromMap(m, n, exclude = new Set()) {
+          return Array.from(m.entries())
+            .filter(([name]) => !exclude.has(name))
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .slice(0, n);
+        }
 
-    const topAllies = topNFromMap(allyCounts, 3);
+        const topAllies = topNFromMap(allyCounts, 3);
 
-    // exclude ally names when picking enemies
-    const allyNames = new Set(topAllies.map(([name]) => name));
-    const topEnemies = topNFromMap(enemyCounts, 3, allyNames);
+        // exclude ally names when picking enemies
+        const allyNames = new Set(topAllies.map(([name]) => name));
+        const topEnemies = topNFromMap(enemyCounts, 3, allyNames);
 
-    const listsWrap = document.createElement('div'); listsWrap.style.display='flex'; listsWrap.style.gap='12px'; listsWrap.style.marginBottom='10px';
-    const alliesDiv = document.createElement('div'); alliesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top allies</div>` + (topAllies.length===0? '<div class="small-muted">No allies found</div>' : '<ul style="margin:0;padding-left:18px">' + topAllies.map(([aid,cnt])=>`<li><button class="id-btn mono" data-id="${aid}" style="color:${colorForId(aid)}">${aid}</button> - ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
-    const enemiesDiv = document.createElement('div'); enemiesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top enemies</div>` + (topEnemies.length===0? '<div class="small-muted">No enemies found</div>' : '<ul style="margin:0;padding-left:18px">' + topEnemies.map(([eid,cnt])=>`<li><button class="id-btn mono" data-id="${eid}" style="color:${colorForId(eid)}">${eid}</button> - ${cnt} fight${cnt!==1?'s':''}</li>`).join('') + '</ul>');
-    listsWrap.appendChild(alliesDiv); listsWrap.appendChild(enemiesDiv); panelContent.appendChild(listsWrap);
+        const listsWrap = document.createElement('div'); listsWrap.style.display = 'flex'; listsWrap.style.gap = '12px'; listsWrap.style.marginBottom = '10px';
+        const alliesDiv = document.createElement('div'); alliesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top allies</div>` + (topAllies.length === 0 ? '<div class="small-muted">No allies found</div>' : '<ul style="margin:0;padding-left:18px">' + topAllies.map(([aid, cnt]) => `<li><button class="id-btn mono" data-id="${aid}" style="color:${colorForId(aid)}">${aid}</button> - ${cnt} fight${cnt !== 1 ? 's' : ''}</li>`).join('') + '</ul>');
+        const enemiesDiv = document.createElement('div'); enemiesDiv.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Top enemies</div>` + (topEnemies.length === 0 ? '<div class="small-muted">No enemies found</div>' : '<ul style="margin:0;padding-left:18px">' + topEnemies.map(([eid, cnt]) => `<li><button class="id-btn mono" data-id="${eid}" style="color:${colorForId(eid)}">${eid}</button> - ${cnt} fight${cnt !== 1 ? 's' : ''}</li>`).join('') + '</ul>');
+        listsWrap.appendChild(alliesDiv); listsWrap.appendChild(enemiesDiv); panelContent.appendChild(listsWrap);
 
-    // fight cards (recent first)
-    fightsList.sort((a,b) => (Number(b.fight_id)||0) - (Number(a.fight_id)||0));
-    for(const f of fightsList){
-      const info = classifyFight(id, f.parts);
-      const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map();
-      const ratingBeforeFloat = beforeMap.get(id);
-      const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING);
-      const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map();
-      const eloDelta = fmap.get(id) || 0;
-      const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero');
-      const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
+        // fight cards (recent first)
+        fightsList.sort((a, b) => (Number(b.fight_id) || 0) - (Number(a.fight_id) || 0));
+        for (const f of fightsList) {
+          const info = classifyFight(id, f.parts);
+          const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map();
+          const ratingBeforeFloat = beforeMap.get(id);
+          const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING);
+          const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map();
+          const eloDelta = fmap.get(id) || 0;
+          const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero');
+          const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
 
-      // ----- NEW: find a fight_created_at in the contributions and format it -----
-      const createdIso = (f.parts && (f.parts.find(p => p.fight_created_at && String(p.fight_created_at).trim()) || {}).fight_created_at) || null;
-      const createdLabel = createdIso ? formatFightCreatedAt(createdIso) : '';
+          // ----- NEW: find a fight_created_at in the contributions and format it -----
+          const createdIso = (f.parts && (f.parts.find(p => p.fight_created_at && String(p.fight_created_at).trim()) || {}).fight_created_at) || null;
+          const createdLabel = createdIso ? formatFightCreatedAt(createdIso) : '';
 
-      const killersHtml = info.killers.map(k => `<button class="id-btn mono" data-id="${k}" style="color:${colorForId(k)}">${k}</button>`).join(', ');
-      const victimsHtml = info.victims.map(v => `<button class="id-btn mono" data-id="${v}" style="color:${colorForId(v)}">${v}</button>`).join(', ');
+          const killersHtml = info.killers.map(k => `<button class="id-btn mono" data-id="${k}" style="color:${colorForId(k)}">${k}</button>`).join(', ');
+          const victimsHtml = info.victims.map(v => `<button class="id-btn mono" data-id="${v}" style="color:${colorForId(v)}">${v}</button>`).join(', ');
 
-      const div = document.createElement('div'); div.className = 'fight';
-      const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
+          const div = document.createElement('div'); div.className = 'fight';
+          const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
 
-      div.innerHTML = `
+          div.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-weight:600">Fight #${f.fight_id}</div>
@@ -411,17 +696,18 @@
           <span class="tag">enemy_dmg ${info.enemy_dmg_me}</span>
         </div>
       `; panelContent.appendChild(div);
-    }
+        }
 
-    panelContent.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if(id) openPanelFor(id); }));
+        panelContent.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if (id) openPanelFor(id); }));
 
-    panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); panel.scrollTop = 0;
-  }
+        panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); panel.scrollTop = 0;
+      }
 
-  function closePanel(){ panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); }
-  closeBtn.addEventListener('click', closePanel);
+      function closePanel() { panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); }
+      closeBtn.addEventListener('click', closePanel);
 
-})();
-</script>
+    })();
+  </script>
 </body>
+
 </html>
