@@ -144,17 +144,20 @@ async function getContributionsByFightId(fightId) {
 async function getRecentContributions(limit = 100) {
   try {
     const contributions = await sql`
-      SELECT fc.*, f.victim_id
+      SELECT
+        fc.*,
+        f.victim_id,
+        f.created_at AS fight_created_at
       FROM fight_contributions fc
       JOIN fights f USING(fight_id)
       WHERE fc.fight_id IN (
+        -- use the fights table to pick the most recent fights
         SELECT fight_id
-        FROM fight_contributions
-        GROUP BY fight_id
-        ORDER BY fight_id DESC
+        FROM fights
+        ORDER BY created_at DESC
         LIMIT ${limit}
       )
-      ORDER BY fc.fight_id DESC, fc.killer_id ASC
+      ORDER BY f.created_at DESC, fc.killer_id ASC
     `;
     return contributions;
   } catch (err) {

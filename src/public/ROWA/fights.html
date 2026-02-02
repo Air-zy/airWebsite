@@ -83,7 +83,7 @@
       </div>
 
       <div id="output">Loading…</div>
-      <div class="small">simulated using a custom elo algorithm that takes into account of frequency... Click an ID to open the player panel and see their fights/rating history (panel closes with ✕).</div>
+      <!-- explanatory line removed as requested -->
     </div>
   </div>
 
@@ -115,6 +115,50 @@
     if(!id) return '#cfe6ff';
     let h = 0; for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) % 360;
     return `hsl(${h},${sat}%,${lightness}%)`;
+  }
+
+  // format ISO timestamp into "JAN 1 2026 2AM" using America/Edmonton timezone
+  function formatFightCreatedAt(iso) {
+    if (!iso) return '';
+    try {
+      const dt = new Date(iso);
+      // Use Intl to get parts in the America/Edmonton timezone
+      const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Edmonton',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        hour12: true
+      });
+      const parts = fmt.formatToParts(dt).reduce((acc, p) => {
+        acc[p.type] = p.value;
+        return acc;
+      }, {});
+      // parts.month -> "Jan", parts.day -> "25", parts.year -> "2026"
+      // parts.hour -> "10", parts.dayPeriod -> "PM"
+      const mon = (parts.month || '').toUpperCase(); // "JAN"
+      const day = parts.day || '';
+      const year = parts.year || '';
+      const hour = (parts.hour || '').replace(/^0+/, '') || '0';
+      const period = (parts.dayPeriod || '').toUpperCase().replace(/\s+/g, '');
+      // produce: "JAN 25 2026 10PM" (no space before AM/PM per requested format)
+      return `${mon} ${day} ${year} ${hour}${period}`;
+    } catch (err) {
+      // fallback: try local formatting
+      try {
+        const d = new Date(iso);
+        const mon = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+        const day = d.getDate();
+        const year = d.getFullYear();
+        let hour = d.getHours();
+        const period = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12 || 12;
+        return `${mon} ${day} ${year} ${hour}${period}`;
+      } catch (e) {
+        return iso;
+      }
+    }
   }
 
   const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA)/400));
@@ -260,16 +304,21 @@
   let ratingChart = null;
 
   function classifyFight(selectedId, fightContribs){
+    // simplified: only care about who won / lost / assisted / participated
     const killers = new Set(); const victims = new Set(); for(const p of fightContribs){ if(p.killer_id) killers.add(String(p.killer_id)); if(p.victim_id) victims.add(String(p.victim_id)); }
-    const numKillers = killers.size; const numVictims = victims.size; const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
+    const myContribs = fightContribs.filter(p => String(p.killer_id) === selectedId || String(p.victim_id) === selectedId);
     let my_focus = 0, enemy_focus = 0, me_dmg_enemy = 0, enemy_dmg_me = 0;
     if(myContribs.length > 0){ const prefer = myContribs.find(p => String(p.killer_id) === selectedId) || myContribs[0]; my_focus = Number(prefer.my_focus_percent ?? 0); enemy_focus = Number(prefer.enemy_focus_percent ?? 0); me_dmg_enemy = Number(prefer.me_dmg_enemy ?? 0); enemy_dmg_me = Number(prefer.enemy_dmg_me ?? 0); } else { for(const p of fightContribs){ for(const v of Object.values(p)){ if(String(v) === selectedId){ my_focus = Number(p.my_focus_percent ?? 0); enemy_focus = Number(p.enemy_focus_percent ?? 0); me_dmg_enemy = Number(p.me_dmg_enemy ?? 0); enemy_dmg_me = Number(p.enemy_dmg_me ?? 0); break; } } } }
-    const didKill = fightContribs.some(p => String(p.killer_id) === selectedId); const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId); const participatedByDamage = me_dmg_enemy > 0; const bossRaided = (numKillers >= 2 && numVictims === 1); const focusDiff = Math.abs(my_focus - enemy_focus);
-    let outcomeText = 'Participated'; let classTag = 'Unknown';
-    if(didKill){ outcomeText = 'Won'; if(bossRaided){ if(wasVictim) classTag = 'Boss-raided (win)'; else classTag = 'helped gank (win)'; } else if (numKillers > 1 && numVictims > 1) classTag = 'Group win'; else { if(focusDiff <= 25) classTag = 'Fair win'; else if(my_focus > enemy_focus) classTag = 'Won (???)'; else classTag = 'unfair Win (did not focus enough on victim|enemy)'; } }
-    else if (wasVictim){ outcomeText = 'Lost'; if(bossRaided) classTag = 'got ganked (loss)'; else { if(focusDiff <= 25) classTag = 'Fair loss'; else if(enemy_focus > my_focus) classTag = 'unfair Loss (did not focus enough on victim|enemy)'; else classTag = 'Lost (???)'; } }
-    else if (participatedByDamage){ outcomeText = 'Assisted'; classTag = 'Assisted a kill'; } else { outcomeText = 'unknown'; classTag = 'unknown? no dmg'; }
-    return { outcomeText, classTag, numKillers, numVictims, my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me, killers: Array.from(killers), victims: Array.from(victims) };
+    const didKill = fightContribs.some(p => String(p.killer_id) === selectedId);
+    const wasVictim = fightContribs.some(p => String(p.victim_id) === selectedId);
+    const participatedByDamage = me_dmg_enemy > 0;
+
+    let outcomeText = 'Participated';
+    if(didKill) outcomeText = 'Won';
+    else if (wasVictim) outcomeText = 'Lost';
+    else if (participatedByDamage) outcomeText = 'Assisted';
+
+    return { outcomeText, my_focus, enemy_focus, me_dmg_enemy, enemy_dmg_me, killers: Array.from(killers), victims: Array.from(victims) };
   }
 
   function getFightsForId(selectedId){
@@ -319,26 +368,40 @@
 
     // fight cards (recent first)
     fightsList.sort((a,b) => (Number(b.fight_id)||0) - (Number(a.fight_id)||0));
-    for(const f of fightsList){ const info = classifyFight(id, f.parts); const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map(); const ratingBeforeFloat = beforeMap.get(id); const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING); const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map(); const eloDelta = fmap.get(id) || 0; const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero'); const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
+    for(const f of fightsList){
+      const info = classifyFight(id, f.parts);
+      const beforeMap = fightRatingsBefore.get(String(f.fight_id)) || new Map();
+      const ratingBeforeFloat = beforeMap.get(id);
+      const ratingBefore = typeof ratingBeforeFloat === 'number' ? Math.round(ratingBeforeFloat) : Math.round(INITIAL_RATING);
+      const fmap = fightEloDeltas.get(String(f.fight_id)) || new Map();
+      const eloDelta = fmap.get(id) || 0;
+      const eloClass = eloDelta > 0 ? 'delta-plus' : (eloDelta < 0 ? 'delta-minus' : 'delta-zero');
+      const eloLabel = `${eloDelta > 0 ? '+' : ''}${eloDelta}`;
+
+      // ----- NEW: find a fight_created_at in the contributions and format it -----
+      const createdIso = (f.parts && (f.parts.find(p => p.fight_created_at && String(p.fight_created_at).trim()) || {}).fight_created_at) || null;
+      const createdLabel = createdIso ? formatFightCreatedAt(createdIso) : '';
+
       const killersHtml = info.killers.map(k => `<button class="id-btn mono" data-id="${k}" style="color:${colorForId(k)}">${k}</button>`).join(', ');
       const victimsHtml = info.victims.map(v => `<button class="id-btn mono" data-id="${v}" style="color:${colorForId(v)}">${v}</button>`).join(', ');
-      const div = document.createElement('div'); div.className = 'fight'; const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
+
+      const div = document.createElement('div'); div.className = 'fight';
+      const outcomeClass = info.outcomeText === 'Won' ? 'outcome-win' : (info.outcomeText === 'Lost' ? 'outcome-lose' : 'small-muted');
+
       div.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-weight:600">Fight #${f.fight_id}</div>
-            <div class="meta small-muted">Outcome: <span class="${outcomeClass}">${info.outcomeText}</span> · ${info.classTag}</div>
+            ${createdLabel ? `<div class="meta small-muted">${createdLabel}</div>` : ''}
+            <div class="meta small-muted">Outcome: <span class="${outcomeClass}">${info.outcomeText}</span></div>
+          </div>
+          <div class="klist">
+            <div><strong>Killer(s):</strong> ${killersHtml || '-'}</div>
+            <div><strong>Victim(s):</strong> ${victimsHtml || '-'}</div>
           </div>
           <div style="text-align:right">
-            <div class="small-muted">Killers: ${info.numKillers}</div>
-            <div class="small-muted">Victims: ${info.numVictims}</div>
             <div style="margin-top:6px"><span class="tag ${eloClass}">${ratingBefore} (${eloLabel})</span></div>
           </div>
-        </div>
-
-        <div class="klist">
-          <div><strong>Killer(s):</strong> ${killersHtml || '—'}</div>
-          <div><strong>Victim(s):</strong> ${victimsHtml || '—'}</div>
         </div>
 
         <div class="meta">
@@ -347,7 +410,8 @@
           <span class="tag">me_dmg ${info.me_dmg_enemy}</span>
           <span class="tag">enemy_dmg ${info.enemy_dmg_me}</span>
         </div>
-      `; panelContent.appendChild(div); }
+      `; panelContent.appendChild(div);
+    }
 
     panelContent.querySelectorAll('.id-btn').forEach(btn => btn.addEventListener('click', ev => { ev.stopPropagation(); const id = btn.getAttribute('data-id'); if(id) openPanelFor(id); }));
 
