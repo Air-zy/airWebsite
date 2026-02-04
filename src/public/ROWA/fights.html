@@ -503,8 +503,8 @@
           let ratingKiller = ratings[killer];
           let ratingVictim = ratings[victim];
           let [newK, newV] = applyElo(ratingKiller, ratingVictim, thisKValue);
-          if (newK < 1000) newK += (thisKValue / KValue) * freqFactor;
-          if (newV < 1000) newV += (thisKValue / KValue) * freqFactor;
+          if (newK < 1200) newK += (thisKValue / KValue) * freqFactor;
+          if (newV < 1200) newV += (thisKValue / KValue) * freqFactor;
 
           ratings[killer] = newK;
           ratings[victim] = newV;
@@ -528,7 +528,14 @@
         const rows = Array.from(Object.keys(ratings)).map(id => {
           const current = ratings[id];
           const hist = playerHistory.get(id) || [];
-          const peak = hist.length ? Math.max(...hist.map(h => Math.round(h.after))) : Math.round(current);
+          const peak = hist.length
+          ? Math.max(
+              ...hist.flatMap(h => [
+                Math.round(h.before),
+                Math.round(h.after)
+              ])
+            )
+          : Math.round(current);
           return { id, peakRating: peak, currentRating: Math.round(current), wins: Math.ceil(wins[id]) || 0, unfairWins: Math.ceil(unfairWins[id]) || 0, lost: Math.ceil(losses[id]) || 0 };
         });
 
@@ -613,14 +620,73 @@
       }
 
       function renderChartForPlayer(id) {
-        const histFull = playerHistory.get(id) || []; const maxFightId = snapshots[currentSnapshotIndex].fight_id; const hist = histFull.filter(h => Number(h.fight_id) <= Number(maxFightId));
-        if (hist.length === 0) { if (ratingChart) { ratingChart.destroy(); ratingChart = null; } const ctx = chartCanvas.getContext('2d'); ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height); return; }
+        const histFull = playerHistory.get(id) || []; const maxFightId = snapshots[currentSnapshotIndex].fight_id;
+        const hist = histFull.filter(h => Number(h.fight_id) <= Number(maxFightId));
+        if (hist.length === 0) {
+          if (ratingChart) { ratingChart.destroy(); ratingChart = null; }
+          const ctx = chartCanvas.getContext('2d');
+          ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+          return;
+        }
         const labels = hist.map(h => `#${h.fight_id}`);
         const beforeData = hist.map(h => Math.round(h.before));
+        const afterData = hist.map(h => Math.round(h.after));
         const winLossPerFight = hist.map(h => { const fid = String(h.fight_id); const parts = fightsById.get(fid) || []; if (parts.some(p => String(p.killer_id) === id)) return 1; if (parts.some(p => String(p.victim_id) === id)) return -1; return 0; });
         const gainData = []; let running = 0; for (let i = 0; i < winLossPerFight.length; i++) { running += winLossPerFight[i]; gainData.push(running); }
-        const ctx = chartCanvas.getContext('2d'); if (ratingChart) ratingChart.destroy();
-        ratingChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Rating', data: beforeData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y' }, { label: 'Gain (+1 win, -1 loss)', data: gainData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y1' }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { tooltip: { callbacks: { label: function (ctx) { const d = ctx.dataset.label || ''; const idx = ctx.dataIndex; if ((d || '').toLowerCase().includes('gain')) { const v = gainData[idx]; return `${d}: ${v}`; } else { const before = beforeData[idx]; return `${d}: ${before}`; } } } }, legend: { position: 'bottom' } }, scales: { y: { beginAtZero: false, ticks: { precision: 0 } }, y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { precision: 0 } } } } });
+        const ctx = chartCanvas.getContext('2d');
+
+        const peak = hist.length
+          ? Math.max(
+              ...hist.flatMap(h => [
+                Math.round(h.before),
+                Math.round(h.after)
+              ])
+            )
+          : Math.round(current);
+        const peakLineData = labels.map(() => peak);
+
+        if (ratingChart) ratingChart.destroy();
+        ratingChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Rating', data: beforeData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y' },
+              { label: 'Gain (+1 win, -1 loss)', data: gainData, fill: false, borderWidth: 1, pointRadius: 1, yAxisID: 'y1' },
+              {
+                label: 'Peak Rating',
+                data: peakLineData,
+                //borderColor: 'rgba(255, 99, 132, 0.9)',
+                //borderDash: [6, 6],
+                borderWidth: 1,
+                pointRadius: 0,
+                pointHoverRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    const d = ctx.dataset.label || ''; const idx = ctx.dataIndex;
+                    if ((d || '').toLowerCase().includes('gain')) { const v = gainData[idx]; return `${d}: ${v}`; } else { const before = beforeData[idx]; return `${d}: ${before}`; }
+                  }
+                }
+              },
+              legend: { position: 'bottom' }
+            },
+            scales: {
+              y: { beginAtZero: false, ticks: { precision: 0 } },
+              y1: { position: 'right', beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
+            }
+          }
+        });
+
       }
 
       function openPanelFor(id) {
