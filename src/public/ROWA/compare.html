@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Plr vs Plr (compact)</title>
+<style>
+  :root{--bg:#07111a;--card:#0f1a24;--muted:#7f8b98;--accent:#cfe6ff}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#e6eef8;padding:10px}
+  .card{background:var(--card);padding:10px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+  h3{margin:0 0 8px 0;font-size:14px}
+  .meta{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .wrap{overflow:auto;max-height:78vh;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.02)}
+  table{border-collapse:collapse;font-size:11px}
+  th,td{border:1px solid rgba(255,255,255,0.04);min-width:20px;text-align:center;vertical-align:middle}
+  th{position:sticky;top:0;background:rgba(255,255,255,0.02);z-index:2;font-weight:600}
+  .id{font-family:ui-monospace,monospace;font-size:11px}
+  button.cell{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:2px 6px;border-radius:6px;color:var(--accent);cursor:pointer;font-size:11px;min-width:30px}
+  .empty{color:var(--muted);font-size:11px}
+  /* modal (compact) */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:100}
+  .modal.open{display:flex}
+  .panel{background:#061022;width:min(880px,95%);max-height:90vh;overflow:auto;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.03)}
+  .fight{padding:6px;border-radius:6px;background:rgba(255,255,255,0.01);margin-bottom:6px;border:1px solid rgba(255,255,255,0.02);font-size:12px}
+  .close{background:transparent;border:0;color:var(--accent);cursor:pointer;font-size:13px}
+  @media (max-width:640px){ th,td{font-size:10px;padding:3px 4px} button.cell{padding:2px 4px;font-size:10px} }
+</style>
+</head>
+<body>
+<div class="card">
+  <h3>Player vs Player — compact matrix</h3>
+  <div class="meta">Click a cell to view fights between the two players (kills counted).</div>
+  <div id="status" class="meta">Loading…</div>
+  <div class="wrap" id="wrap"></div>
+</div>
+
+<div id="modal" class="modal" role="dialog" aria-hidden="true">
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong id="modalTitle"></strong>
+      <button id="closeBtn" class="close">Close ✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+(async function(){
+  const API = '/api/rowa/fights/recent?limit=10000';
+  const wrap = document.getElementById('wrap');
+  const status = document.getElementById('status');
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+  const closeBtn = document.getElementById('closeBtn');
+  closeBtn.onclick = () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden','true') };
+
+  // use the provided colorForId function (exact)
+  function colorForId(id, lightness = 80, sat = 85) {
+    if (!id) return '#cfe6ff';
+    let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+    return `hsl(${h},${sat}%,${lightness}%)`;
+  }
+
+  function fmtDate(iso){
+    if(!iso) return '';
+    try{
+      const dt = new Date(iso);
+      return new Intl.DateTimeFormat('en-US',{timeZone:'America/Edmonton',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(dt);
+    }catch(e){ return iso }
+  }
+
+  try{
+    const res = await fetch(API,{cache:'no-store'});
+    if(!res.ok) throw new Error('status '+res.status);
+    const json = await res.json();
+    const contribs = Array.isArray(json.contributions) ? json.contributions : [];
+    if(contribs.length === 0){ status.textContent='No contributions found.'; return; }
+
+    // group by fight id
+    const fightsById = new Map();
+    const playersSet = new Set();
+    for(const c of contribs){
+      const fid = String(c.fight_id ?? '');
+      if(!fightsById.has(fid)) fightsById.set(fid,[]);
+      fightsById.get(fid).push(c);
+      if(c.killer_id) playersSet.add(String(c.killer_id));
+      if(c.victim_id) playersSet.add(String(c.victim_id));
+    }
+
+    const players = Array.from(playersSet).sort((a,b)=>a.localeCompare(b));
+    status.textContent = `Players: ${players.length} — fights: ${fightsById.size}`;
+
+    // pair store keyed by sorted pair "a|b"
+    const pairs = new Map();
+    function keyFor(a,b){ return a < b ? a + '|' + b : b + '|' + a; }
+
+    // accumulate kills per pair and per fight
+    for(const [fid, parts] of fightsById.entries()){
+      const created = (parts.find(p=>p.fight_created_at && String(p.fight_created_at).trim()) || {}).fight_created_at || null;
+      const numValidKillers = parts.length
+      for(const p of parts){
+        if(!p.killer_id || !p.victim_id) continue;
+        const k = String(p.killer_id), v = String(p.victim_id);
+        if(k === v) continue;
+
+        
+        const enemyFocusPercent = Number(p.enemy_focus_percent || 0) / 100;
+        const myFocusPercent = Number(p.my_focus_percent || 0) / 100;
+        const fairness = enemyFocusPercent * myFocusPercent
+        if (fairness < 1) continue;
+
+        const sk = keyFor(k,v);
+        if(!pairs.has(sk)) pairs.set(sk, { a:null, b:null, aKills:0, bKills:0, fights:new Map() });
+        const obj = pairs.get(sk);
+        if(obj.a === null){ const [x,y]=sk.split('|'); obj.a=x; obj.b=y; }
+
+        const sharedKills = numValidKillers
+        if(k === obj.a && v === obj.b) obj.aKills += sharedKills;
+        else if(k === obj.b && v === obj.a) obj.bKills += sharedKills;
+
+        if(!obj.fights.has(fid)) obj.fights.set(fid, { fight_id: fid, created, aKills:0, bKills:0 });
+        const rec = obj.fights.get(fid);
+
+        if(k === obj.a && v === obj.b) rec.aKills += sharedKills;
+        else if(k === obj.b && v === obj.a) rec.bKills += sharedKills;
+      }
+    }
+
+    // build compact table
+    const tbl = document.createElement('table');
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    htr.appendChild(document.createElement('th')); // corner
+    for(const p of players){
+      const th = document.createElement('th');
+      const color = colorForId(p, 62, 78);
+      th.innerHTML = `<div class="id" style="color:${color}">${p}</div>`;
+      htr.appendChild(th);
+    }
+    thead.appendChild(htr);
+    tbl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for(const a of players){
+      const tr = document.createElement('tr');
+      const th = document.createElement('th');
+      th.innerHTML = `<div class="id" style="color:${colorForId(a,62,78)}">${a}</div>`;
+      tr.appendChild(th);
+      for(const b of players){
+        const td = document.createElement('td');
+        if(a === b){ td.innerHTML = '<div class="empty">—</div>'; tr.appendChild(td); continue; }
+        const sk = keyFor(a,b);
+        const obj = pairs.get(sk);
+        if(!obj || (obj.aKills===0 && obj.bKills===0)){
+          td.innerHTML = '<div class="empty">—</div>';
+          tr.appendChild(td);
+          continue;
+        }
+        // determine wins (kills) for row-player (a) vs column-player (b)
+        const winsA = (a === obj.a) ? obj.aKills : obj.bKills;
+        const winsB = (a === obj.a) ? obj.bKills : obj.aKills;
+        const denom = winsA + winsB;
+        const pct = denom ? Math.round((winsA/denom)*100) + '%' : '-';
+        const btn = document.createElement('button');
+        btn.className = 'cell';
+        btn.textContent = pct;
+        btn.title = `${winsA} → ${winsB}  (kills)`;
+        // color left border slightly by winner of the pair (subtle)
+        const dominant = winsA > winsB ? colorForId(a, 60, 75) : (winsB > winsA ? colorForId(b, 60, 75) : null);
+        if(dominant) btn.style.borderColor = dominant;
+        btn.onclick = () => openModal(a,b,obj);
+        td.appendChild(btn);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    tbl.appendChild(tbody);
+    wrap.innerHTML = '';
+    wrap.appendChild(tbl);
+
+    function openModal(a,b,obj){
+      modalTitle.textContent = `${a}  —  ${b}`;
+      const totalsA = (a===obj.a)?obj.aKills:obj.bKills;
+      const totalsB = (a===obj.a)?obj.bKills:obj.aKills;
+      const denom = totalsA + totalsB;
+      const pct = denom ? Math.round((totalsA/denom)*100) + '%' : '-';
+      modalBody.innerHTML = `<div style="margin-bottom:8px;font-size:13px">Totals: <strong style="color:${colorForId(a,68,84)}">${a}</strong> ${totalsA} — <strong style="color:${colorForId(b,68,84)}">${b}</strong> ${totalsB} — Winrate ${pct}</div>`;
+
+      const fights = Array.from(obj.fights.values()).sort((x,y)=> (Number(y.fight_id)||0) - (Number(x.fight_id)||0));
+      if(fights.length === 0){
+        modalBody.insertAdjacentHTML('beforeend','<div class="fight">No mutual kills recorded between these players.</div>');
+      } else {
+        for(const f of fights){
+          const aKills = (a===obj.a)?f.aKills:f.bKills;
+          const bKills = (a===obj.a)?f.bKills:f.aKills;
+          const div = document.createElement('div'); div.className='fight';
+          div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong style="font-size:13px">Fight #${f.fight_id}</strong><div style="color:var(--muted);font-size:12px">${fmtDate(f.created)}</div></div>
+            <div style="text-align:right;font-size:13px"><span style="color:${colorForId(a,68,84)}">${a}</span>: <strong>${aKills}</strong> — <span style="color:${colorForId(b,68,84)}">${b}</span>: <strong>${bKills}</strong></div>
+          </div>`;
+          modalBody.appendChild(div);
+        }
+      }
+      modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+    }
+
+  }catch(err){
+    console.error(err);
+    status.textContent = 'Failed to load feed: ' + (err && err.message ? err.message : String(err));
+  }
+})();
+</script>
+</body>
+</html>

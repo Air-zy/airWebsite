@@ -361,16 +361,18 @@
       }
 
 
-      const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA) / 400));
-      const applyElo = (rW, rL, K) => {
-        //rw is winner
-        //rl is loser
-        const eW = expected(rW, rL);
+      const expected = (rA, rB) => 1 / (1 + Math.pow(10, (rB - rA) / 400)); // 400
+
+      const applyElo = (rA, rB, scoreA, K) => {
+        const eA = expected(rA, rB);
+        const scoreB = 1 - scoreA;
+
         return [
-          rW + K * (1 - eW),
-          rL + K * (0 - (1 - eW))
+          rA + K * (scoreA - eA),
+          rB + K * (scoreB - (1 - eA))
         ];
       };
+
 
       const out = document.getElementById('output');
       const panel = document.getElementById('panel');
@@ -482,7 +484,7 @@
           const freq = effectiveFrequency(stats, fightIndex);
           let freqFactor = 1;
           if (numValidKillers > 1) freqFactor = 1 / Math.sqrt(freq);
-          let thisKValue = (KValue * fairness * freqFactor) / numValidKillers;
+          let thisKValue = (KValue * fairness * freqFactor) // numValidKillers;
           
           if (Number(part.last_hit || 0) * 2 > Number(part.since_fight_start || 0)) {
             thisKValue = 0;
@@ -502,9 +504,16 @@
 
           let ratingKiller = ratings[killer];
           let ratingVictim = ratings[victim];
-          let [newK, newV] = applyElo(ratingKiller, ratingVictim, thisKValue);
-          if (newK < 1200) newK += (thisKValue / KValue) * freqFactor;
-          if (newV < 1200) newV += (thisKValue / KValue) * freqFactor;
+
+          const dmgRatio = part.me_dmg_enemy / part.enemy_dmg_me;
+          const scoreA = 1 - Math.min(dmgRatio/4, 0.25)*numValidKillers;
+          //console.log(fid,part,dmgRatio, scoreA)
+
+          let [newK, newV] = applyElo(ratingKiller, ratingVictim, scoreA, thisKValue);
+          newK += (thisKValue / KValue) * freqFactor * 1/numValidKillers
+          newV += (thisKValue / KValue) * freqFactor * 1/numValidKillers
+          //if (newK < 1200) newK += (thisKValue / KValue) * freqFactor;
+          //if (newV < 1200) newV += (thisKValue / KValue) * freqFactor;
 
           ratings[killer] = newK;
           ratings[victim] = newV;
