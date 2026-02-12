@@ -506,7 +506,7 @@
           let ratingVictim = ratings[victim];
 
           const dmgRatio = part.me_dmg_enemy / part.enemy_dmg_me;
-          const scoreA = 1 - Math.min(dmgRatio/4, 0.25)*numValidKillers;
+          const scoreA = 1 - Math.min(dmgRatio/3, 0.33)*numValidKillers;
           //console.log(fid,part,dmgRatio, scoreA)
 
           let [newK, newV] = applyElo(ratingKiller, ratingVictim, scoreA, thisKValue);
