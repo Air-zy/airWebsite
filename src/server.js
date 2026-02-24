@@ -67,6 +67,7 @@ const page = file => (req, res) => res.sendFile(file, { root: PRODUCTION_PUBLIC_
 app.get('/',           page('/index.html'));
 app.get('/home',       page('/index.html'));
 app.get('/c4',         page('/c4/connect4.html'));
+app.get('/roblox',     page('/roblox/roblox.html'));
 app.get('/avyTos',     page('/avyTOS.html'));
 app.get('/avyprivacy', page('/avyPrivacy.html'));
 app.get('/change',     page('/change.html'));
