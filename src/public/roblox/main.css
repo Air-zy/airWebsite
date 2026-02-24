@@ -35,7 +35,7 @@ main {
 section {
     display: block;
     margin-bottom: 40px;
-    padding: 60px;
+    padding: 40px 20%;
     background: linear-gradient(to bottom right, var(--frame-bcol), var(--bg-col));
 }
 
