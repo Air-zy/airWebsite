@@ -1,8 +1,7 @@
 # airWebsite
 [![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/Air-zy/airWebsite)
 
-This repository contains the source code for a MONOLITH full-stack personal portfolio and project showcase website. Built with Node.js and Express, custom backend API, various interactive data visualizations, game integrations, and real-time components using WebSockets.
-
+This repository contains the source code for a MONOLITH full-stack personal portfolio and project showcase website. Built with Node.js and Express.
 The app  serves as both a personal hub and a platform for hosting a variety of web-based tools and demos, from an AI-powered Connect 4 game to an in-depth anime relationship graph.
 
 ## Features
