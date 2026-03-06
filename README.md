@@ -104,4 +104,5 @@ The repository is organized into several key directories:
 ├── .env.example             # Template for environment variables
 └── package.json             # Project dependencies and scripts
 
+```
 this is AI generated
