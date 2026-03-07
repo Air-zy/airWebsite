@@ -15,7 +15,7 @@
     "fast-xml-parser": ">=5.3.6"
   },
   "dependencies": {
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.2.2",
     "argon2": "^0.44.0",
     "compression": "^1.8.1",
     "form-data": ">=2.5.4",
