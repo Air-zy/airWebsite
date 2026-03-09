@@ -104,4 +104,4 @@ The repository is organized into several key directories:
 └── package.json             # Project dependencies and scripts
 
 ```
-this is AI generated
+this readme is AI generated
