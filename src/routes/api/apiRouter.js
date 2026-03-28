@@ -1,5 +1,10 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
+
+function silent429(req, res /*, next */) {
+  res.status(429).end();
+}
 
 router.get('/rowa/fights/recent',  require('./rowa2/getFightsRecent.js')   );
 router.get('/rowa/fights/:id',     require('./rowa2/getFightById.js')      );
@@ -28,5 +33,14 @@ router.post('/project-edit',       require('./api_project_edit.js')        );
 router.post('/get-anime',          require('./anime/get_anime.js')         );
 router.post('/commit-anime',       require('./anime/commit_anime.js')      );
 router.post('/projects-update',    require('./projects_update.js')         );
-router.post('/imggen',             require('./api_imggen.js')              );
+
+const imgLimiter = rateLimit({
+  windowMs: 6 * 1000,
+  max: 1,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: silent429,
+});
+
+router.post('/imggen', imgLimiter, require('./api_imggen.js'));
 module.exports = router;
