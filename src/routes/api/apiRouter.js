@@ -28,5 +28,5 @@ router.post('/project-edit',       require('./api_project_edit.js')        );
 router.post('/get-anime',          require('./anime/get_anime.js')         );
 router.post('/commit-anime',       require('./anime/commit_anime.js')      );
 router.post('/projects-update',    require('./projects_update.js')         );
-
+router.post('/imggen',             require('./api_imggen.js')              );
 module.exports = router;

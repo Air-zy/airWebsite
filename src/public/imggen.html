@@ -18,8 +18,8 @@
       .image-container {
         position: relative;
         display: inline-block;
-        width: 512px;
-        height: 512px;
+        width: 50vw;
+        aspect-ratio: 1 / 1;
       }
       @media (max-width: 768px) {
           .image-container {
@@ -96,7 +96,7 @@
     </style>
 </head>
 <body>
-    <h2>stable-diffusion-3.5-large-turbo</h2>
+    <h2>Qwen-Image-2512-Lightning</h2>
     <div style="display: flex;flex-wrap: wrap;align-items: center;justify-content: center; margin: 60px">
       <div class="image-container">
         <img id="displayImage">
@@ -188,12 +188,12 @@
             const guidanceScale = document.getElementById('guidanceScale').value || 1;
             const interfSteps = document.getElementById('interfSteps').value || 8;
            
-          if (parseInt(resolutionWidth) > 1024) {
+          if (parseInt(resolutionWidth) > 2048) {
             alert("width resolution too big")
             return
           }
                                                                    
-          if (parseInt(resolutionHeight) > 1024) {
+          if (parseInt(resolutionHeight) > 2048) {
             alert("height resolution too big")
             return
           }
@@ -217,7 +217,7 @@
           inGeneration = true
           darkOverlay.style.display = 'block';
           
-          const counterInterval = startCounter(20);
+          const counterInterval = startCounter(16);
             fetch('/api/imggen', {
                 method: 'POST',
                 headers: {
@@ -230,8 +230,8 @@
               console.log(data)
               inGeneration = false
               clearInterval(counterInterval);
-              if (data.msg) {
-                document.getElementById('displayImage').src = data.msg;
+              if (data.output) {
+                document.getElementById('displayImage').src = "data:image/png;base64," + data.output;
                 displayImage.onload = function() {
                   const aspectRatio = displayImage.naturalWidth / displayImage.naturalHeight;
                   if (displayImage.naturalWidth > displayImage.naturalHeight) {
