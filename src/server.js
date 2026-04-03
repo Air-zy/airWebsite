@@ -1,9 +1,3 @@
-const dotenv = require('dotenv');
-const dotenvResult = dotenv.config();
-if (dotenvResult && dotenvResult.error) {
-  console.log("DOT ENV]", dotenvResult.error)
-}
-
 const express = require('express');
 const path = require('path');
 
@@ -105,22 +99,9 @@ app.post('/nfetch',                 require('./routes/nfetch.js')               
 const { startrbx } = require('./routes/rblxapp/robloxstuff.js')
 startrbx(app)
 
-function toBase64(num) {
-  const buffer = Buffer.alloc(4);
-  buffer.writeUInt32BE(num);
-  return buffer.toString("base64");
-}
-
-const { hashDirectory } = require('./modules/hashDirectory.js');
 const server = app.listen(PORT, () => {
-  const hash = hashDirectory(__dirname);
-  console.log(`[Server] running on port ${PORT}, Hash ${toBase64(hash)}`);
+  console.log(`[Server] running on port ${PORT}`);
 });
-
-const serverWSS = require('./modules/serverWSS.js')
-const newWS = serverWSS.start(server);
-const activityStatus = require('./routes/activityStatus.js')
-app.post('/presence', activityStatus.start(newWS));
 
 app.use((req, res) => {
   res.status(404).type('text').send(`Not found LOL 🥀💔 ${req.method} ${req.originalUrl}`);

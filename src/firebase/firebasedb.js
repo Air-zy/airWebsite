@@ -31,7 +31,7 @@ const firedb = mainFirestore.collection('tokenUsage');
 const firedbSecure = mainFirestore.collection('secure');
 
 // cached refs
-let addrRef, airsiteRef, animeRef, activityRef, robloxRef, skillTreeRef;
+let addrRef, airsiteRef, animeRef, robloxRef, skillTreeRef;
 
 async function firedbAdressGet() {
   if (!addrRef) addrRef = firedb.doc('adresses2');
@@ -181,31 +181,6 @@ async function firedbAnimeMapGet() {
   return snap.data();
 }
 
-async function firedbActivityGet() {
-  if (!activityRef) activityRef = firedb.doc('activity');
-  const snap = await activityRef.get();
-  return snap.data();
-}
-
-async function _safeSet4(documentRef, animedata) {
-  try {
-    console.log("saving activity... ", typeof(animedata))
-    await documentRef.set(animedata);
-  } catch(err) {
-    console.log("activity ERR: ", err)
-  }
-}
-
-
-async function firedbActivitySet(activty) {
-  if (!activityRef) {
-    activityRef = firedb.doc("activity");
-  }
-  if (activityRef) {
-    await _safeSet4(activityRef, activty);
-  }
-}
-
 //
 
 async function firedbRobloxGet() {
@@ -262,9 +237,6 @@ module.exports = {
 
   firedbRobloxGet,
   firedbRobloxSave,
-
-  firedbActivitySet,
-  firedbActivityGet,
 
   skillTreeGet,
   skillTreeSave,

@@ -17,7 +17,6 @@ The app  serves as both a personal hub and a platform for hosting a variety of w
     *   Features a dedicated PostgreSQL database (`rowaDB`) to log and retrieve player data and fight statistics for the Roblox game ROWA.
     *   Provides API endpoints for fetching player data, fight histories, and leaderboards.
     *   Includes a webhook to push code from Roblox Studio directly to a GitHub repository.
-*   **Real-time Presence**: A WebSocket-based system to monitor and broadcast live status information, visible on the homepage.
 *   **Custom Authentication**: A self-built user account system using Argon2 for secure password hashing and a session-based login mechanism.
 *   **Custom Tooling**:
     *   **On-the-fly Asset Minification**: A custom build script minifies HTML, CSS, and JavaScript files from `/public` into a `/dist` directory upon server startup.
@@ -28,7 +27,6 @@ The app  serves as both a personal hub and a platform for hosting a variety of w
 *   **Backend**: Node.js, Express.js
 *   **Frontend**: HTML5, CSS3, Vanilla JavaScript, D3.js
 *   **Databases**: PostgreSQL, Firebase Firestore
-*   **Real-time Communication**: WebSockets (`ws`)
 *   **Key Libraries**:
     *   `argon2`: For password hashing.
     *   `express-rate-limit`: For API rate limiting.

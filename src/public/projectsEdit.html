@@ -318,7 +318,7 @@
       try {
         const headers = { 'Content-Type': 'application/json' };
         if (authKey) headers['Authorization'] = authKey;
-        const response = await fetch('/api/projects-update', {
+        const response = await fetch('/api/projects/update', {
           method: 'POST',
           headers,
           body: JSON.stringify(projectsObj)

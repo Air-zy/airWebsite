@@ -708,7 +708,7 @@
           ctx.fillText('Visualization error', canvas.clientWidth / 2, canvas.clientHeight / 2);
         }
 
-        // Slots
+        /* Slots are not zstd compressed so must be descompressed...
         slots.innerHTML = '';
         (plrData.slots || []).forEach((s, i) => {
           const name = esc(s[0] || `Slot ${i + 1}`);
@@ -726,7 +726,7 @@
             <div class="kv"><div class="sm">LOST</div><div class="value">${sL}</div></div>
           </div>
         </div>`;
-        });
+        });*/
 
         // plrStats
         (function renderPlrStats() {

@@ -182,7 +182,7 @@ function handleSections() {
 
 async function requestViewsUpdate(key) {
   try {
-    fetch('/api/project-edit', {
+    fetch('/api/projects/edit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -461,122 +461,17 @@ mainContentElm.addEventListener("scroll", function () {
         //alert(error)
       });
 
+    fetch('/api/status/lastOnline').then(response => response.json())
+      .then(data => {
+        const mainLastOnline = document.getElementById("main-last-on");
+        mainLastOnline.innerText = `last online: ${data.minsAgo} mins ago`;
+        //console.log(data)
+      })
   }
 
   handleSections()
   //console.log(`main scrollTop: ${scrollTop}px`);
 });
-
-/* main status */
-function timeDifference(utcDateString) {
-  const now = new Date();
-  const past = new Date(utcDateString); // parse UTC or ISO string corectly
-
-  let diff = now - past; // diff in ms
-
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days !== 1 ? 's' : ''} ago`;
-
-  const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
-  if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`;
-
-  const years = Math.floor(months / 12);
-  return `${years} year${years !== 1 ? 's' : ''} ago`;
-}
-function timeDifferenceSince(utcDateString) {
-  const now = new Date();
-  const past = new Date(utcDateString); // parse UTC or ISO string corectly
-
-  let diff = now - past; // diff in ms
-
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''}`;
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''}`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days !== 1 ? 's' : ''}`;
-
-  const months = Math.floor(days / 30); // anything under here im probabily dead :skull:
-  if (months < 12) return `${months} month${months !== 1 ? 's' : ''}`;
-
-  const years = Math.floor(months / 12);
-  return `${years} year${years !== 1 ? 's' : ''}`;
-}
-
-let currentStatus
-let lastOnTimestamp
-let statusSince
-
-const mainStatusElm = document.getElementById("main-status");
-const mainLastSeenElm = document.getElementById("main-last-seen");
-const ws = new WebSocket('/ws');
-
-ws.onopen = () => {
-  console.log("WS connected");
-};
-ws.onclose = () => {
-  console.log("WS closed");
-};
-ws.onerror = (err) => {
-  console.error("WS error", err);
-};
-
-ws.onmessage = (msg) => {
-  console.log("WS msg:", msg)
-  const data = JSON.parse(msg.data);
-  const dstatus = data.status
-  if (dstatus == "offline") {
-    mainStatusElm.innerText = `status: ${dstatus}`
-    mainLastSeenElm.innerText = `last seen: ${timeDifference(data.lastOn)}`
-  } else {
-    mainLastSeenElm.innerText = `last updated: ${timeDifference(data.lastOn)}`
-    if (dstatus == "online") {
-      mainStatusElm.innerText = `status: 🟢 ${dstatus}`
-    } else if (dstatus == "dnd") {
-      mainStatusElm.innerText = `status: 🔴 ${dstatus}`
-    } else if (dstatus == "idle") {
-      mainStatusElm.innerText = `status: 🟡 ${dstatus}`
-    }
-  }
-  mainStatusElm.innerText += ` for ${timeDifferenceSince(data.since)}`
-
-  currentStatus = dstatus
-  lastOnTimestamp = data.lastOn;
-  statusSince = data.since
-};
-
-setInterval(() => {
-  if (currentStatus && lastOnTimestamp) {
-    if (currentStatus === "offline") {
-      mainStatusElm.innerText = `status: ${currentStatus}`
-      mainLastSeenElm.innerText = `last seen: ${timeDifference(lastOnTimestamp)}`;
-    } else {
-      mainLastSeenElm.innerText = `last updated: ${timeDifference(lastOnTimestamp)}`;
-      if (currentStatus == "online") {
-        mainStatusElm.innerText = `status: 🟢 ${currentStatus}`
-      } else if (currentStatus == "dnd") {
-        mainStatusElm.innerText = `status: 🔴 ${currentStatus}`
-      } else if (currentStatus == "idle") {
-        mainStatusElm.innerText = `status: 🟡 ${currentStatus}`
-      }
-    }
-    mainStatusElm.innerText += ` for ${timeDifferenceSince(statusSince)}`
-  }
-}, 1000);
 
 /* ---- */
 
