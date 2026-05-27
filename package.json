@@ -30,6 +30,10 @@
     "ws": "^8.13.0",
     "zlib": "^1.0.5"
   },
+  "overrides": {
+    "protobufjs": "^7.5.5",
+    "fast-xml-builder": "^1.2.0"
+  },
   "engines": {
     "node": "18.x"
   },

@@ -5,386 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UGI Leaderboard</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0c0c0e;--bg2:#131315;--bg3:#1a1a1d;--bg4:#202023;--bd:#252528;--bd2:#303035;--t:#ccccc4;--t2:#686862;--t3:#383835;--ac:#e8c547;--gn:#5db87a;--rd:#e05c5c;--bl:#5ca8d8;--f:'IBM Plex Mono',monospace}
-html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--t);font-family:var(--f);font-size:12px;line-height:1.4}
-::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
-#app{display:flex;flex-direction:column;height:100vh}
-#hdr{display:flex;align-items:center;gap:5px;padding:5px 10px;border-bottom:1px solid var(--bd);background:var(--bg2);flex-shrink:0;flex-wrap:wrap}
-h1{font-size:11px;font-weight:600;color:var(--ac);letter-spacing:.1em;margin-right:2px}
-.sep{width:1px;height:14px;background:var(--bd);flex-shrink:0}
-.bt{background:var(--bg3);border:1px solid var(--bd);color:var(--t2);font:500 10px var(--f);padding:2px 8px;cursor:pointer;transition:all .1s}
-.bt.on{background:var(--ac);border-color:var(--ac);color:var(--bg);font-weight:600}
-.bt:hover:not(.on){border-color:var(--t2);color:var(--t)}
-.fb{background:var(--bg3);border:1px solid var(--bd);color:var(--t2);font:10px var(--f);padding:2px 5px;cursor:pointer;transition:all .1s;user-select:none}
-.fb.on{background:var(--ac);border-color:var(--ac);color:var(--bg);font-weight:600}
-.fb.off{border-color:var(--rd);color:var(--rd)}
-.fb:hover:not(.on):not(.off){border-color:var(--t2);color:var(--t)}
-#search{background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px var(--f);padding:3px 7px;width:100px;outline:none}
-#search:focus{border-color:var(--ac)}#search::placeholder{color:var(--t3)}
-#status{margin-left:auto;color:var(--t2);font-size:10px;white-space:nowrap}
-#layout{display:flex;flex:1;overflow:hidden}
-#wp{width:190px;flex-shrink:0;border-right:1px solid var(--bd);overflow-y:auto;background:var(--bg2);transition:width .15s,opacity .15s}
-#wp.hide{width:0;overflow:hidden;border-right:none;opacity:0}
-.wgh{padding:4px 8px;font-size:9px;font-weight:600;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;background:var(--bg3);cursor:pointer;display:flex;justify-content:space-between;user-select:none}
-.wgh:hover{color:var(--t)}.wgh .ch{font-size:8px;transition:transform .15s}
-.wg.c .ch{transform:rotate(-90deg)}.wg.c .wr{display:none}
-.wr{padding:2px 8px;display:flex;align-items:center;gap:5px}
-.wr label{flex:1;color:var(--t2);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wr input[type=number]{width:44px;background:var(--bg4);border:1px solid var(--bd);color:var(--t);font:11px var(--f);padding:1px 3px;outline:none;text-align:right}
-.wr input:focus{border-color:var(--ac)}.wr input.nz{color:var(--ac);border-color:var(--bd2)}
-.wr input::-webkit-inner-spin-button,.wr input::-webkit-outer-spin-button{-webkit-appearance:none}
-#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.hid{display:none!important}
-table{width:100%;border-collapse:collapse}
-thead{position:sticky;top:0;z-index:10;background:var(--bg3)}
-thead th{padding:4px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--t2);letter-spacing:.05em;border-bottom:1px solid var(--bd2);white-space:nowrap;cursor:pointer;user-select:none}
-thead th:hover{color:var(--t)}
-thead th.nm{text-align:right}
-thead th.sa::after{content:' ▲';color:var(--ac);font-size:8px}
-thead th.sd::after{content:' ▼';color:var(--ac);font-size:8px}
-thead th.wt{color:var(--ac);border-bottom-color:var(--ac)}
-tbody tr{border-bottom:1px solid var(--bd);cursor:pointer;transition:background .08s;content-visibility:auto;contain-intrinsic-size:0 26px}
-tbody tr:hover{background:var(--bg3)}tbody tr.ex{background:var(--bg3)}
-td{padding:3px 8px;font-size:11px;white-space:nowrap}
-td.rk{text-align:right;color:var(--t3);font-size:10px;width:28px}
-td.nc{display:flex;justify-content:space-between;align-items:center;gap:6px;max-width:500px;overflow:hidden}
-.nn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.nn a{color:var(--t);text-decoration:none}.nn a:hover{color:var(--ac)}
-.nt{display:flex;gap:3px;flex-shrink:0;white-space:nowrap}
-td.sc{color:var(--ac);font-weight:600}td.nm{text-align:right;font-variant-numeric:tabular-nums}
-.tag{font-size:8px;padding:0 3px;border-radius:1px;vertical-align:middle;font-weight:500}
-.t-ft{background:#2a2040;color:#a88fe0}.t-mg{background:#1a2a20;color:#5db87a}
-.t-th{background:#2a1a1a;color:#e05c5c}.t-fn{background:#1a2030;color:#5ca8d8}
-tr.dr td{padding:0}
-.db{padding:6px 10px;background:var(--bg4);border-top:1px solid var(--bd)}
-.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:2px 12px}
-.dgg{margin-bottom:4px}
-.dggn{font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px;padding-bottom:1px;border-bottom:1px solid var(--bd)}
-.di{display:flex;justify-content:space-between;padding:1px 0;font-size:10px}
-.di-l{color:var(--t2)}.di-v{color:var(--t);font-variant-numeric:tabular-nums}
-#agg-bar{padding:5px 10px;border-bottom:1px solid var(--bd);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-shrink:0}
-#agg-bar label{font-size:11px;color:var(--t2)}
-#agg-bar select{background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px var(--f);padding:2px 4px;outline:none}
-.asub{width:100%;border-collapse:collapse;font-size:11px}
-.asub th{padding:2px 8px;text-align:left;font-size:9px;color:var(--t3);font-weight:500;border-bottom:1px solid var(--bd)}
-.asub th.nm{text-align:right}
-.asub td{padding:2px 8px;color:var(--t2)}.asub td.nm{text-align:right;font-variant-numeric:tabular-nums}
-#cpick{position:absolute;top:100%;right:0;width:190px;max-height:65vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--bd2);z-index:100;padding:4px 0}
-.cpg{border-bottom:1px solid var(--bd)}
-.cpgn{padding:3px 8px;font-size:9px;font-weight:600;color:var(--t3);letter-spacing:.1em;text-transform:uppercase}
-.cpi{display:flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;color:var(--t2);cursor:pointer;user-select:none}
-.cpi:hover{color:var(--t)}.cpi input{accent-color:var(--ac);margin:0}
-#cmdp{position:fixed;inset:0;z-index:1000;display:none;align-items:flex-start;justify-content:center;padding-top:15vh;background:rgba(0,0,0,.6)}
-#cmdp.open{display:flex}
-#cmdp-box{width:360px;max-height:50vh;background:var(--bg2);border:1px solid var(--bd2);overflow:hidden;display:flex;flex-direction:column;border-radius:2px}
-#cmdp-in{width:100%;background:var(--bg3);border:none;border-bottom:1px solid var(--bd);color:var(--t);font:13px var(--f);padding:8px 12px;outline:none}
-#cmdp-ls{overflow-y:auto;flex:1;padding:2px 0}
-.ci{padding:5px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--t2);font-size:11px}
-.ci:hover,.ci.sel{background:var(--bg3);color:var(--t)}
-.ci small{font-size:9px;color:var(--t3)}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
-<header id="hdr">
-<h1>UGI</h1><div class="sep"></div>
-<button class="bt on" data-v="lb">LB</button><button class="bt" data-v="agg">Agg</button>
-<div class="sep"></div>
-<input id="search" type="text" placeholder="Filter…">
-<button class="fb" data-f="finetuned">FT</button><button class="fb" data-f="merged">MRG</button><button class="fb" data-f="foundation">BASE</button><button class="fb" data-f="thinking">THK</button>
-<div class="sep"></div>
-<button class="bt" id="wbt">Weights</button>
-<button class="bt" id="cbt">Cols</button>
-<div style="position:relative" id="cwrap"><div id="cpick" class="hid"></div></div>
-<button class="bt" id="rbtn">Reset</button>
-<span id="status"></span>
-</header>
-<div id="layout">
-<aside id="wp" class="hide"></aside>
-<div id="main">
-<div id="v-lb" style="flex:1;display:flex;flex-direction:column;overflow:hidden"><div style="flex:1;overflow:auto"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div></div>
-<div id="v-agg" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-<div id="agg-bar"><label>Group by <select id="agrp"><option value="architecture">Architecture</option><option value="paramSize">Params</option><option value="type">Type</option><option value="template">Template</option></select></label></div>
-<div style="flex:1;overflow:auto"><table><thead id="ath"></thead><tbody id="atb"></tbody></table></div>
+  <header id="hdr">
+    <h1>UGI</h1><div class="sep"></div>
+    <button class="bt on" data-v="lb">LB</button>
+    <button class="bt" data-v="agg">Agg</button>
+    <button class="bt" data-v="info">Info</button>
+    <div class="sep"></div>
+    <input id="search" type="text" placeholder="Filter…">
+    <div class="sep"></div>
+    <div style="position:relative" id="cwrap"><button class="bt" id="cbt">Cols</button><div id="cpick" class="hid"></div></div>
+    <span id="status"></span>
+  </header>
+
+  <div id="layout">
+    <aside id="sidebar"></aside>
+    <div id="main">
+
+      <div id="v-lb" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:1;overflow:auto">
+          <table><thead id="lth"></thead><tbody id="ltb"></tbody></table>
+        </div>
+      </div>
+
+      <div id="v-agg" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div id="agg-bar">
+          <label>Group by
+            <select id="agrp">
+              <option value="architecture">Architecture</option>
+              <option value="paramSize">Params (Active)</option>
+              <option value="totalParamSize">Params (Total)</option>
+              <option value="type">Type</option>
+              <option value="template">Template</option>
+              <option value="originality">Originality</option>
+            </select>
+          </label>
+        </div>
+        <div style="flex:1;overflow:auto">
+          <table><thead id="ath"></thead><tbody id="atb"></tbody></table>
+        </div>
+      </div>
+
+      <div id="v-info" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:24px">
+        <p style="color:var(--t2)">Info page — coming soon.</p>
+      </div>
+
+    </div>
+    <aside id="det-panel" class="hid"></aside>
+  </div>
 </div>
+
+<div id="thpop" class="hide"></div>
+
+<div id="cmdp">
+  <div id="cmdp-box">
+    <input id="cmdp-in" placeholder="Toggle columns…">
+    <div id="cmdp-ls"></div>
+  </div>
 </div>
-</div>
-</div>
 
-<div id="cmdp"><div id="cmdp-box"><input id="cmdp-in" placeholder="Toggle columns…"><div id="cmdp-ls"></div></div></div>
-
-<script>
-const CSV='https://huggingface.co/spaces/DontPlanToEnd/UGI-Leaderboard/raw/main/ugi-leaderboard-data.csv';
-let D=[],W={},FF={finetuned:null,merged:null,foundation:null,thinking:null};
-let sC='score',sD=-1,exR=null,sq='',vw='lb';
-let aSC='ugi_avg',aSD=-1,aEx=null,aGr='architecture';
-let vC=new Set(['rank','name','score','ugi','writing','natint','w10','params']);
-let aVC=new Set(['ugi','writing','natint','w10','params']);
-
-const WG=[
-{g:'Main',items:[{k:'ugi',l:'UGI',get:e=>e.scores.ugi},{k:'writing',l:'Writing',get:e=>e.scores.writing},{k:'natint',l:'NatInt',get:e=>e.scores.natint},{k:'w10',l:'W/10',get:e=>e.scores.w10.overall},{k:'w10d',l:'W/10-D',get:e=>e.scores.w10.direct},{k:'w10a',l:'W/10-A',get:e=>e.scores.w10.adherence}]},
-{g:'UGI',items:[{k:'sens',l:'Sensitive',get:e=>e.ugi_breakdown.sensitive_info},{k:'haz',l:'Hazardous',get:e=>e.ugi_breakdown.hazardous},{k:'ent',l:'Entertain',get:e=>e.ugi_breakdown.entertainment},{k:'socpol',l:'SocPol',get:e=>e.ugi_breakdown.socpol},{k:'nsfw',l:'NSFW',get:e=>e.ugi_breakdown.nsfw_score},{k:'dark',l:'Dark',get:e=>e.ugi_breakdown.dark_score}]},
-{g:'NatInt',items:[{k:'textbook',l:'Textbook',get:e=>e.natint_breakdown.textbook},{k:'popculture',l:'Pop Cult',get:e=>e.natint_breakdown.pop_culture},{k:'worldmodel',l:'World Mdl',get:e=>e.natint_breakdown.world_model},{k:'recipe_err',l:'Recipe Err',get:e=>e.natint_breakdown.recipe_err},{k:'geo_mae',l:'Geo MAE',get:e=>e.natint_breakdown.geo_mae}]},
-{g:'Writing',items:[{k:'style',l:'Style',get:e=>e.writing.style_score},{k:'orig',l:'Originality',get:e=>e.writing.originality},{k:'readability',l:'Readability',get:e=>e.writing.readability_grade},{k:'dialogue',l:'Dialogue%',get:e=>e.writing.dialogue_pct},{k:'sem_red',l:'Sem Redund',get:e=>e.writing.semantic_redundancy},{k:'lex_stuck',l:'Lex Stuck',get:e=>e.writing.lexical_stuckness},{k:'len_err',l:'Length Err',get:e=>e.writing.length_error_pct}]},
-{g:'ShowRec',items:[{k:'showrec',l:'Show Rec',get:e=>e.show_rec.score},{k:'showmae',l:'Show MAE',get:e=>e.show_rec.mae},{k:'showcorr',l:'Correlation',get:e=>e.show_rec.correlation}]}
-];
-
-const G={};
-WG.forEach(g=>g.items.forEach(i=>G[i.k]=i.get));
-Object.assign(G,{ugi_no_w10:e=>e.scores.ugi_no_w10,params:e=>e.model.params.active,total_params:e=>e.model.params.total,arch:e=>e.model.architecture,template:e=>e.model.template,released:e=>e.model.released,weight_err:e=>e.natint_breakdown.weight_err,music_mae:e=>e.natint_breakdown.music_mae,verb_noun:e=>e.writing.verb_noun_ratio,adj_adv:e=>e.writing.adj_adv_pct,wc_exceeded:e=>e.writing.wc_exceeded_pct,showstd:e=>e.show_rec.std_dev,lean:e=>e.political.lean,ideology:e=>e.political.ideology,dipl:e=>e.political.compass.dipl,govt:e=>e.political.compass.govt,econ:e=>e.political.compass.econ,scty:e=>e.political.compass.scty});
-
-const CL=[
-{id:'rank',l:'#',a:1,cls:'rk nm'},{id:'name',l:'MODEL',a:1,cls:'nc'},{id:'score',l:'SCORE',a:1,cls:'sc nm'},
-{id:'ugi',l:'UGI',cls:'nm',g:'Main'},{id:'ugi_no_w10',l:'UGI‑W10',cls:'nm',g:'Main'},
-{id:'writing',l:'WRITE',cls:'nm',g:'Main'},{id:'natint',l:'NATINT',cls:'nm',g:'Main'},
-{id:'w10',l:'W/10',cls:'nm',g:'Main'},{id:'w10d',l:'W/10‑D',cls:'nm',g:'Main'},{id:'w10a',l:'W/10‑A',cls:'nm',g:'Main'},
-{id:'params',l:'PARAMS',cls:'nm',g:'Info'},{id:'total_params',l:'TOTAL',cls:'nm',g:'Info'},
-{id:'arch',l:'ARCH',g:'Info'},{id:'template',l:'TMPL',g:'Info'},{id:'released',l:'REL',g:'Info'},
-{id:'sens',l:'SENS',cls:'nm',g:'UGI'},{id:'haz',l:'HAZ',cls:'nm',g:'UGI'},{id:'ent',l:'ENT',cls:'nm',g:'UGI'},
-{id:'socpol',l:'SOCPOL',cls:'nm',g:'UGI'},{id:'nsfw',l:'NSFW',cls:'nm',g:'UGI'},{id:'dark',l:'DARK',cls:'nm',g:'UGI'},
-{id:'textbook',l:'TEXTBK',cls:'nm',g:'NatInt'},{id:'popculture',l:'POP',cls:'nm',g:'NatInt'},
-{id:'worldmodel',l:'WORLD',cls:'nm',g:'NatInt'},{id:'recipe_err',l:'RECIPE',cls:'nm',g:'NatInt'},
-{id:'geo_mae',l:'GEO',cls:'nm',g:'NatInt'},{id:'weight_err',l:'WT‑ERR',cls:'nm',g:'NatInt'},{id:'music_mae',l:'MUSIC',cls:'nm',g:'NatInt'},
-{id:'style',l:'STYLE',cls:'nm',g:'Writing'},{id:'orig',l:'ORIG',cls:'nm',g:'Writing'},
-{id:'readability',l:'READ',cls:'nm',g:'Writing'},{id:'dialogue',l:'DIAL%',cls:'nm',g:'Writing'},
-{id:'verb_noun',l:'V/N',cls:'nm',g:'Writing'},{id:'adj_adv',l:'ADJ%',cls:'nm',g:'Writing'},
-{id:'len_err',l:'LEN‑E',cls:'nm',g:'Writing'},{id:'wc_exceeded',l:'WC‑EX',cls:'nm',g:'Writing'},
-{id:'sem_red',l:'SEM‑R',cls:'nm',g:'Writing'},{id:'lex_stuck',l:'LEX‑S',cls:'nm',g:'Writing'},
-{id:'showrec',l:'S‑REC',cls:'nm',g:'ShowRec'},{id:'showmae',l:'S‑MAE',cls:'nm',g:'ShowRec'},
-{id:'showstd',l:'S‑STD',cls:'nm',g:'ShowRec'},{id:'showcorr',l:'S‑CORR',cls:'nm',g:'ShowRec'},
-{id:'lean',l:'LEAN',g:'Political'},{id:'ideology',l:'IDEO',g:'Political'},
-{id:'dipl',l:'DIPL',g:'Political'},{id:'govt',l:'GOVT',g:'Political'},
-{id:'econ',l:'ECON',g:'Political'},{id:'scty',l:'SCTY',g:'Political'}
-];
-
-const AF=[
-{k:'ugi',l:'UGI',get:e=>e.scores.ugi,g:'Main'},{k:'writing',l:'Writing',get:e=>e.scores.writing,g:'Main'},
-{k:'natint',l:'NatInt',get:e=>e.scores.natint,g:'Main'},{k:'w10',l:'W/10',get:e=>e.scores.w10.overall,g:'Main'},
-{k:'params',l:'Params',get:e=>e.model.params.active,g:'Info'},
-{k:'sens',l:'Sensitive',get:e=>e.ugi_breakdown.sensitive_info,g:'UGI'},{k:'haz',l:'Hazardous',get:e=>e.ugi_breakdown.hazardous,g:'UGI'},
-{k:'ent',l:'Entertainment',get:e=>e.ugi_breakdown.entertainment,g:'UGI'},{k:'socpol',l:'SocPol',get:e=>e.ugi_breakdown.socpol,g:'UGI'},
-{k:'nsfw',l:'NSFW',get:e=>e.ugi_breakdown.nsfw_score,g:'UGI'},{k:'dark',l:'Dark',get:e=>e.ugi_breakdown.dark_score,g:'UGI'},
-{k:'textbook',l:'Textbook',get:e=>e.natint_breakdown.textbook,g:'NatInt'},{k:'popculture',l:'Pop Cult',get:e=>e.natint_breakdown.pop_culture,g:'NatInt'},
-{k:'worldmodel',l:'World Model',get:e=>e.natint_breakdown.world_model,g:'NatInt'},
-{k:'style',l:'Style',get:e=>e.writing.style_score,g:'Writing'},{k:'orig',l:'Originality',get:e=>e.writing.originality,g:'Writing'},
-{k:'showrec',l:'Show Rec',get:e=>e.show_rec.score,g:'ShowRec'},{k:'showcorr',l:'Correlation',get:e=>e.show_rec.correlation,g:'ShowRec'}
-];
-
-const fN=v=>isNaN(v)||v===null?'–':v.toFixed(2);
-function fP(v){if(isNaN(v)||v===null)return'–';if(v>=1000)return(v/1000).toFixed(1)+'T';if(v>=1)return v.toFixed(v>=100?0:1)+'B';return(v*1000).toFixed(0)+'M'}
-function pRow(r){const v=[];let c='',q=false;for(const ch of r){if(ch==='"')q=!q;else if(ch===','&&!q){v.push(c.trim());c=''}else c+=ch}v.push(c.trim());return v}
-function pCSV(t){const[h,...rs]=t.trim().split(/\r?\n/);const ks=pRow(h);return rs.map(r=>{const vs=pRow(r),o={};ks.forEach((k,i)=>o[k]=vs[i]??'');return o})}
-
-function fmtE(r){
-const n=k=>parseFloat(r[k]),b=k=>r[k]?.toLowerCase()==='true';
-return{model:{name:r['author/model_name'],link:r['Model Link'],released:r['Release Date'],tested:r['Test Date'],template:r['Prompt Template'],params:{active:n('Active Parameters'),total:n('Total Parameters')},flags:{finetuned:b('Is Finetuned'),merged:b('Is Merged'),foundation:b('Is Foundation'),thinking:b('Is Thinking Model')},architecture:r['Architecture']},
-scores:{ugi:n('UGI 🏆'),ugi_no_w10:n('UGI non-W/10'),writing:n('Writing ✍️'),natint:n('NatInt 💡'),w10:{overall:n('W/10 👍'),direct:n('W/10-Direct'),adherence:n('W/10-Adherence')}},
-writing:{style_score:n('avg_writing_style_score'),originality:n('originality_score'),readability_grade:n('Readability_Grade_Level'),dialogue_pct:n('Dialogue_Percentage'),verb_noun_ratio:n('Verb_to_Noun_Ratio'),adj_adv_pct:n('Adjective_Adverb_Percentage'),length_error_pct:n('avg_length_error_pct'),wc_exceeded_pct:n('creative_writing_wc_exceeded_pct'),semantic_redundancy:n('internal_semantic_redundancy'),lexical_stuckness:n('lexical_stuckness')},
-ugi_breakdown:{sensitive_info:n('Sensitive Info'),hazardous:n('Hazardous'),entertainment:n('Entertainment'),socpol:n('SocPol'),nsfw_score:n('avg_nsfw_score'),dark_score:n('avg_dark_score')},
-natint_breakdown:{textbook:n('Textbook'),pop_culture:n('Pop Culture'),world_model:n('World Model'),recipe_err:n('wm_recipe_percent_error'),geo_mae:n('wm_geoguesser_mae'),weight_err:n('wm_weight_percent_error'),music_mae:n('wm_music_mae')},
-show_rec:{score:n('Show Rec Score'),mae:n('Show Rec MAE'),std_dev:n('Show Rec Std Dev Error'),correlation:n('Show Rec Correlation')},
-political:{lean:r['Political Lean 📋'],ideology:r['12axes Ideology'],compass:{dipl:r['dipl'],govt:r['govt'],econ:r['econ'],scty:r['scty']}}}
-}
-
-function getSc(e){let h=false,s=0;for(const g of WG)for(const i of g.items){const w=W[i.k]||0;if(w){h=true;const v=i.get(e);if(!isNaN(v))s+=v*w}}return h?s:e.scores.ugi}
-
-function rName(e){
-const f=e.model.flags;let t='';
-if(f.finetuned)t+='<span class="tag t-ft">FT</span>';
-if(f.merged)t+='<span class="tag t-mg">MRG</span>';
-if(f.thinking)t+='<span class="tag t-th">THK</span>';
-if(f.foundation)t+='<span class="tag t-fn">BASE</span>';
-const nm=e.model.name||'?';
-return `<span class="nn">${e.model.link?`<a href="${e.model.link}" target="_blank">${nm}</a>`:nm}</span><span class="nt">${t}</span>`
-}
-
-const vis=()=>CL.filter(c=>c.a||vC.has(c.id));
-const filt=()=>D.filter(e=>{if(sq&&!(e.model.name||'').toLowerCase().includes(sq))return false;for(const[f,s]of Object.entries(FF)){if(s===true&&!e.model.flags[f])return false;if(s===false&&e.model.flags[f])return false}return true});
-
-function renderWP(){
-const p=document.getElementById('wp');let h='';
-for(const g of WG){
-h+=`<div class="wg"><div class="wgh" data-g="${g.g}">${g.g} <span class="ch">▾</span></div>`;
-for(const i of g.items){const v=W[i.k]||0;h+=`<div class="wr"><label>${i.l}</label><input type="number" step="0.1" value="${v}" data-w="${i.k}" class="${v?'nz':''}"></div>`}
-h+='</div>'}
-p.innerHTML=h;
-p.querySelectorAll('.wgh').forEach(x=>x.onclick=()=>x.parentElement.classList.toggle('c'));
-p.querySelectorAll('input[data-w]').forEach(i=>i.oninput=()=>{const v=parseFloat(i.value)||0;W[i.dataset.w]=v;i.classList.toggle('nz',v!==0);renderLB()});
-}
-
-function renderCP(){
-const el=document.getElementById('cpick'),isA=vw==='agg';
-const items=isA?AF:CL.filter(c=>!c.a),vs=isA?aVC:vC;
-const gr={};for(const c of items){const g=c.g||'General';if(!gr[g])gr[g]=[];gr[g].push(c)}
-let h=`<div style="padding:3px 8px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span style="font-size:9px;color:var(--t3)">COLUMNS</span><span style="font-size:9px;color:var(--ac);cursor:pointer" id="cp-def">Default</span></div>`;
-for(const[n,cs]of Object.entries(gr)){
-h+=`<div class="cpg"><div class="cpgn">${n}</div>`;
-for(const c of cs){const ck=vs.has(c.k||c.id)?'checked':'';h+=`<label class="cpi"><input type="checkbox" data-c="${c.k||c.id}" ${ck}> ${c.l}</label>`}
-h+='</div>'}
-el.innerHTML=h;
-el.querySelectorAll('input[data-c]').forEach(i=>i.onchange=()=>{const s=isA?aVC:vC;if(i.checked)s.add(i.dataset.c);else s.delete(i.dataset.c);isA?renderAgg():renderLB()});
-const def=document.getElementById('cp-def');
-if(def)def.onclick=()=>{if(isA){aVC=new Set(['ugi','writing','natint','w10','params'])}else{vC=new Set(['rank','name','score','ugi','writing','natint','w10','params'])}renderCP();isA?renderAgg():renderLB()}
-}
-
-function buildDet(e){
-const m=e.model,f=m.flags;
-const fl=[f.finetuned&&'FT',f.merged&&'MRG',f.foundation&&'Base',f.thinking&&'Think'].filter(Boolean).join(', ')||'—';
-const ps=fP(m.params.active)+' active / '+fP(m.params.total)+' total';
-const gs=[
-{n:'Model',i:[['Name',m.name],['Arch',m.architecture||'–'],['Params',ps],['Flags',fl],['Template',m.template||'–'],['Released',m.released||'–']]},
-{n:'Scores',i:[['UGI',e.scores.ugi],['UGI no W/10',e.scores.ugi_no_w10],['Writing',e.scores.writing],['NatInt',e.scores.natint],['W/10',e.scores.w10.overall],['W/10-D',e.scores.w10.direct],['W/10-A',e.scores.w10.adherence]]},
-{n:'UGI',i:[['Sensitive',e.ugi_breakdown.sensitive_info],['Hazardous',e.ugi_breakdown.hazardous],['Entertainment',e.ugi_breakdown.entertainment],['SocPol',e.ugi_breakdown.socpol],['NSFW',e.ugi_breakdown.nsfw_score],['Dark',e.ugi_breakdown.dark_score]]},
-{n:'NatInt',i:[['Textbook',e.natint_breakdown.textbook],['Pop Culture',e.natint_breakdown.pop_culture],['World Model',e.natint_breakdown.world_model],['Recipe Err',e.natint_breakdown.recipe_err],['Geo MAE',e.natint_breakdown.geo_mae]]},
-{n:'Writing',i:[['Style',e.writing.style_score],['Originality',e.writing.originality],['Readability',e.writing.readability_grade],['Dialogue%',e.writing.dialogue_pct],['Sem Redund',e.writing.semantic_redundancy],['Lex Stuck',e.writing.lexical_stuckness]]},
-{n:'ShowRec',i:[['Score',e.show_rec.score],['MAE',e.show_rec.mae],['Correlation',e.show_rec.correlation]]},
-{n:'Political',i:[['Lean',e.political.lean||'–'],['Ideology',e.political.ideology||'–'],['Dipl',e.political.compass.dipl],['Govt',e.political.compass.govt],['Econ',e.political.compass.econ],['Scty',e.political.compass.scty]]}
-];
-let h='<div class="db"><div class="dg">';
-for(const g of gs){h+=`<div class="dgg"><div class="dggn">${g.n}</div>`;for(const[l,v]of g.i){const fv=typeof v==='string'?v:fN(v);h+=`<div class="di"><span class="di-l">${l}</span><span class="di-v">${fv}</span></div>`}h+='</div>'}
-return h+'</div></div>'
-}
-
-function renderLB(){
-const data=filt(),cols=vis(),sd=data.map(e=>({e,s:getSc(e)}));
-sd.sort((a,b)=>{let av=sC==='score'?a.s:(G[sC]?G[sC](a.e):0),bv=sC==='score'?b.s:(G[sC]?G[sC](b.e):0);
-if(typeof av==='string')return sD*(av||'').localeCompare(bv||'');av=isNaN(av)?-Infinity:av||0;bv=isNaN(bv)?-Infinity:bv||0;return sD*(av-bv)});
-
-const th=document.getElementById('lth');
-th.innerHTML='<tr>'+cols.map(c=>{const sc=c.id===sC?(sD===-1?'sd':'sa'):'',wt=W[c.id]?' wt':'';return`<th class="${sc}${wt} ${c.cls}" data-c="${c.id}">${c.l}</th>`}).join('')+'</tr>';
-
-const tb=document.getElementById('ltb'),fr=document.createDocumentFragment();
-sd.forEach(({e,s},i)=>{
-const tr=document.createElement('tr');if(exR===e.model.name)tr.classList.add('ex');
-tr.innerHTML=cols.map(c=>{
-if(c.id==='score')return`<td class="sc nm">${fN(s)}</td>`;
-if(c.id==='rank')return`<td class="rk nm">${i+1}</td>`;
-if(c.id==='name')return`<td class="nc">${rName(e)}</td>`;
-const g=G[c.id];if(!g)return'<td>–</td>';const v=g(e);
-if(c.id==='params'||c.id==='total_params')return`<td class="nm">${fP(v)}</td>`;
-if(typeof v==='string')return`<td>${v||'–'}</td>`;return`<td class="${c.cls||'nm'}">${fN(v)}</td>`
-}).join('');
-const nm=e.model.name;
-tr.onclick=ev=>{if(ev.target.tagName==='A')return;exR=exR===nm?null:nm;renderLB()};
-fr.appendChild(tr);
-if(exR===nm){const dr=document.createElement('tr');dr.className='dr';dr.innerHTML=`<td colspan="${cols.length}">${buildDet(e)}</td>`;fr.appendChild(dr)}
-});
-tb.innerHTML='';tb.appendChild(fr);
-document.getElementById('status').textContent=`${data.length} / ${D.length}`
-}
-
-function getGrK(e,t){
-if(t==='architecture')return e.model.architecture||'Unknown';
-if(t==='paramSize'){const p=e.model.params.active;if(isNaN(p)||p<=0)return'Unknown';if(p<10)return'<10B';if(p<40)return'10-40B';if(p<80)return'40-80B';if(p<150)return'80-150B';return'>150B'}
-if(t==='type'){const f=e.model.flags;if(f.thinking)return'Thinking';if(f.merged)return'Merged';if(f.finetuned)return'Finetuned';if(f.foundation)return'Foundation';return'Other'}
-if(t==='template')return e.model.template||'Unknown';return'Unknown'
-}
-
-function renderAgg(){
-const gt=document.getElementById('agrp').value,groups={};
-const fl=filt();
-for(const e of fl){const k=getGrK(e,gt);if(!groups[k])groups[k]=[];groups[k].push(e)}
-
-const ad=Object.entries(groups).map(([name,es])=>{
-const st={name,count:es.length,models:es};
-for(const f of AF){if(!aVC.has(f.k))continue;const vs=es.map(f.get).filter(v=>!isNaN(v));st[f.k+'_avg']=vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:null}
-return st});
-
-const col=aSC||'ugi_avg',dir=aSD||-1;
-ad.sort((a,b)=>{const av=a[col]||0,bv=b[col]||0;return dir*(av-bv)});
-
-const visA=AF.filter(f=>aVC.has(f.k));
-const th=document.getElementById('ath');
-let hh='<tr><th data-ac="name">GROUP</th><th class="nm" data-ac="count">CNT</th>';
-for(const c of visA){const sc=c.k+'_avg'===col?(dir===-1?'sd':'sa'):'';hh+=`<th class="${sc} nm" data-ac="${c.k+'_avg'}">AVG ${c.l}</th>`}
-th.innerHTML=hh+'</tr>';
-
-const tb=document.getElementById('atb'),fr=document.createDocumentFragment();
-for(const g of ad){
-const tr=document.createElement('tr');if(aEx===g.name)tr.classList.add('ex');
-let td=`<td>${g.name}</td><td class="nm">${g.count}</td>`;
-for(const c of visA){const v=g[c.k+'_avg'];td+=`<td class="nm">${c.k==='params'?fP(v):fN(v)}</td>`}
-tr.innerHTML=td;
-tr.onclick=()=>{aEx=aEx===g.name?null:g.name;renderAgg()};
-fr.appendChild(tr);
-
-if(aEx===g.name){
-g.models.sort((a,b)=>(b.scores.ugi||0)-(a.scores.ugi||0));
-const dr=document.createElement('tr');dr.className='dr';
-let det=`<td colspan="${visA.length+2}"><div class="db"><table class="asub"><thead><tr><th>Model</th>`;
-for(const c of visA)det+=`<th class="nm">${c.l}</th>`;
-det+='</tr></thead><tbody>';
-for(const e of g.models){det+=`<tr><td>${e.model.name}</td>`;for(const c of visA){const v=c.get(e);det+=`<td class="nm">${c.k==='params'?fP(v):fN(v)}</td>`}det+='</tr>'}
-det+='</tbody></table></div></td>';
-dr.innerHTML=det;fr.appendChild(dr)
-}}
-tb.innerHTML='';tb.appendChild(fr)
-}
-
-document.getElementById('search').oninput=e=>{clearTimeout(window._st);window._st=setTimeout(()=>{sq=e.target.value.toLowerCase();vw==='lb'?renderLB():renderAgg()},150)};
-document.querySelectorAll('.fb').forEach(b=>b.onclick=()=>{const f=b.dataset.f,c=FF[f];
-if(c===null){FF[f]=true;b.classList.add('on');b.classList.remove('off')}
-else if(c===true){FF[f]=false;b.classList.remove('on');b.classList.add('off')}
-else{FF[f]=null;b.classList.remove('on');b.classList.remove('off')}
-vw==='lb'?renderLB():renderAgg()});
-
-document.getElementById('rbtn').onclick=()=>{W={};renderWP();renderLB()};
-document.getElementById('wbt').onclick=()=>document.getElementById('wp').classList.toggle('hide');
-document.getElementById('cbt').onclick=e=>{e.stopPropagation();const cp=document.getElementById('cpick');cp.classList.toggle('hid');if(!cp.classList.contains('hid'))renderCP()};
-document.addEventListener('click',e=>{if(!document.getElementById('cwrap').contains(e.target))document.getElementById('cpick').classList.add('hid')});
-
-document.querySelectorAll('.bt[data-v]').forEach(b=>b.onclick=()=>{
-document.querySelectorAll('.bt[data-v]').forEach(x=>x.classList.remove('on'));b.classList.add('on');vw=b.dataset.v;
-document.getElementById('v-lb').classList.toggle('hid',vw!=='lb');
-document.getElementById('v-agg').classList.toggle('hid',vw!=='agg');
-document.getElementById('wp').classList.toggle('hide',vw!=='lb');
-document.getElementById('search').style.display=vw==='lb'?'':'none';
-document.querySelectorAll('.fb').forEach(x=>x.style.display=vw==='lb'?'':'none');
-document.getElementById('cpick').classList.add('hid');
-if(vw==='agg')renderAgg();else renderLB()
-});
-
-document.getElementById('lth').onclick=e=>{const th=e.target.closest('th');if(!th||!th.dataset.c)return;
-if(sC===th.dataset.c)sD*=-1;else{sC=th.dataset.c;sD=-1}renderLB()};
-
-document.getElementById('ath').onclick=e=>{const th=e.target.closest('th');if(!th||!th.dataset.ac)return;
-if(aSC===th.dataset.ac)aSD*=-1;else{aSC=th.dataset.ac;aSD=-1}renderAgg()};
-
-document.getElementById('agrp').onchange=()=>{aEx=null;renderAgg()};
-
-document.addEventListener('keydown',e=>{
-if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();document.getElementById('cmdp').classList.add('open');document.getElementById('cmdp-in').value='';document.getElementById('cmdp-in').focus();renderCmd('')}
-if(e.key==='Escape')document.getElementById('cmdp').classList.remove('open')
-});
-
-document.getElementById('cmdp').onclick=e=>{if(e.target.id==='cmdp')document.getElementById('cmdp').classList.remove('open')};
-document.getElementById('cmdp-in').oninput=e=>renderCmd(e.target.value.toLowerCase());
-
-function renderCmd(q){
-const isA=vw==='agg',items=isA?AF:CL.filter(c=>!c.a),vs=isA?aVC:vC;
-const fil=items.filter(c=>c.l.toLowerCase().includes(q)||(c.g||'').toLowerCase().includes(q));
-const ls=document.getElementById('cmdp-ls');let h='';
-for(const c of fil){const on=vs.has(c.k||c.id);h+=`<div class="ci" data-ck="${c.k||c.id}">${c.l} <small>${c.g||''}</small> <span style="color:${on?'var(--ac)':'var(--t3)'}">${on?'ON':'OFF'}</span></div>`}
-ls.innerHTML=h;
-ls.querySelectorAll('.ci').forEach(el=>el.onclick=()=>{
-const k=el.dataset.ck,s=isA?aVC:vC;
-if(s.has(k))s.delete(k);else s.add(k);
-isA?renderAgg():renderLB();renderCmd(document.getElementById('cmdp-in').value.toLowerCase())
-})
-}
-
-async function init(){
-renderWP();renderCP();
-try{
-const res=await fetch(CSV);if(!res.ok)throw new Error(`HTTP ${res.status}`);
-D=pCSV(await res.text()).map(fmtE);renderLB()
-}catch(err){
-document.getElementById('status').textContent='Error';
-document.getElementById('ltb').innerHTML=`<tr><td colspan="20" style="padding:16px;color:var(--rd)">Failed: ${err.message}</td></tr>`
-}}
-init();
-</script>
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="leaderboard.js"></script>
+<script src="aggregation.js"></script>
+<script src="ui.js"></script>
 </body>
 </html>
