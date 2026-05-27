@@ -1,6 +1,7 @@
 /* ui.js — event listeners, view switching, command palette */
 
 let _infoChart = null;
+let _infoDraw  = null;   /* exposed by renderInfo so the search handler can call it */
 
 function switchV(v) {
   vw = v;
@@ -11,6 +12,7 @@ function switchV(v) {
   document.getElementById('v-info').classList.toggle('hid',v !== 'info');
   document.getElementById('cwrap').classList.toggle('hid', v !== 'agg');
   document.getElementById('sidebar').classList.toggle('hid', v !== 'lb');
+  document.getElementById('search').placeholder = v === 'info' ? 'Search…' : 'Filter…';
   closeThPop();
   if (v === 'lb')   renderLB();
   if (v === 'agg')  { renderCP(); renderAgg(); }
@@ -164,11 +166,12 @@ function renderInfo() {
   function draw() {
     if (_infoChart) { _infoChart.destroy(); _infoChart = null; }
     let datasets, total = 0;
+    const data = filt();   /* respects sq (search) + FF (flag filters) */
 
     if (colorMode === 'type') {
       /* One dataset per model type */
       const byType = {};
-      for (const e of D) {
+      for (const e of data) {
         const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
         if (typeof x !== 'number' || isNaN(x) || typeof y !== 'number' || isNaN(y)) continue;
         const t = modelType(e.model.flags);
@@ -185,7 +188,7 @@ function renderInfo() {
     } else {
       /* Single dataset, per-point viridis color based on Z column */
       const pts = [];
-      for (const e of D) {
+      for (const e of data) {
         const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
         if (typeof x !== 'number' || isNaN(x) || typeof y !== 'number' || isNaN(y)) continue;
         const z = EG[zKey]?.(e);
@@ -248,6 +251,7 @@ function renderInfo() {
   }
 
   /* ── Wire controls ── */
+  _infoDraw = draw;   /* let the search handler trigger redraws */
   document.getElementById('cm-type').onclick = () => { colorMode = 'type';   updateColorUI(); draw(); };
   document.getElementById('cm-col' ).onclick = () => { colorMode = 'column'; updateColorUI(); draw(); };
   document.getElementById('sc-x').onchange = function() { xKey = this.value; draw(); };
@@ -281,9 +285,12 @@ async function init() {
   });
 
   /* Search */
-  document.getElementById('search').oninput = function() {
+  const searchEl = document.getElementById('search');
+  searchEl.oninput = function() {
     sq = this.value.toLowerCase().trim();
-    if (vw === 'lb') renderLB(); else if (vw === 'agg') renderAgg();
+    if (vw === 'lb') renderLB();
+    else if (vw === 'agg') renderAgg();
+    else if (vw === 'info') _infoDraw?.();
   };
 
   /* Column header: sort on label click, popover on ▾ icon */
