@@ -6,15 +6,40 @@ aVC = new Set(['ugi', 'writing', 'natint', 'w10', 'params']);
 /* Agg sort state */
 let aggSC = null, aggSD = -1;
 
+/* Dynamic bucket state — computed fresh per renderAgg call */
+let _aggBuckets = null;
+
+function computeQuantileBuckets(vals, n = 7) {
+  const sorted = vals.filter(v => !isNaN(v) && v !== null).sort((a, b) => a - b);
+  if (sorted.length < 2) return [];
+  const edges = [];
+  for (let i = 1; i < n; i++) {
+    const idx = Math.round(sorted.length * i / n);
+    edges.push(sorted[Math.min(idx, sorted.length - 1)]);
+  }
+  return [...new Set(edges)];
+}
+
+function dynBucket(v, edges, fmt) {
+  if (isNaN(v) || v === null) return '—';
+  for (const edge of edges) {
+    if (v <= edge) return `≤ ${fmt(edge)}`;
+  }
+  return `> ${fmt(edges[edges.length - 1])}`;
+}
+
 /* Group-by key extractor */
 function aggKey(e, grp) {
   switch (grp) {
     case 'architecture':   return e.model.architecture || '—';
-    case 'paramSize':      return buckParam(e.model.params.active);
-    case 'totalParamSize': return buckParam(e.model.params.total);
+    case 'paramSize':      return _aggBuckets ? dynBucket(e.model.params.active, _aggBuckets, v => v.toFixed(1) + 'B') : buckParam(e.model.params.active);
+    case 'totalParamSize': return _aggBuckets ? dynBucket(e.model.params.total,  _aggBuckets, v => v.toFixed(1) + 'B') : buckParam(e.model.params.total);
     case 'type':           return modelType(e.model.flags);
     case 'template':       return e.model.template || '—';
-    case 'originality':    return buckOriginality(e.writing.originality*100);
+    case 'originality': {
+      const ov = e.writing.originality;
+      return _aggBuckets ? dynBucket(ov, _aggBuckets, v => (v * 100).toFixed(0)) : buckOriginality(ov * 100);
+    }
     default:               return '—';
   }
 }
@@ -47,6 +72,17 @@ function renderAgg() {
   const data = filt();
   const cols = visAF();
 
+  /* Compute dynamic buckets for continuous grouping fields */
+  if (grp === 'paramSize') {
+    _aggBuckets = computeQuantileBuckets(data.map(e => e.model.params.active));
+  } else if (grp === 'totalParamSize') {
+    _aggBuckets = computeQuantileBuckets(data.map(e => e.model.params.total));
+  } else if (grp === 'originality') {
+    _aggBuckets = computeQuantileBuckets(data.map(e => e.writing.originality));
+  } else {
+    _aggBuckets = null;
+  }
+
   /* Build groups: key → entry[] */
   const groups = {};
   for (const e of data) {
@@ -56,9 +92,15 @@ function renderAgg() {
   }
 
   /* Compute rows */
-  const paramOrder = ['< 1B','1–4B','4–8B','8–15B','15–35B','35–75B','75–200B','200B+','—'];
-  const origOrder  = ['< 20','20–40','40–60','60–80','80+','—'];
+  const numFromLabel = l => {
+    if (l === '—') return Infinity;
+    const m = l.match(/[\d.]+/);
+    const n = m ? parseFloat(m[0]) : Infinity;
+    return l.startsWith('>') ? n + 0.00001 : n;
+  };
+
   const keys = Object.keys(groups).sort((a, b) => {
+    if (_aggBuckets) return numFromLabel(a) - numFromLabel(b);
     if (grp === 'paramSize' || grp === 'totalParamSize')
       return paramOrder.indexOf(a) - paramOrder.indexOf(b);
     if (grp === 'originality')

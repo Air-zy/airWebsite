@@ -93,6 +93,19 @@ function buildPctData() {
   _pctActive = _pct;
 }
 
+function getPeers(entry) {
+  const params = entry.model.params.active;
+  const isThinking = entry.model.flags.thinking;
+  const pool = D.filter(e => e !== entry && e.model.flags.thinking === isThinking);
+  if (isNaN(params)) {
+    const noParams = pool.filter(e => isNaN(e.model.params.active));
+    return noParams.length ? noParams : pool;
+  }
+  const withParams = pool.filter(e => !isNaN(e.model.params.active));
+  withParams.sort((a, b) => Math.abs(a.model.params.active - params) - Math.abs(b.model.params.active - params));
+  return withParams.slice(0, 100);
+}
+
 function getPct(key, val) {
   const arr = _pctActive[key];
   if (!arr || isNaN(val)) return null;
@@ -181,15 +194,14 @@ function buildDetPanel(e) {
   ];
 
   const link = m.link ? `<a href="${m.link}" target="_blank" class="dp-name-link">${m.name||'?'}</a>` : (m.name||'?');
-  const tier  = buckParam(m.params.active);
-  const tierN = D.filter(e => buckParam(e.model.params.active) === tier).length;
+  const peers = getPeers(e);
   const allN  = D.length;
 
   const cmpBtn = (mode, label, n) =>
     `<button class="dp-cmp-btn${_cmpMode === mode ? ' act' : ''}" data-cmp="${mode}">${label} <span class="dp-cmp-n">${n}</span></button>`;
 
   let h = `<div class="dp-head"><span class="dp-name">${link}</span><button class="dp-close" onclick="closeDet()">×</button></div>` +
-    `<div class="dp-cmp">${cmpBtn('all','All',allN)}${cmpBtn('params',tier,tierN)}</div>` +
+    `<div class="dp-cmp">${cmpBtn('all','All',allN)}${cmpBtn('peers','Peers',peers.length)}</div>` +
     `<div class="dp-body">`;
   for (const g of gs) {
     h += `<div class="dp-grp"><div class="dp-gn">${g.n}</div>`;
@@ -201,17 +213,15 @@ function buildDetPanel(e) {
 
 function openDet(e) {
   _detEntry  = e;
-  _cmpMode   = 'all';
-  _pctActive = _pct;
+  _pctActive = _cmpMode === 'peers' ? buildPctFor(getPeers(e)) : _pct;
   const panel = document.getElementById('det-panel');
   panel.innerHTML = buildDetPanel(e);
   panel.classList.remove('hid');
   panel.querySelectorAll('.dp-cmp-btn').forEach(b => {
     b.onclick = () => {
       _cmpMode = b.dataset.cmp;
-      if (_cmpMode === 'params') {
-        const tier = buckParam(_detEntry.model.params.active);
-        _pctActive = buildPctFor(D.filter(e => buckParam(e.model.params.active) === tier));
+      if (_cmpMode === 'peers') {
+        _pctActive = buildPctFor(getPeers(_detEntry));
       } else {
         _pctActive = _pct;
       }

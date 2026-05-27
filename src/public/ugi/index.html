@@ -11,9 +11,9 @@
 <div id="app">
   <header id="hdr">
     <h1>UGI</h1><div class="sep"></div>
-    <button class="bt on" data-v="lb">LB</button>
-    <button class="bt" data-v="agg">Agg</button>
-    <button class="bt" data-v="info">Info</button>
+    <button class="bt on" data-v="lb">Leaderboard</button>
+    <button class="bt" data-v="agg">Aggregate</button>
+    <button class="bt" data-v="info">Chart</button>
     <div class="sep"></div>
     <input id="search" type="text" placeholder="Filter…">
     <div class="sep"></div>
@@ -49,7 +49,7 @@
         </div>
       </div>
 
-      <div id="v-info" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:24px">
+      <div id="v-info" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
         <p style="color:var(--t2)">Info page — coming soon.</p>
       </div>
 
@@ -67,6 +67,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src="leaderboard.js"></script>

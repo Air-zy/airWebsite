@@ -1,5 +1,7 @@
 /* ui.js — event listeners, view switching, command palette */
 
+let _infoChart = null;
+
 function switchV(v) {
   vw = v;
   closeDet();
@@ -74,129 +76,184 @@ function closeCmdP() {
 
 function renderInfo() {
   const el = document.getElementById('v-info');
+  el.style.padding = '0';
 
-  /* Dataset stats */
-  const total  = D.length;
-  const counts = { thinking:0, finetuned:0, merged:0, foundation:0, other:0 };
-  for (const e of D) {
-    const f = e.model.flags;
-    if      (f.thinking)   counts.thinking++;
-    else if (f.finetuned)  counts.finetuned++;
-    else if (f.merged)     counts.merged++;
-    else if (f.foundation) counts.foundation++;
-    else                   counts.other++;
+  /* ── Type color palette ── */
+  const typeColors = { Thinking:'#e05c5c', Finetuned:'#a88fe0', Merged:'#5db87a', Foundation:'#5ca8d8', Other:'#686862' };
+  const typeOrder  = ['Thinking','Finetuned','Merged','Foundation','Other'];
+
+  /* ── Date helpers ── */
+  const DATE_EPOCH   = new Date('2020-01-01').getTime();
+  const dateToNum    = s => { if (!s) return NaN; const d = new Date(s); return isNaN(d) ? NaN : (d.getTime() - DATE_EPOCH) / 86400000; };
+  const numToDateLbl = n => { const d = new Date(DATE_EPOCH + n * 86400000); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
+  const DATE_KEYS    = new Set(['released','tested']);
+
+  /* ── Extended getters (adds numeric date cols) ── */
+  const EG = Object.assign({}, G, {
+    released: e => dateToNum(e.model.released),
+    tested:   e => dateToNum(e.model.tested),
+  });
+
+  /* ── Axis column list: numeric + date ── */
+  const numCols    = CL.filter(c => G[c.id] && c.cls?.includes('nm'));
+  const dateCols   = [{ id:'released', l:'RELEASED', g:'Info' }, { id:'tested', l:'TESTED', g:'Info' }];
+  const allAxisCols = [...numCols, ...dateCols];
+  const axisGroups = {};
+  for (const c of allAxisCols) { const g = c.g || 'Other'; (axisGroups[g] = axisGroups[g] || []).push(c); }
+
+  function optHTML(sel) {
+    return Object.entries(axisGroups).map(([g, cols]) =>
+      `<optgroup label="${g}">${cols.map(c =>
+        `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${c.l}</option>`
+      ).join('')}</optgroup>`
+    ).join('');
   }
 
-  const paramBuckets = ['< 1B','1–4B','4–8B','8–15B','15–35B','35–75B','75–200B','200B+'];
-  const bkts = {};
-  paramBuckets.forEach(b => bkts[b] = 0);
-  for (const e of D) { const b = buckParam(e.model.params.active); if (bkts[b] !== undefined) bkts[b]++; }
+  /* ── State ── */
+  let xKey = 'params', yKey = 'ugi', zKey = 'score', colorMode = 'type';
 
-  /* Viridis scale bar (SVG) */
-  const stops = [
-    [0.00,'#440154'],[0.13,'#48287a'],[0.25,'#3e4989'],
-    [0.38,'#31688e'],[0.50,'#26828e'],[0.63,'#35b779'],
-    [0.75,'#6ece58'],[0.88,'#b5de2b'],[1.00,'#fde725'],
-  ];
-  const gradId = 'vg';
-  const svgStops = stops.map(([o,c]) => `<stop offset="${o*100}%" stop-color="${c}"/>`).join('');
-  const viridisBar = `<svg width="100%" height="14" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="${gradId}"><linearGradient id="${gradId}">${svgStops}</linearGradient></defs>
-    <rect width="100%" height="100%" fill="url(#${gradId})"/>
-  </svg>`;
+  /* ── Shared style helpers ── */
+  const SS   = 'background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px IBM Plex Mono,monospace;padding:2px 4px;outline:none';
+  const btnS = on => `background:${on?'var(--ac)':'var(--bg3)'};border:1px solid ${on?'var(--ac)':'var(--bd)'};color:${on?'var(--bg)':'var(--t2)'};font:${on?600:500} 10px IBM Plex Mono,monospace;padding:2px 8px;cursor:pointer;transition:all .1s`;
 
-  const viridisBarFixed = `<svg width="100%" height="14" xmlns="http://www.w3.org/2000/svg">
-    <defs><linearGradient id="${gradId}" x1="0" x2="1" y1="0" y2="0">${svgStops}</linearGradient></defs>
-    <rect width="100%" height="100%" fill="url(#${gradId})"/>
-  </svg>`;
+  /* ── Build toolbar + canvas ── */
+  el.innerHTML =
+    `<div style="padding:5px 10px;border-bottom:1px solid var(--bd);background:var(--bg2);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">` +
+      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">X <select id="sc-x" style="${SS}">${optHTML('params')}</select></label>` +
+      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Y <select id="sc-y" style="${SS}">${optHTML('ugi')}</select></label>` +
+      `<div style="width:1px;height:14px;background:var(--bd);flex-shrink:0"></div>` +
+      `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Color</span>` +
+      `<button id="cm-type" style="${btnS(true)}">Type</button>` +
+      `<button id="cm-col"  style="${btnS(false)}">Column</button>` +
+      `<label id="z-wrap" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Z <select id="sc-z" style="${SS}">${optHTML('score')}</select></label>` +
+      `<span id="sc-count" style="margin-left:auto;font-size:10px;color:var(--t2)"></span>` +
+    `</div>` +
+    `<div style="flex:1;position:relative;min-height:0"><canvas id="sc-cv"></canvas></div>` +
+    `<div id="z-legend" style="display:none;padding:4px 12px;border-top:1px solid var(--bd);background:var(--bg2);flex-shrink:0;align-items:center;gap:8px;font-size:10px;color:var(--t2)"></div>`;
 
-  const metrics = [
-    { g:'Main Scores', rows:[
-      ['UGI 🏆',      'Composite uncensored general intelligence score. Primary ranking metric.'],
-      ['Writing ✍️',  'Aggregate writing quality — style, originality, coherence, and instruction adherence.'],
-      ['NatInt 💡',   'Natural intelligence — practical world knowledge across textbook, culture, geography, recipes, and music.'],
-      ['W/10 👍',     'Direct preference score from human evaluators. Split into Direct (raw) and Adherence (instruction-following).'],
-    ]},
-    { g:'UGI Breakdown', rows:[
-      ['Sensitive Info', 'Willingness to discuss sensitive or restricted topics factually.'],
-      ['Hazardous',      'Handling of hazardous content queries without unnecessary refusals.'],
-      ['Entertainment',  'Engaging, enjoyable responses for casual or entertainment prompts.'],
-      ['SocPol',         'Handling of social and political topics without evasion or deflection.'],
-      ['NSFW',           'Average NSFW content score where appropriate.'],
-      ['Dark',           'Willingness to engage with dark themes and fiction without moralizing.'],
-    ]},
-    { g:'NatInt Breakdown', rows:[
-      ['Textbook',   'Accuracy on academic / textbook-style knowledge questions.'],
-      ['Pop Culture','Knowledge of movies, TV, music, and internet culture.'],
-      ['World Model','Practical world knowledge: geography, weights, recipes.'],
-      ['Recipe Err', '↓ Average % error on recipe quantity/proportion questions. Lower = better.'],
-      ['Geo MAE',    '↓ Mean absolute error on geolocation estimation tasks. Lower = better.'],
-      ['Weight Err', '↓ Mean % error on object weight estimation. Lower = better.'],
-      ['Music MAE',  '↓ Mean absolute error on music/frequency tasks. Lower = better.'],
-    ]},
-    { g:'Writing Breakdown', rows:[
-      ['Style',        'Overall writing style quality score assessed by judge.'],
-      ['Originality',  'How non-generic and inventive the writing is (0–1 scale).'],
-      ['Readability',  'Flesch-Kincaid grade level of output prose.'],
-      ['Dialogue %',   'Proportion of output that is dialogue — higher can indicate over-reliance on dialogue.'],
-      ['Sem Redund',   '↓ Internal semantic redundancy — repeating the same ideas. Lower = better.'],
-      ['Lex Stuck',    '↓ Lexical stuckness — overusing the same words. Lower = better.'],
-      ['Length Err',   '↓ Average % deviation from requested word count. Lower = better.'],
-      ['WC Exceeded',  '↓ % of responses that exceeded the word count limit. Lower = better.'],
-    ]},
-    { g:'Show Recommendation', rows:[
-      ['Score',       'Accuracy of TV/film recommendations aligned with user taste profiles.'],
-      ['MAE',         '↓ Mean absolute error of recommendation scores. Lower = better.'],
-      ['Std Dev',     '↓ Standard deviation of recommendation errors. Lower = better.'],
-      ['Correlation', 'Pearson correlation between model recommendations and human ratings.'],
-    ]},
-  ];
+  /* ── Update toggle button + Z control visibility ── */
+  function updateColorUI() {
+    const isCol = colorMode === 'column';
+    document.getElementById('cm-type').setAttribute('style', btnS(!isCol));
+    document.getElementById('cm-col' ).setAttribute('style', btnS( isCol));
+    document.getElementById('z-wrap'  ).style.display  = isCol ? 'flex' : 'none';
+    document.getElementById('z-legend').style.display  = isCol ? 'flex' : 'none';
+  }
 
-  const statBadge = (label, val, tag='') =>
-    `<div class="inf-stat"><span class="inf-stat-v${tag ? ' '+tag : ''}">${val}</span><span class="inf-stat-l">${label}</span></div>`;
+  /* ── CSS gradient string for the legend bar ── */
+  function viridisGradCSS() {
+    return 'linear-gradient(to right,' + [0,0.25,0.5,0.75,1].map(t => `${viridis(t)} ${t*100}%`).join(',') + ')';
+  }
 
-  const bktBars = paramBuckets.map(b => {
-    const n = bkts[b] || 0;
-    const pct = total ? (n/total*100).toFixed(0) : 0;
-    return `<div class="inf-bkt"><span class="inf-bkt-l">${b}</span><div class="inf-bkt-bar"><div class="inf-bkt-fill" style="width:${pct}%"></div></div><span class="inf-bkt-n">${n}</span></div>`;
-  }).join('');
+  /* ── Per-axis config ── */
+  function axisOpts(key) {
+    return {
+      grid:  { color: '#252528' },
+      ticks: {
+        color: '#686862',
+        font:  { family: 'IBM Plex Mono', size: 9 },
+        ...(DATE_KEYS.has(key) ? { callback: v => numToDateLbl(v) } : {}),
+      },
+    };
+  }
 
-  el.innerHTML = `
-    <div class="inf">
-      <section class="inf-sec">
-        <h2 class="inf-h">UGI Leaderboard</h2>
-        <p class="inf-p">Ranks language models on uncensored general intelligence — capabilities that safety-filtered benchmarks typically avoid. Models are evaluated across writing quality, practical world knowledge, user preference, and content flexibility.</p>
-      </section>
+  /* ── Display-friendly value ── */
+  function fmtV(key, v) { return DATE_KEYS.has(key) ? numToDateLbl(v) : fN(v); }
 
-      <section class="inf-sec">
-        <h3 class="inf-sh">Dataset — ${total} models</h3>
-        <div class="inf-stats">
-          ${statBadge('Total', total)}
-          ${statBadge('Thinking', counts.thinking, 'tag-th')}
-          ${statBadge('Finetuned', counts.finetuned, 'tag-ft')}
-          ${statBadge('Merged', counts.merged, 'tag-mg')}
-          ${statBadge('Foundation', counts.foundation, 'tag-fn')}
-          ${statBadge('Other', counts.other)}
-        </div>
-        <div class="inf-bkts">${bktBars}</div>
-      </section>
+  /* ── Main draw ── */
+  function draw() {
+    if (_infoChart) { _infoChart.destroy(); _infoChart = null; }
+    let datasets, total = 0;
 
-      <section class="inf-sec">
-        <h3 class="inf-sh">Detail panel color scale</h3>
-        <p class="inf-p">Value colors in the model detail panel show percentile rank within the comparison group using the Viridis scale.</p>
-        <div class="inf-vbar">${viridisBarFixed}</div>
-        <div class="inf-vlbl"><span>0th percentile</span><span>50th</span><span>100th</span></div>
-        <p class="inf-p" style="margin-top:6px">For error metrics (MAE, Err, Redund, Stuck…) the scale is inverted — bright = low error.</p>
-      </section>
+    if (colorMode === 'type') {
+      /* One dataset per model type */
+      const byType = {};
+      for (const e of D) {
+        const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
+        if (typeof x !== 'number' || isNaN(x) || typeof y !== 'number' || isNaN(y)) continue;
+        const t = modelType(e.model.flags);
+        (byType[t] = byType[t] || []).push({ x, y, e });
+        total++;
+      }
+      datasets = typeOrder.filter(t => byType[t]).map(t => ({
+        label: t,
+        data:  byType[t],
+        backgroundColor: typeColors[t] + 'b3',
+        pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 0,
+      }));
 
-      ${metrics.map(({ g, rows }) => `
-      <section class="inf-sec">
-        <h3 class="inf-sh">${g}</h3>
-        <table class="inf-tbl">
-          ${rows.map(([k, d]) => `<tr><td class="inf-tk">${k}</td><td class="inf-td">${d}</td></tr>`).join('')}
-        </table>
-      </section>`).join('')}
-    </div>`;
+    } else {
+      /* Single dataset, per-point viridis color based on Z column */
+      const pts = [];
+      for (const e of D) {
+        const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
+        if (typeof x !== 'number' || isNaN(x) || typeof y !== 'number' || isNaN(y)) continue;
+        const z = EG[zKey]?.(e);
+        pts.push({ x, y, z: (typeof z === 'number' && !isNaN(z)) ? z : null, e });
+        total++;
+      }
+      const zVals = pts.map(p => p.z).filter(v => v !== null);
+      const zMin  = zVals.length ? Math.min(...zVals) : 0;
+      const zMax  = zVals.length ? Math.max(...zVals) : 1;
+      const zRng  = zMax - zMin || 1;
+      const colors = pts.map(p => p.z !== null ? viridis((p.z - zMin) / zRng) : 'rgba(80,80,80,0.35)');
+      datasets = [{
+        label: allAxisCols.find(c => c.id === zKey)?.l || zKey,
+        data:  pts,
+        backgroundColor: colors,
+        pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 0,
+      }];
+
+      /* Legend bar */
+      const zLabel   = allAxisCols.find(c => c.id === zKey)?.l || zKey;
+      const legendEl = document.getElementById('z-legend');
+      if (legendEl) legendEl.innerHTML =
+        `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">${zLabel}</span>` +
+        `<span>${fmtV(zKey, zMin)}</span>` +
+        `<div style="flex:1;max-width:180px;height:8px;background:${viridisGradCSS()};border:1px solid var(--bd);border-radius:1px"></div>` +
+        `<span>${fmtV(zKey, zMax)}</span>`;
+    }
+
+    document.getElementById('sc-count').textContent = `${total} / ${D.length}`;
+
+    _infoChart = new Chart(document.getElementById('sc-cv'), {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: colorMode === 'type'
+            ? { labels: { color: '#686862', font: { family: 'IBM Plex Mono', size: 9 }, boxWidth: 8, padding: 12 } }
+            : { display: false },
+          tooltip: {
+            callbacks: {
+              title: ctx => ctx[0].raw.e.model.name,
+              label: ctx => {
+                if (colorMode !== 'column' || ctx.raw.z === null) return '';
+                return `${allAxisCols.find(c => c.id === zKey)?.l || zKey}: ${fmtV(zKey, ctx.raw.z)}`;
+              },
+            },
+            backgroundColor: '#131315', borderColor: '#303035', borderWidth: 1,
+            titleColor: '#ccccc4', bodyColor: '#686862', displayColors: false,
+          },
+        },
+        onClick: (_, elements) => {
+          if (elements.length) openDet(datasets[elements[0].datasetIndex].data[elements[0].index].e);
+        },
+        scales: { x: axisOpts(xKey), y: axisOpts(yKey) },
+      },
+    });
+  }
+
+  /* ── Wire controls ── */
+  document.getElementById('cm-type').onclick = () => { colorMode = 'type';   updateColorUI(); draw(); };
+  document.getElementById('cm-col' ).onclick = () => { colorMode = 'column'; updateColorUI(); draw(); };
+  document.getElementById('sc-x').onchange = function() { xKey = this.value; draw(); };
+  document.getElementById('sc-y').onchange = function() { yKey = this.value; draw(); };
+  document.getElementById('sc-z').onchange = function() { zKey = this.value; draw(); };
+  draw();
 }
 
 async function init() {
