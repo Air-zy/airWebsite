@@ -10,13 +10,17 @@ function switchV(v) {
   document.getElementById('v-lb').classList.toggle('hid',  v !== 'lb');
   document.getElementById('v-agg').classList.toggle('hid', v !== 'agg');
   document.getElementById('v-info').classList.toggle('hid',v !== 'info');
+  document.getElementById('v-map').classList.toggle('hid', v !== 'map');
   document.getElementById('cwrap').classList.toggle('hid', v !== 'agg');
   document.getElementById('sidebar').classList.toggle('hid', v !== 'lb');
-  document.getElementById('search').placeholder = v === 'info' ? 'Search…' : 'Filter…';
+  document.getElementById('search').placeholder =
+    v === 'map' ? 'Highlight…' :
+    v === 'info' ? 'Search…' : 'Filter…';
   closeThPop();
   if (v === 'lb')   renderLB();
   if (v === 'agg')  { renderCP(); renderAgg(); }
   if (v === 'info') renderInfo();
+  if (v === 'map')  renderMap();
 }
 
 let cpSel = 0;
@@ -84,20 +88,22 @@ function renderInfo() {
   const typeColors = { Thinking:'#e05c5c', Finetuned:'#a88fe0', Merged:'#5db87a', Foundation:'#5ca8d8', Other:'#686862' };
   const typeOrder  = ['Thinking','Finetuned','Merged','Foundation','Other'];
 
-  /* ── Date helpers ── */
+  /* ── Date helpers (chart uses days-since-2020 for axis granularity) ── */
   const DATE_EPOCH   = new Date('2020-01-01').getTime();
   const dateToNum    = s => { if (!s) return NaN; const d = new Date(s); return isNaN(d) ? NaN : (d.getTime() - DATE_EPOCH) / 86400000; };
   const numToDateLbl = n => { const d = new Date(DATE_EPOCH + n * 86400000); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
   const DATE_KEYS    = new Set(['released','tested']);
 
-  /* ── Extended getters (adds numeric date cols) ── */
+  /* ── Extended getters (chart axis uses days-since-2020 for date columns) ── */
   const EG = Object.assign({}, G, {
     released: e => dateToNum(e.model.released),
     tested:   e => dateToNum(e.model.tested),
   });
 
-  /* ── Axis column list: numeric + date ── */
-  const numCols    = CL.filter(c => G[c.id] && c.cls?.includes('nm'));
+  /* ── Axis column list: numeric + date.
+       Since G.released/G.tested are now numeric, exclude them from the
+       generic numeric list to avoid duplicating the date entries. ── */
+  const numCols    = CL.filter(c => G[c.id] && c.cls?.includes('nm') && c.t !== 'date');
   const dateCols   = [{ id:'released', l:'RELEASED', g:'Info' }, { id:'tested', l:'TESTED', g:'Info' }];
   const allAxisCols = [...numCols, ...dateCols];
   const axisGroups = {};
@@ -111,8 +117,8 @@ function renderInfo() {
     ).join('');
   }
 
-  /* ── State ── */
-  let xKey = 'params', yKey = 'ugi', zKey = 'score', colorMode = 'type';
+  /* ── State — defaults to X: NatInt, Y: DIAL% as requested ── */
+  let xKey = 'natint', yKey = 'dialogue', zKey = 'score', colorMode = 'type';
 
   /* ── Shared style helpers ── */
   const SS   = 'background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px IBM Plex Mono,monospace;padding:2px 4px;outline:none';
@@ -121,8 +127,8 @@ function renderInfo() {
   /* ── Build toolbar + canvas ── */
   el.innerHTML =
     `<div style="padding:5px 10px;border-bottom:1px solid var(--bd);background:var(--bg2);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">` +
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">X <select id="sc-x" style="${SS}">${optHTML('params')}</select></label>` +
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Y <select id="sc-y" style="${SS}">${optHTML('ugi')}</select></label>` +
+      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">X <select id="sc-x" style="${SS}">${optHTML('natint')}</select></label>` +
+      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Y <select id="sc-y" style="${SS}">${optHTML('dialogue')}</select></label>` +
       `<div style="width:1px;height:14px;background:var(--bd);flex-shrink:0"></div>` +
       `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Color</span>` +
       `<button id="cm-type" style="${btnS(true)}">Type</button>` +
@@ -275,6 +281,7 @@ async function init() {
 
   renderLB();
   renderColBar();
+  renderAbout();
 
   /* Hide cols button initially (lb view) */
   document.getElementById('cwrap').classList.add('hid');
@@ -284,13 +291,14 @@ async function init() {
     b.onclick = () => switchV(b.dataset.v);
   });
 
-  /* Search */
+  /* Search — feeds the active view (LB filter / agg filter / chart filter / map highlight) */
   const searchEl = document.getElementById('search');
   searchEl.oninput = function() {
     sq = this.value.toLowerCase().trim();
     if (vw === 'lb') renderLB();
     else if (vw === 'agg') renderAgg();
     else if (vw === 'info') _infoDraw?.();
+    else if (vw === 'map') { _mapSearch = this.value; _mapDraw?.(); }
   };
 
   /* Column header: sort on label click, popover on ▾ icon */
@@ -328,7 +336,7 @@ async function init() {
   document.getElementById('sidebar').addEventListener('click', e => {
     if (e.target.id !== 'cb-reset') return;
     W  = {};
-    FF = { finetuned: null, merged: null, foundation: null, thinking: null };
+    FF = { finetuned: null, merged: null, foundation: null, thinking: null, open: null };
     sq = ''; rowLimit = 20;
     sC = 'score'; sD = -1; exR = null;
     vC = new Set(['rank','name','score','ugi','writing','natint','w10','params']);
@@ -366,6 +374,7 @@ async function init() {
       if (e.key === '1') switchV('lb');
       if (e.key === '2') switchV('agg');
       if (e.key === '3') switchV('info');
+      if (e.key === '4') switchV('map');
     }
   });
 }

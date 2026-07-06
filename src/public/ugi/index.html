@@ -14,6 +14,7 @@
     <button class="bt on" data-v="lb">Leaderboard</button>
     <button class="bt" data-v="agg">Aggregate</button>
     <button class="bt" data-v="info">Chart</button>
+    <button class="bt" data-v="map">Map</button>
     <div class="sep"></div>
     <input id="search" type="text" placeholder="Filter…">
     <div class="sep"></div>
@@ -28,6 +29,7 @@
       <div id="v-lb" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:1;overflow:auto">
           <table><thead id="lth"></thead><tbody id="ltb"></tbody></table>
+          <div id="about-benchmarks"></div>
         </div>
       </div>
 
@@ -40,6 +42,8 @@
               <option value="totalParamSize">Params (Total)</option>
               <option value="type">Type</option>
               <option value="template">Template</option>
+              <option value="released">Release Date (month)</option>
+              <option value="tested">Test Date (month)</option>
               <option value="originality">Originality</option>
             </select>
           </label>
@@ -49,9 +53,9 @@
         </div>
       </div>
 
-      <div id="v-info" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-        <p style="color:var(--t2)">Info page — coming soon.</p>
-      </div>
+      <div id="v-info" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
+
+      <div id="v-map" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
 
     </div>
     <aside id="det-panel" class="hid"></aside>
@@ -68,6 +72,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src="leaderboard.js"></script>
