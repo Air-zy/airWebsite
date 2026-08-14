@@ -807,7 +807,7 @@
       const fmt = m.fmt || (v => Math.round(v).toLocaleString());
 
       out.push({
-        label: m.label, top: m.top, bottom: m.bottom,
+        label: m.label, top: m.top, bottom: m.bottom, high: m.high,
         rank, total: vals.length, value: mine, avg,
         sole: rank === 1 && sharing === 1,
         pct: rank / vals.length,
@@ -971,9 +971,11 @@
         <span class="rank">of ${r.total}</span>
       </div>`;
 
+    // beating the average means sitting BELOW it on damage taken, ping and the "by"
+    // stats. the value was already correct, the word was just hardcoded to "above".
     const okayRow = r => `<div class="hl-row">
         <span>${r.label} <span class="muted">${r.text}</span></span>
-        <span class="rank">above the ${r.avgText} average</span>
+        <span class="rank">${r.high ? 'above' : 'below'} the ${r.avgText} average</span>
       </div>`;
 
     let html = '';
@@ -1000,7 +1002,7 @@
 
     if (okay.length) {
       html += `<div class="hl-group">
-        <h2>Quietly above average</h2>
+        <h2>Better than average</h2>
         ${okay.map(okayRow).join('')}
       </div>`;
     }
