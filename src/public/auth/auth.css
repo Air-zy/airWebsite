@@ -1,0 +1,131 @@
+:root {
+  color-scheme: dark;
+  --bg-col-start: #3e3e3e;
+  --bg-col-end: #252525;
+  --card-bg: rgba(16,16,16,0.8);
+  --text-col: #e0e0e0;
+  --accent-col: #888;
+  --input-bg: rgba(29,29,29,0.8);
+  --btn-bg: rgb(255, 255, 255);
+  --err-col: #e08a8a;
+  --ok-col: #8ae0a0;
+}
+
+body {
+  margin: 0;
+  font-family: monospace;
+  background: linear-gradient(125deg, var(--bg-col-start), var(--bg-col-end));
+  color: var(--text-col);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.auth-container {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.auth-card {
+  background: var(--card-bg);
+  padding: 25px 30px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border-radius: 10px;
+}
+
+h3 {
+  margin: 0;
+  text-align: center;
+  font-weight: bold;
+}
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--accent-col);
+  margin-bottom: 4px;
+}
+
+.field { display: flex; flex-direction: column; }
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+input {
+  flex: 1;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-col);
+  outline: none;
+  border: #444444 solid 1px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+input:focus { border-color: var(--accent-col); }
+
+.toggle-pass {
+  position: absolute;
+  right: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent-col);
+  font-size: 0.9rem;
+  padding: 4px 6px;
+  width: auto;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: rgb(0, 0, 0);
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.link-btn {
+  background: none;
+  color: var(--accent-col);
+  font-weight: normal;
+  text-decoration: underline;
+  padding: 0;
+  font-size: 0.8rem;
+}
+
+.response {
+  font-size: 0.85rem;
+  color: var(--accent-col);
+  min-height: 18px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.response.err { color: var(--err-col); }
+.response.ok { color: var(--ok-col); }
+
+.hint { font-size: 0.7rem; color: var(--accent-col); text-align: center; }
+
+.row { display: flex; justify-content: space-between; font-size: 0.8rem; gap: 10px; }
+.row .k { color: var(--accent-col); }
+
+[hidden] { display: none !important; }

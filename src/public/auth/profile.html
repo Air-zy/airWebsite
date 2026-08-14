@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile</title>
+  <link rel="stylesheet" href="./auth.css">
+</head>
+<body>
+
+  <div class="auth-container" id="page" hidden>
+    <div class="auth-card">
+      <h3>Profile</h3>
+      <div class="row"><span class="k">user</span><span id="p-name"></span></div>
+      <div class="row"><span class="k">uid</span><span id="p-uid"></span></div>
+      <div class="row"><span class="k">joined</span><span id="p-joined"></span></div>
+      <div class="row"><span class="k">email</span><span id="p-email"></span></div>
+      <button class="link-btn" id="logout-btn">Log out</button>
+    </div>
+
+    <div class="auth-card">
+      <h3>Change password</h3>
+      <form id="pw-form">
+        <div class="field">
+          <label for="cur-pw">Current password</label>
+          <div class="input-group">
+            <input id="cur-pw" type="password" autocomplete="current-password" required>
+            <button type="button" class="toggle-pass" aria-label="show password"
+                    onclick="togglePassword(this,'cur-pw')">&#128065;</button>
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label for="new-pw">New password</label>
+          <div class="input-group">
+            <input id="new-pw" type="password" autocomplete="new-password"
+                   minlength="8" maxlength="200" required>
+            <button type="button" class="toggle-pass" aria-label="show password"
+                    onclick="togglePassword(this,'new-pw')">&#128065;</button>
+          </div>
+        </div>
+        <button type="submit" style="margin-top:15px;width:100%">Update</button>
+      </form>
+      <div class="response" id="pw-response" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script src="./auth.js"></script>
+  <script>
+    var pwResp = document.getElementById('pw-response');
+
+    document.getElementById('pw-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = this.querySelector('button[type=submit]');
+      say(pwResp, '');
+      withBusy(btn, '...', function () {
+        return post('/auth/password', {
+          currentPassword: document.getElementById('cur-pw').value,
+          newPassword: document.getElementById('new-pw').value
+        }).then(function (r) {
+          if (!r.ok) return say(pwResp, errMsg(r.error), 'err');
+          document.getElementById('pw-form').reset();
+          say(pwResp, 'password updated', 'ok');
+        });
+      });
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', function () {
+      post('/auth/logout').then(function () { location.href = './'; });
+    });
+
+    getJSON('/auth/me').then(function (me) {
+      if (!me.ok) return location.href = './?next=/auth/profile.html';
+
+      document.getElementById('p-name').textContent = me.name;
+      document.getElementById('p-uid').textContent = me.uid;
+      document.getElementById('p-joined').textContent = me.createdAt
+        ? new Date(me.createdAt).toISOString().slice(0, 10) : 'unknown';
+      document.getElementById('p-email').textContent = me.email || 'none set';
+      document.getElementById('page').hidden = false;
+    });
+  </script>
+
+</body>
+</html>

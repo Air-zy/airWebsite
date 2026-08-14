@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- the token is in the url, dont hand it to anyone via the referer header -->
+  <meta name="referrer" content="no-referrer">
+  <title>Reset password</title>
+  <link rel="stylesheet" href="./auth.css">
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <h3>Reset password</h3>
+
+      <form id="reset-form" hidden>
+        <div class="field">
+          <label for="new-pw">New password</label>
+          <div class="input-group">
+            <input id="new-pw" type="password" autocomplete="new-password"
+                   minlength="8" maxlength="200" required>
+            <button type="button" class="toggle-pass" aria-label="show password"
+                    onclick="togglePassword(this,'new-pw')">&#128065;</button>
+          </div>
+        </div>
+        <button type="submit" style="margin-top:15px;width:100%">Set new password</button>
+      </form>
+
+      <div class="response" id="resp" role="status" aria-live="polite"></div>
+      <button class="link-btn" onclick="location.href='./'">back to login</button>
+    </div>
+  </div>
+
+  <script src="./auth.js"></script>
+  <script>
+    var resp = document.getElementById('resp');
+    var form = document.getElementById('reset-form');
+
+    // the token rides in the fragment, which browsers never send to the server.
+    // that keeps it out of reqLogger and out of any access log.
+    var token = location.hash.indexOf('#t=') === 0 ? location.hash.slice(3) : '';
+
+    // drop it from the address bar and the history entry straight away
+    if (token) history.replaceState({}, '', location.pathname);
+
+    if (!token) {
+      say(resp, 'that link is missing its token. request a new one.', 'err');
+    } else {
+      form.hidden = false;
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = this.querySelector('button[type=submit]');
+      say(resp, '');
+
+      withBusy(btn, '...', function () {
+        return post('/auth/reset/confirm', {
+          token: token,
+          password: document.getElementById('new-pw').value
+        }).then(function (r) {
+          if (!r.ok) return say(resp, errMsg(r.error), 'err');
+          // confirming logs you in already
+          location.href = './profile.html';
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

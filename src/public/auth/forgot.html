@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forgot password</title>
+  <link rel="stylesheet" href="./auth.css">
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <h3>Forgot password</h3>
+
+      <form id="forgot-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <div class="input-group">
+            <input id="email" name="email" type="email" autocomplete="email" required>
+          </div>
+        </div>
+        <button type="submit" style="margin-top:15px;width:100%">Send reset link</button>
+      </form>
+
+      <div class="response" id="resp" role="status" aria-live="polite"></div>
+      <button class="link-btn" onclick="location.href='./'">back to login</button>
+    </div>
+  </div>
+
+  <script src="./auth.js"></script>
+  <script>
+    var resp = document.getElementById('resp');
+
+    document.getElementById('forgot-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = this.querySelector('button[type=submit]');
+      say(resp, '');
+
+      withBusy(btn, '...', function () {
+        return post('/auth/reset/request', {
+          email: document.getElementById('email').value
+        }).then(function (r) {
+          // the server answers the same way whether or not the address exists,
+          // so the only failure worth showing is a rate limit or a dead connection
+          if (!r.ok) return say(resp, errMsg(r.error), 'err');
+          document.getElementById('forgot-form').hidden = true;
+          say(resp, 'if that address has an account, a reset link is on its way. it works for 30 minutes.', 'ok');
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>
