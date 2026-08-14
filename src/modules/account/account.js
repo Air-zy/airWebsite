@@ -1,13 +1,12 @@
 const argon2 = require('argon2');
-const sessionManager = require('../../routes/classes/sessionRegistry/sessionManager.js');
 
 class Account {
-    constructor(name) {
+    constructor(name, email) {
         this.uid = null;
         this.name = name;
+        this.email = email;
         this.passwordHash = null;
         this.createdAt = Date.now();
-        this.currentSession = null;
     }
 
     //
@@ -24,18 +23,10 @@ class Account {
 
     //
 
-    loginSession() {
-        const session = sessionManager.createSession()
-        session.onlyPublic();
-        this.currentSession = session;
-        return session;
-    }
-
-    //
-
-    static fromData(data) {
-        const acc = new Account(data.name);
-        acc.uid = data.uid;
+    // doc id is the source of truth for uid, the field used to be written as null
+    static fromData(data, id) {
+        const acc = new Account(data.name, data.email);
+        acc.uid = Number(id);
         acc.createdAt = data.createdAt;
         acc.passwordHash = data.passwordHash;
         return acc;
@@ -45,6 +36,7 @@ class Account {
         return {
             uid: this.uid,
             name: this.name,
+            email: this.email,
             createdAt: this.createdAt,
             passwordHash: this.passwordHash
         };

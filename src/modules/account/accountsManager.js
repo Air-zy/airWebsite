@@ -17,27 +17,45 @@ function validateUsername(name) {
 function validatePassword(pw) {
   if (!pw || typeof pw !== 'string') throw new Error('password-required');
   if (pw.length < 8) throw new Error('password-too-short');
+  if (pw.length > 200) throw new Error('password-too-long');
 }
 
-async function register(name, password) {
+// deliberately loose. no RFC5322 monster, and no gmail dot or plus stripping,
+// that breaks legitimate addresses.
+function normalizeEmail(e) {
+  if (typeof e !== 'string') throw new Error('email-invalid');
+  const out = e.trim().toLowerCase();
+  if (out.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out)) throw new Error('email-invalid');
+  return out;
+}
+
+async function register(name, email, password) {
   if (!name) throw new Error('name required');
   if (typeof name !== 'string') throw new Error('name required');
 
   name = normalizeUsername(name);
   validateUsername(name);
+  email = normalizeEmail(email);
   validatePassword(password);
 
-  const acc = new Account(name);
+  const acc = new Account(name, email);
   await acc.setPassword(password);
   const payload = acc.serialize();
 
   const usernameIndexRef = firedbSecure.doc(`username:${name}`);
+  const emailIndexRef = firedbSecure.doc(`email:${email}`);
   const counterRef = firedbSecure.doc(COUNTER_DOC_ID);
 
   const result = await firedbSecure.firestore.runTransaction(async (tx) => {
+    // firestore needs all reads before any writes
     const uSnap = await tx.get(usernameIndexRef);
     if (uSnap.exists) {
       throw new Error('username-taken');
+    }
+
+    const eSnap = await tx.get(emailIndexRef);
+    if (eSnap.exists) {
+      throw new Error('email-taken');
     }
 
     const cSnap = await tx.get(counterRef);
@@ -45,17 +63,15 @@ async function register(name, password) {
     const uid = nextId;
 
     tx.set(counterRef, { nextId: uid + 1 }, { merge: true });
-    tx.set(firedbSecure.doc(String(uid)), payload);
+    tx.set(firedbSecure.doc(String(uid)), { ...payload, uid });
     tx.set(usernameIndexRef, { uid });
+    tx.set(emailIndexRef, { uid });
 
     return { uid, name };
   });
 
-  const createdSnap = await firedbSecure.doc(String(result.uid)).get();
-  const createdData = createdSnap.data();
-  const createdAccount = Account.fromData(createdData);
-
-  return createdAccount;
+  acc.uid = result.uid;
+  return acc;
 }
 
 async function login(identifier, password) {
@@ -76,25 +92,45 @@ async function login(identifier, password) {
   const snap = await firedbSecure.doc(uid).get();
   if (!snap.exists) return null;
 
-  const data = snap.data();
-  const acc = Account.fromData(data);
+  const acc = Account.fromData(snap.data(), snap.id);
 
   const ok = await acc.verifyPassword(password);
   if (!ok) return null;
 
-  acc.loginSession();
   return acc;
+}
+
+async function getAccountByEmail(email) {
+  let norm;
+  try {
+    norm = normalizeEmail(email);
+  } catch {
+    return null;
+  }
+
+  const idx = await firedbSecure.doc(`email:${norm}`).get();
+  if (!idx.exists) return null;
+  return getAccountByUID(idx.data().uid);
+}
+
+// shared by reset confirm and change password
+async function setAccountPassword(acc, newPassword) {
+  validatePassword(newPassword);
+  await acc.setPassword(newPassword);
+  await firedbSecure.doc(String(acc.uid)).update({ passwordHash: acc.passwordHash });
 }
 
 async function getAccountByUID(uid) {
   const docRef = firedbSecure.doc(String(uid));
   const snap = await docRef.get();
   if (!snap.exists) return null;
-  return Account.fromData(snap.data());
+  return Account.fromData(snap.data(), snap.id);
 }
 
 module.exports = {
   register,
   login,
-  getAccountByUID
+  getAccountByUID,
+  getAccountByEmail,
+  setAccountPassword
 };
