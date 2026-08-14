@@ -4,333 +4,372 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edit Projects</title>
+
+  <!-- same fonts and theme as the homepage so the preview is honest -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+  <link rel="stylesheet" href="css/main.css" />
+
+  <!-- filled at runtime with the real card css lifted out of projects.html -->
+  <style id="card-style"></style>
+
   <style>
-    /* Dark modern brutalist minimal style without borders, using shadows */
-    :root {
-      color-scheme: dark;
-    }
-    body {
-      font-family: system-ui, monospace, Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #121212;
-      color: #e0e0e0;
-      display: flex;
-      justify-content: center;
-    }
-    #main {
-      width: 100%;
-      max-width: 800px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      font-weight: normal;
-    }
-    #controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-    input, button {
-      font-family: inherit;
-      font-size: 14px;
-      padding: 6px;
-      border: none;
-      background: #1e1e1e;
-      color: #e0e0e0;
-      cursor: pointer;
+    /* main.css sets body overflow hidden for the homepage scroll containers, undo it here */
+    body { overflow: auto; padding: 20px; }
+
+    #main { max-width: 1400px; margin: 0 auto; }
+    h1 { font-weight: normal; margin: 0 0 4px 0; font-size: 1.4rem; }
+    .sub { color: var(--text-grey); font-size: 0.85rem; margin: 0 0 20px 0; }
+
+    #readonly-note {
+      background: var(--frame-bcol); color: var(--text-grey);
+      padding: 10px 14px; margin-bottom: 20px; font-size: 0.85rem;
       box-shadow: 0 1px 3px rgba(0,0,0,0.7);
     }
-    input::placeholder {
-      color: #888;
+    #readonly-note a { color: var(--text-normal); }
+
+    #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; align-items: center; }
+    button {
+      font-family: inherit; font-size: 14px; padding: 8px 14px; border: none;
+      background: var(--frame-bcol2); color: var(--text-normal); cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.7);
     }
-    input:focus, button:hover {
-      outline: none;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.8);
-    }
-    button.delete {
-      color: #dc3545;
-      background: #1e1e1e;
-    }
-    button.save-all {
-      color: #28a745;
-      background: #1e1e1e;
-    }
-    #edit-container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .project-edit {
-      background: #1e1e1e;
-      padding: 12px;
+    button:hover { background: #262626; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.delete { color: #dc3545; }
+    button.save-all { color: #28a745; }
+    #status { color: var(--text-grey); font-size: 0.85rem; }
+
+    .editor {
+      display: flex; gap: 24px; flex-wrap: wrap;
+      background: var(--frame-bcol);
+      padding: 16px; margin-bottom: 24px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.7);
-      position: relative;
     }
-    .project-edit label {
-      display: block;
-      margin-top: 8px;
-      font-weight: normal;
-    }
-    .project-edit input[type="text"],
-    .project-edit input[type="url"],
-    .project-edit input[type="number"],
-    .project-edit textarea {
-      width: 100%;
-      box-sizing: border-box;
-      margin-top: 4px;
-      padding: 4px;
-      border: none;
-      background: #2a2a2a;
-      color: #e0e0e0;
+    .fields { flex: 1 1 360px; min-width: 0; }
+    .fields label { display: block; margin-top: 10px; font-size: 0.8rem; color: var(--text-grey); }
+    .fields input, .fields textarea {
+      width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px;
+      border: none; background: var(--bg-col); color: var(--text-normal);
+      font-family: inherit; font-size: 0.85rem;
       box-shadow: inset 0 1px 2px rgba(0,0,0,0.7);
     }
-    .project-edit textarea {
-      resize: vertical;
-      min-height: 60px;
+    .fields textarea { resize: vertical; min-height: 70px; }
+    .fields input:read-only { color: var(--text-grey); }
+
+    .preview { flex: 1 1 560px; min-width: 0; padding-top: 14px; }
+    .preview-label { font-size: 0.7rem; color: var(--text-grey); margin: 0 0 10px 0; text-transform: uppercase; }
+    .preview .project-container { margin: 0; width: 100%; }
+    .preview .project-card { cursor: default; }
+    /* stats are hover only on the real site, always show them here */
+    .preview .proj-stats { opacity: 1; }
+    .preview .project-container:hover { transform: none; }
+
+    @media (max-width: 800px) {
+      body { padding: 12px; }
+      .editor { padding: 12px; gap: 14px; }
+      /* match the homepage, it drops to 100px images under 600px */
+      .preview .project-container img { width: 100px !important; height: 100px !important; }
+      .preview .project-card { padding: 14px; gap: 12px; }
+      .preview .proj-title { left: 90px; font-size: 0.9rem; }
+      #controls button { flex: 1 1 auto; }
     }
-    /* Simple scrollbars */
-    ::-webkit-scrollbar {
-      width: 8px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #1e1e1e;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #444;
-    }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--frame-bcol); }
+    ::-webkit-scrollbar-thumb { background: #444; }
   </style>
 </head>
 <body>
   <div id="main">
     <h1>Edit Projects</h1>
+    <p class="sub">preview matches the homepage, ordered by views / rank like it is there.</p>
+
+    <div id="readonly-note" hidden></div>
+
     <div id="controls">
       <button id="add-new" type="button">Add New Project</button>
       <button id="save-all" class="save-all" type="button">Save All Changes</button>
+      <span id="status"></span>
     </div>
-    <div id="edit-container"></div>
+
+    <div id="edit-container">loading...</div>
   </div>
+
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      loadProjects();
-      document.getElementById('add-new').addEventListener('click', createNewProjectForm);
-      document.getElementById('save-all').addEventListener('click', handleSaveAll);
-    });
+    var statusEl = null;
+
+    function setStatus(msg) {
+      if (statusEl) statusEl.textContent = msg || '';
+    }
+
+    // pull the card css straight out of projects.html so this page cant drift from the homepage
+    async function loadCardStyles() {
+      try {
+        const html = await (await fetch('projects.html')).text();
+        const m = html.match(/<style>([\s\S]*?)<\/style>/);
+        if (m) document.getElementById('card-style').textContent = m[1];
+      } catch (err) {
+        console.error('could not load card styles', err);
+      }
+    }
+
+    // mirrors makeProjectCard in js/main.js. keep in sync if that changes.
+    function buildPreviewCard(proj) {
+      const cardContainer = document.createElement('div');
+      cardContainer.classList.add('project-container');
+
+      const card = document.createElement('a');
+      card.classList.add('project-card');
+      card.href = proj.url || '#';
+      card.addEventListener('click', e => e.preventDefault());
+
+      if (proj.img) {
+        const img = document.createElement('img');
+        img.src = proj.img;
+        img.alt = proj.alt || '';
+        img.width = 200;
+        img.height = 200;
+        card.appendChild(img);
+      }
+
+      const pTitle = document.createElement('p');
+      pTitle.textContent = proj.title || '';
+      pTitle.classList.add('proj-title');
+      card.appendChild(pTitle);
+
+      const pStats = document.createElement('p');
+      pStats.classList.add('proj-stats');
+      const icon = document.createElement('i');
+      icon.classList.add('fa', 'fa-eye');
+      pStats.append((proj.stats && proj.stats.views != null ? proj.stats.views : 0) + ' ');
+      pStats.appendChild(icon);
+      card.appendChild(pStats);
+
+      const textContainer = document.createElement('div');
+      (proj.text || []).forEach(line => {
+        const p = document.createElement('p');
+        // [link text]("url")
+        p.innerHTML = line.replace(/\[([^\]]+)\]\("([^"]+)"\)/g,
+          (match, t, u) => '<a href="' + u + '" target="_blank">' + t + '</a>');
+        textContainer.appendChild(p);
+      });
+      card.appendChild(textContainer);
+
+      const footer = document.createElement('div');
+      footer.classList.add('project-footer');
+      (proj.tags || []).forEach(tag => {
+        const p = document.createElement('p');
+        p.textContent = tag;
+        footer.appendChild(p);
+      });
+
+      cardContainer.appendChild(card);
+      cardContainer.appendChild(footer);
+      return cardContainer;
+    }
+
+    // read one editor block back into a project object
+    function readCard(card) {
+      const g = n => card.querySelector('[data-f="' + n + '"]');
+      return {
+        key: g('key').value.trim(),
+        title: g('title').value.trim(),
+        url: g('url').value.trim(),
+        img: g('img').value.trim(),
+        alt: g('alt').value.trim(),
+        rank: g('rank').value === '' ? null : Number(g('rank').value),
+        text: g('text').value.split('\n').map(l => l.trim()).filter(Boolean),
+        tags: g('tags').value.split(',').map(t => t.trim()).filter(Boolean),
+        stats: { views: Number(g('views').value) || 0 }
+      };
+    }
+
+    function refreshPreview(card) {
+      const proj = readCard(card);
+      const holder = card.querySelector('.preview-card');
+      holder.innerHTML = '';
+      holder.appendChild(buildPreviewCard(proj));
+    }
+
+    function field(name, label, value, opts) {
+      opts = opts || {};
+      const wrap = document.createElement('div');
+      const l = document.createElement('label');
+      l.textContent = label;
+      const input = document.createElement(opts.textarea ? 'textarea' : 'input');
+      if (!opts.textarea) input.type = opts.type || 'text';
+      input.value = value == null ? '' : value;
+      input.dataset.f = name;
+      if (opts.readOnly) input.readOnly = true;
+      if (opts.placeholder) input.placeholder = opts.placeholder;
+      wrap.appendChild(l);
+      wrap.appendChild(input);
+      return wrap;
+    }
+
+    function createProjectEditCard(key, proj, isNew) {
+      const container = document.getElementById('edit-container');
+
+      const card = document.createElement('div');
+      card.classList.add('editor');
+      if (isNew) card.dataset.new = 'true'; else card.dataset.key = key;
+
+      const fields = document.createElement('div');
+      fields.classList.add('fields');
+
+      const del = document.createElement('button');
+      del.textContent = 'Delete';
+      del.type = 'button';
+      del.classList.add('delete');
+      del.addEventListener('click', () => {
+        if (confirm('Delete project "' + (isNew ? '(new)' : key) + '"? nothing is saved until you hit save all.')) {
+          card.remove();
+        }
+      });
+      fields.appendChild(del);
+
+      fields.appendChild(field('key', 'Key (identifier)', isNew ? '' : key,
+        { readOnly: !isNew, placeholder: isNew ? 'e.g. my-new-project' : '' }));
+      fields.appendChild(field('title', 'Title', proj.title));
+      fields.appendChild(field('url', 'URL', proj.url, { type: 'url' }));
+      fields.appendChild(field('img', 'Image URL', proj.img, { type: 'url' }));
+      fields.appendChild(field('alt', 'Image Alt Text', proj.alt));
+      fields.appendChild(field('rank', 'Rank (number)', proj.rank, { type: 'number' }));
+      fields.appendChild(field('views', 'Views', proj.stats && proj.stats.views != null ? proj.stats.views : 0,
+        { type: 'number', readOnly: true }));
+      fields.appendChild(field('text', 'Description, one line per entry. [text]("url") makes a link.',
+        Array.isArray(proj.text) ? proj.text.join('\n') : '', { textarea: true }));
+      fields.appendChild(field('tags', 'Tags (comma separated)',
+        Array.isArray(proj.tags) ? proj.tags.join(', ') : ''));
+
+      const preview = document.createElement('div');
+      preview.classList.add('preview');
+      const plabel = document.createElement('p');
+      plabel.classList.add('preview-label');
+      plabel.textContent = 'preview';
+      const holder = document.createElement('div');
+      holder.classList.add('preview-card');
+      preview.appendChild(plabel);
+      preview.appendChild(holder);
+
+      card.appendChild(fields);
+      card.appendChild(preview);
+      container.appendChild(card);
+
+      card.addEventListener('input', () => refreshPreview(card));
+      refreshPreview(card);
+      return card;
+    }
 
     async function loadProjects() {
       const container = document.getElementById('edit-container');
       container.innerHTML = '';
       try {
-        const response = await fetch('/api/projects');
-        if (!response.ok) throw new Error('Failed to fetch projects');
-        const projects = await response.json();
-        Object.entries(projects).forEach(([key, proj]) => {
-          createProjectEditCard(key, proj, false);
+        const res = await fetch('/api/projects');
+        if (!res.ok) throw new Error('failed to fetch projects');
+        const projects = await res.json();
+
+        // same order the homepage uses, views / rank descending
+        const entries = Object.entries(projects).sort((a, b) => {
+          const score = p => (p[1].stats && p[1].stats.views ? p[1].stats.views : 0) / (p[1].rank || 1);
+          return score(b) - score(a);
         });
+
+        entries.forEach(([key, proj]) => createProjectEditCard(key, proj, false));
+        setStatus(entries.length + ' projects loaded');
       } catch (err) {
         console.error(err);
-        const containerInner = document.getElementById('edit-container');
-        containerInner.innerHTML = '<p style="color:#dc3545;">Error loading projects: ' + err.message + '</p>';
+        container.innerHTML = '<p style="color:#dc3545">error loading projects: ' + err.message + '</p>';
       }
-    }
-
-    function createProjectEditCard(key, proj, isNew) {
-      const container = document.getElementById('edit-container');
-      const card = document.createElement('div');
-      card.classList.add('project-edit');
-      if (!isNew) {
-        card.dataset.key = key;
-      } else {
-        card.dataset.new = 'true';
-      }
-
-      // Delete button
-      const deleteBtn = document.createElement('button');
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.type = 'button';
-      deleteBtn.classList.add('delete');
-      deleteBtn.addEventListener('click', () => {
-        if (confirm('Delete project "' + (isNew ? '(new)' : key) + '"?')) {
-          card.remove();
-        }
-      });
-      card.appendChild(deleteBtn);
-
-      // Key
-      const keyLabel = document.createElement('label');
-      keyLabel.textContent = 'Key (identifier)';
-      const keyInput = document.createElement('input');
-      keyInput.type = 'text';
-      keyInput.value = isNew ? '' : key;
-      keyInput.readOnly = !isNew;
-      keyInput.placeholder = isNew ? 'e.g., my-new-project' : '';
-      card.appendChild(keyLabel);
-      card.appendChild(keyInput);
-
-      // Title
-      const titleLabel = document.createElement('label');
-      titleLabel.textContent = 'Title';
-      const titleInput = document.createElement('input');
-      titleInput.type = 'text';
-      titleInput.value = proj.title || '';
-      card.appendChild(titleLabel);
-      card.appendChild(titleInput);
-
-      // URL
-      const urlLabel = document.createElement('label');
-      urlLabel.textContent = 'URL';
-      const urlInput = document.createElement('input');
-      urlInput.type = 'url';
-      urlInput.value = proj.url || '';
-      card.appendChild(urlLabel);
-      card.appendChild(urlInput);
-
-      // Image URL
-      const imgLabel = document.createElement('label');
-      imgLabel.textContent = 'Image URL';
-      const imgInput = document.createElement('input');
-      imgInput.type = 'url';
-      imgInput.value = proj.img || '';
-      card.appendChild(imgLabel);
-      card.appendChild(imgInput);
-
-      // Alt text
-      const altLabel = document.createElement('label');
-      altLabel.textContent = 'Image Alt Text';
-      const altInput = document.createElement('input');
-      altInput.type = 'text';
-      altInput.value = proj.alt || '';
-      card.appendChild(altLabel);
-      card.appendChild(altInput);
-
-      // Rank
-      const rankLabel = document.createElement('label');
-      rankLabel.textContent = 'Rank (number)';
-      const rankInput = document.createElement('input');
-      rankInput.type = 'number';
-      rankInput.value = proj.rank != null ? proj.rank : '';
-      card.appendChild(rankLabel);
-      card.appendChild(rankInput);
-
-      // Views (readonly)
-      const viewsLabel = document.createElement('label');
-      viewsLabel.textContent = 'Views';
-      const viewsInput = document.createElement('input');
-      viewsInput.type = 'number';
-      viewsInput.value = proj.stats && proj.stats.views != null ? proj.stats.views : 0;
-      viewsInput.readOnly = true;
-      card.appendChild(viewsLabel);
-      card.appendChild(viewsInput);
-
-      // Description/Text
-      const textLabel = document.createElement('label');
-      textLabel.textContent = 'Description/Text (one line per entry)';
-      const textArea = document.createElement('textarea');
-      textArea.value = Array.isArray(proj.text) ? proj.text.join('\n') : '';
-      card.appendChild(textLabel);
-      card.appendChild(textArea);
-
-      // Tags
-      const tagsLabel = document.createElement('label');
-      tagsLabel.textContent = 'Tags (comma-separated)';
-      const tagsInput = document.createElement('input');
-      tagsInput.type = 'text';
-      tagsInput.value = Array.isArray(proj.tags) ? proj.tags.join(', ') : '';
-      card.appendChild(tagsLabel);
-      card.appendChild(tagsInput);
-
-      container.appendChild(card);
     }
 
     function createNewProjectForm() {
       const container = document.getElementById('edit-container');
-      // Prevent multiple new forms
-      const existingNew = container.querySelector('[data-new]');
-      if (existingNew) return;
-
-      const proj = { title: '', url: '', img: '', alt: '', rank: '', text: [], tags: [], stats: { views: 0 } };
-      createProjectEditCard('', proj, true);
-      const newCard = container.querySelector('[data-new]');
-      if (newCard) {
-        const keyInput = newCard.querySelector('input[type="text"]');
-        if (keyInput) keyInput.focus();
-      }
+      if (container.querySelector('[data-new]')) return;
+      const card = createProjectEditCard('', { title: '', url: '', img: '', alt: '', rank: 1, text: [], tags: [], stats: { views: 0 } }, true);
+      container.prepend(card);
+      card.querySelector('[data-f="key"]').focus();
     }
 
-    async function handleSaveAll() {
-      const container = document.getElementById('edit-container');
-      const cards = Array.from(container.querySelectorAll('.project-edit'));
-      const projectsObj = {};
-      const keysSet = new Set();
+    async function handleSaveAll(btn) {
+      const cards = Array.from(document.querySelectorAll('.editor'));
+      const out = {};
+      const seen = new Set();
+
       for (const card of cards) {
-        const keyInput = card.querySelector('input[type="text"]');
-        const key = keyInput.value.trim();
-        if (!key) {
-          alert('Every project must have a non-empty key.');
-          keyInput.focus();
+        const proj = readCard(card);
+        if (!proj.key) {
+          alert('every project needs a key.');
+          card.querySelector('[data-f="key"]').focus();
           return;
         }
-        if (keysSet.has(key)) {
-          alert('Duplicate key found: ' + key);
-          keyInput.focus();
+        if (seen.has(proj.key)) {
+          alert('duplicate key: ' + proj.key);
+          card.querySelector('[data-f="key"]').focus();
           return;
         }
-        keysSet.add(key);
-        const labelElements = card.querySelectorAll('label');
-        const map = {};
-        labelElements.forEach(labelEl => {
-          const text = labelEl.textContent.trim();
-          const next = labelEl.nextElementSibling;
-          if (next) map[text] = next;
-        });
-        const titleVal = map['Title']?.value.trim() || '';
-        const url = map['URL']?.value.trim() || '';
-        const img = map['Image URL']?.value.trim() || '';
-        const alt = map['Image Alt Text']?.value.trim() || '';
-        let rankVal = null;
-        const rankInput = map['Rank (number)'];
-        if (rankInput && rankInput.value !== '') rankVal = Number(rankInput.value);
-        let views = 0;
-        const viewsInput = map['Views'];
-        if (viewsInput) views = Number(viewsInput.value) || 0;
-        let textLines = [];
-        const textArea = map['Description/Text (one line per entry)'];
-        if (textArea) textLines = textArea.value.split('\n').map(line => line.trim()).filter(line => line);
-        let tagsArr = [];
-        const tagsInput = map['Tags (comma-separated)'];
-        if (tagsInput) tagsArr = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
-        projectsObj[key] = {
-          title: titleVal,
-          url,
-          img,
-          alt,
-          rank: rankVal,
-          text: textLines,
-          tags: tagsArr,
-          stats: { views }
-        };
+        seen.add(proj.key);
+        const key = proj.key;
+        delete proj.key;
+        out[key] = proj;
       }
-      // Prompt for auth key here
-      const authKey = prompt('Enter Auth Key:', '');
+
+      btn.disabled = true;
+      setStatus('saving...');
       try {
-        const headers = { 'Content-Type': 'application/json' };
-        if (authKey) headers['Authorization'] = authKey;
-        const response = await fetch('/api/projects/update', {
+        // no password prompt, the session cookie is the auth now
+        const res = await fetch('/api/projects/update', {
           method: 'POST',
-          headers,
-          body: JSON.stringify(projectsObj)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(out)
         });
-        if (!response.ok) throw new Error('Failed to save projects');
-        alert('All projects saved successfully.');
+
+        if (res.status === 401) return location.href = '/auth/?next=/projectsEdit.html';
+        if (res.status === 403) { setStatus('not your account'); return; }
+        if (!res.ok) throw new Error('save failed (' + res.status + ')');
+
+        setStatus('saved ' + Object.keys(out).length + ' projects');
         loadProjects();
       } catch (err) {
         console.error(err);
-        alert('Error saving projects: ' + err.message);
+        setStatus('');
+        alert('error saving: ' + err.message);
+      } finally {
+        btn.disabled = false;
       }
     }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      statusEl = document.getElementById('status');
+      await loadCardStyles();
+
+      // page is open to anyone, play with it all you like.
+      // saving is the only gated part and the server enforces that, this is just the affordance.
+      let me = null;
+      try {
+        const res = await fetch('/auth/me');
+        if (res.ok) me = await res.json();
+      } catch (err) {}
+
+      const saveBtn = document.getElementById('save-all');
+      if (!me || !me.admin) {
+        const note = document.getElementById('readonly-note');
+        note.innerHTML = me
+          ? 'signed in as ' + me.name + ', but saving is owner only. edit away, nothing you do here is stored.'
+          : 'read only. edit whatever you want to see how it looks, but saving needs the owner account. <a href="/auth/?next=/projectsEdit.html">log in</a>';
+        note.hidden = false;
+        saveBtn.disabled = true;
+        saveBtn.title = 'owner only';
+      } else {
+        document.querySelector('.sub').textContent =
+          'signed in as ' + me.name + '. preview matches the homepage, ordered by views / rank like it is there.';
+        saveBtn.addEventListener('click', e => handleSaveAll(e.currentTarget));
+      }
+
+      document.getElementById('add-new').addEventListener('click', createNewProjectForm);
+      loadProjects();
+    });
   </script>
 </body>
 </html>

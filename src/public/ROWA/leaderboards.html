@@ -49,28 +49,25 @@
   <img id="leaderImg" alt="Leaderboards">
 
   <script>
-    const nameCache = {};
     function log(msg, ...args) {
       console.log(`[Leaderboards] ${msg}`, ...args);
     }
 
-    async function getNameFromUID(userId) {
-      if (nameCache[userId]) {
-        log("Cache hit for userId:", userId);
-        return nameCache[userId];
-      }
-      log("Fetching username for:", userId);
+    // one batched request. firing ~90 parallel single lookups tripped the sites own
+    // rate limiter (30 per 30s) and most of them came back empty, which is why the
+    // board used to show raw user ids.
+    async function getNames(ids) {
       try {
-        const res = await fetch(`/api/roblox-user/${userId}`);
+        const res = await fetch('/api/roblox-users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids })
+        });
         if (!res.ok) throw new Error(`Status ${res.status}`);
-        const js = await res.json();
-        nameCache[userId] = js.name;
-        log("Got username:", userId, js.name);
-        return js.name;
+        return await res.json();
       } catch (err) {
-        log("Failed to fetch username for:", userId, err);
-        nameCache[userId] = userId;
-        return userId;
+        log("Failed to fetch usernames", err);
+        return {};   // renderTable already falls back to the id
       }
     }
 
@@ -127,12 +124,9 @@
       const idsToFetch = Array.from(idSet);
       log("unique user IDs to fetch:", idsToFetch.length);
 
-      log("fetching usernames in parallel…");
-      const nameMap = {};
-      await Promise.all(idsToFetch.map(async id => {
-        nameMap[id] = await getNameFromUID(id);
-      }));
-      log("finished username fetching!");
+      log("fetching usernames…");
+      const nameMap = await getNames(idsToFetch);
+      log("finished username fetching!", Object.keys(nameMap).length, "resolved");
 
       const container = document.getElementById('boards');
       renderTable(container, 'ELO',        byElo,  'elo',  x=>x,           nameMap);

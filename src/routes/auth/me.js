@@ -1,4 +1,5 @@
 const { getAccountByUID } = require('../../modules/account/accountsManager.js');
+const { ADMIN_UID } = require('../middleware/auth.js');
 
 // a***@gmail.com, enough to recognise your own address without publishing it
 function maskEmail(email) {
@@ -15,6 +16,7 @@ module.exports = async (req, res) => {
     uid: acc.uid,
     name: acc.name,
     createdAt: acc.createdAt,
-    email: maskEmail(acc.email)
+    email: maskEmail(acc.email),
+    admin: acc.uid === ADMIN_UID   // ui affordance only, the server still gates every admin route
   });
 };

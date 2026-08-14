@@ -189,7 +189,9 @@ async function firedbRobloxGet() {
   return snap.data();
 }
 
-async function firedbRobloxSave() {
+// took no argument before and wrote a bare `rblxdata` that was never defined,
+// so every push threw ReferenceError into the catch and nothing was ever saved
+async function firedbRobloxSave(rblxdata) {
   if (!robloxRef) {
     robloxRef = firedb.doc("rblx");
   }
@@ -202,6 +204,7 @@ async function firedbRobloxSave() {
     }
   }
 }
+
 
 //
 

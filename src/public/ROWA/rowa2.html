@@ -4,24 +4,79 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rowa Dashboard</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Archivo Black for the background wordmark only. anton is heavy but condensed, so at
+     3% opacity the narrow letters read thin. this one is heavy AND wide, far more ink. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
 <style>
   :root {
     color-scheme: dark;
     --bg: #131110;
     --panel: #1e1b16;
-    --muted: #807a6d;
-    --text: #ddd5c5;
+    --muted: #b0a896; /* Brighter muted */
+    --text: #fbf5ea; /* Brighter text */
     --accent: #bfa173;
     --accent2: #a38350;
     --border: #322d25;
   }
+  html {
+    background: var(--bg);
+  }
   html, body {
     height: 100%;
     margin: 0;
-    background: var(--bg);
     color: var(--text);
     font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   }
+  /* transparent so the fixed texture layer underneath is visible */
+  body { background: transparent; }
+
+  /* drifting ROWA2 wordmark texture.
+     sized as a square of the viewport diagonal and centred, because a square that big
+     still covers the screen at any rotation. the old version used a fixed row count in
+     a percentage box, so tall screens ran out of rows and the far corner sat empty. */
+  .bg-texture {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-16deg);
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.03;
+  }
+  .bg-row {
+    display: flex;
+    white-space: nowrap;
+    height: var(--band-h);
+    animation: bg-drift 90s linear infinite;
+    will-change: transform;   /* transform only, so it lives on the compositor */
+  }
+  /* every other band runs backwards, so the texture cuts across itself */
+  .bg-row:nth-child(even) {
+    animation-direction: reverse;
+    animation-duration: 116s;
+  }
+  .bg-row:nth-child(4n+1) { animation-duration: 104s; }
+  .bg-row:nth-child(4n)   { animation-duration: 132s; }
+
+  .bg-row span {
+    font-family: 'Archivo Black', Impact, 'Arial Black', sans-serif;
+    font-size: var(--band-fs);
+    line-height: var(--band-h);
+    letter-spacing: 0.04em;
+    color: var(--text);
+    padding-right: 0.35em;
+  }
+  /* each band holds the text twice, so shifting exactly one copy loops seamlessly */
+  @keyframes bg-drift {
+    from { transform: translateX(-50%); }
+    to   { transform: translateX(0); }
+  }
+
+  /* content sits above the texture */
+  .wrap, .page-footer { position: relative; z-index: 1; }
   .wrap {
     max-width: 1400px;
     margin: 20px auto;
@@ -35,6 +90,7 @@
     border: 1px solid var(--border);
     padding: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    min-width: 0;   /* grid items default to min-width auto, which lets the table push the page wide */
   }
   .col-span-2 { grid-column: span 2; }
   .col-span-3 { grid-column: span 3; }
@@ -43,6 +99,20 @@
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 15px; flex-wrap: wrap; }
   .btn { background: transparent; border: 1px solid var(--border); padding: 6px 12px; color: var(--accent); cursor: pointer; font-size: 13px; transition: 0.2s; }
   .btn:hover { background: rgba(191, 161, 115, 0.1); border-color: var(--accent); }
+  /* still an outlined button, just brighter with a faint glow so it reads before the
+     checkbox next to it. a solid fill was far too loud for one control in a topbar. */
+  .btn-primary {
+    color: #e8cd96;
+    border-color: rgba(191, 161, 115, 0.55);
+    background: rgba(191, 161, 115, 0.08);
+    box-shadow: 0 0 9px rgba(191, 161, 115, 0.15);
+  }
+  .btn-primary:hover {
+    color: #f4e0b4;
+    border-color: var(--accent);
+    background: rgba(191, 161, 115, 0.16);
+    box-shadow: 0 0 13px rgba(191, 161, 115, 0.28);
+  }
   .small { font-size: 12px; color: var(--muted); }
   
   .chartWrap { height: 400px; width: 100%; display: block; }
@@ -87,7 +157,7 @@
   .muted { color: var(--muted); }
   
   .modal { position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(0,0,0,0.8); display: none; }
-  .modal-content { background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 900px; max-height: 80vh; overflow: auto; border: 1px solid var(--accent); }
+  .modal-content { background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 900px; max-height: 80vh; overflow: auto; border: 1px solid var(--border); }
   .close { color: var(--muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
   .close:hover { color: var(--text); }
   pre { white-space: pre-wrap; word-wrap: break-word; color: var(--text); font-size: 12px; }
@@ -98,7 +168,7 @@
   .combat-flex { display: flex; gap: 15px; align-items: flex-start; }
   .combat-main { flex: 1; }
   .combat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-  .combat-item { background: var(--bg); padding: 8px; border: 1px solid var(--border); border-radius: 4px; }
+  .combat-item { padding: 8px }
   .combat-item .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .combat-item .v { font-size: 14px; color: var(--text); font-weight: 600; display: flex; justify-content: space-between; }
   
@@ -116,9 +186,203 @@
   }
   .combat-side-panel.active { width: 280px; padding-left: 15px; }
   .side-player { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+
+  /* find yourself */
+  .finder-modal { max-width: 620px; padding: 28px; }
+  .finder-modal h1 { font-size: 22px; }
+  .finder-blurb { margin-bottom: 18px; font-size: 13px; }
+
+  /* animated rainbow glow. @property makes the angle a real animatable type, the
+     blurred ::before is the glow and the crisp ::after is the border sitting on top.
+     no @property support just means it sits still, the gradient still renders. */
+  @property --glow-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+  @keyframes glow-spin { to { --glow-angle: 360deg; } }
+
+  .finder-glow { position: relative; padding: 2px; isolation: isolate; }
+  .finder-glow::before,
+  .finder-glow::after {
+    content: '';
+    position: absolute; inset: 0; z-index: -1;
+    background: conic-gradient(from var(--glow-angle),
+      #ff5f6d, #ffc371, #47e6b1, #4aa3f0, #a86ee0, #ff5f6d);
+    animation: glow-spin 6s linear infinite;
+  }
+  .finder-glow::before { filter: blur(11px); opacity: 0.55; }
+
+  .finder-input {
+    position: relative;
+    width: 100%; box-sizing: border-box; padding: 14px 16px; font-family: inherit; font-size: 16px;
+    background: var(--panel); color: var(--text); border: none; outline: none;
+  }
+  .finder-input::placeholder { color: var(--muted); }
+
+  .finder-results { max-height: 340px; overflow-y: auto; margin-top: 12px; }
+  .finder-hit {
+    padding: 11px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; gap: 10px;
+  }
+  .finder-hit:hover { background: rgba(191,161,115,0.1); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .finder-glow::before, .finder-glow::after { animation: none; }
+    .bg-row { animation: none; }
+  }
+
+  .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .modal-head h1 { margin: 0; }
+  .avatar {
+    width: 54px; height: 54px; flex: none; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--border); object-fit: cover;
+  }
+
+  .similar { margin-top: 14px; }
+  .similar-title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .pjump {
+    background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+    color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+  }
+  .pjump:hover { color: var(--text); }
+
+  /* rowa2 does not load css/main.css, so small-p is redefined here to match the homepage */
+  .page-footer { max-width: 1400px; margin: 0 auto; padding: 10px 20px 30px; }
+  .small-p { text-align: center; color: var(--muted); font-size: 12px; margin: 4px 0; }
+  .small-p a { color: var(--accent); }
+
+  /* ---- responsive ---- */
+
+  /* tablet, three columns is too tight before it is too narrow */
+  @media (max-width: 1150px) {
+    .wrap { grid-template-columns: repeat(2, 1fr); }
+    .col-span-2, .col-span-3 { grid-column: span 2; }
+  }
+
+  /* phone */
+  @media (max-width: 780px) {
+    .wrap {
+      grid-template-columns: 1fr;
+      gap: 14px; margin: 10px auto; padding: 12px;
+    }
+    .col-span-2, .col-span-3 { grid-column: span 1; }
+    .card { padding: 13px; }
+    h1 { font-size: 16px; }
+
+    .chartWrap { height: 300px; }
+    .chartWrap.small { height: 240px; }
+
+    /* axis pickers side by side leaves about 130px each, useless */
+    .axis-controls { flex-direction: column; gap: 14px; }
+    .axis-col { min-width: 0; }
+    .metric-list { max-height: 132px; }
+    .metric-item { padding: 9px 10px; }   /* thumbs, not cursors */
+
+    /* six columns will not fit, let the table scroll instead of crushing it */
+    #lbWrap { max-height: 420px; }
+    table { min-width: 460px; }
+
+    .combat-flex { flex-direction: column; }
+    .combat-grid { grid-template-columns: 1fr; }
+    /* the side panel animates width on desktop, that has to become height when stacked */
+    .combat-side-panel {
+      width: 100%; max-height: 0; border-left: none; padding-left: 0;
+      transition: max-height 0.3s ease;
+    }
+    .combat-side-panel.active {
+      width: 100%; max-height: 420px; padding-left: 0; padding-top: 12px;
+      border-top: 1px solid var(--border); overflow-y: auto;
+    }
+
+    /* modals become full sheets, a centred 80% box wastes a phone screen */
+    .modal-content, .finder-modal {
+      width: auto; max-width: none; margin: 0;
+      min-height: 100vh; max-height: none;
+      padding: 18px; border: none;
+    }
+    .finder-modal h1 { font-size: 19px; }
+    .close { font-size: 34px; line-height: 1; padding: 0 4px; }
+
+    .finder-input { font-size: 16px; }   /* under 16px ios zooms the page on focus */
+    .finder-results { max-height: none; }
+    .finder-hit { padding: 13px 12px; }
+
+    .hl-row { flex-wrap: wrap; gap: 2px 10px; }
+    .hl-row .rank { font-size: 12px; }
+    .stack-wrap { gap: 10px; }
+    .stack-chart { height: 120px; }
+    .json-toggle { position: static; float: none; width: 100%; margin-top: 14px; padding: 10px; }
+    pre { font-size: 11px; }
+  }
+
+  /* wordmark size is set by the builder script, it needs the number to size bands too */
+
+  @media (max-width: 420px) {
+    .chartWrap { height: 260px; }
+    .wrap { padding: 8px; }
+    .card { padding: 11px; }
+  }
+
+  /* highlights */
+  .hl-group { margin-bottom: 18px; }
+  .hl-group h2 { font-size: 13px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .hl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .hl-row .rank { color: var(--muted); white-space: nowrap; }
+  .hl-row.sole { color: #f0d089; font-weight: 600; }
+  .hl-row.sole .muted { color: #d8b877; }
+  .hl-row.sole .rank { color: #d8b877; font-weight: 400; }
+  .crown { font-size: 12px; }
+  .hl-empty { font-size: 12px; color: var(--muted); }
+
+  /* horizontal bars, so stack the two of them so each gets the full width */
+  .stack-wrap { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+  .stack-col .title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .stack-chart { height: 105px; width: 100%; }
+
+  .json-toggle { position: sticky; bottom: 0; float: right; margin-top: 10px; font-size: 11px; padding: 4px 8px; }
 </style>
 </head>
 <body>
+  <div class="bg-texture" id="bgTexture" aria-hidden="true"></div>
+  <script>
+    // band count and word count both come from the viewport, a fixed number leaves
+    // bare corners on tall screens once the whole thing is rotated
+    (function () {
+      var el = document.getElementById('bgTexture');
+
+      function build() {
+        var w = window.innerWidth;
+        var fs = w <= 420 ? 44 : w <= 780 ? 58 : 92;
+        var bandH = Math.round(fs * 1.12);
+
+        // a square of the viewport diagonal covers the screen at any rotation
+        var side = Math.ceil(Math.hypot(w, window.innerHeight) * 1.15);
+        var bands = Math.ceil(side / bandH);
+        // 4em is a deliberate underestimate of "ROWA 2 " in archivo black, so the
+        // repeat count always overshoots the band width rather than leaving a gap
+        var word = 'ROWA 2 '.repeat(Math.ceil(side / (fs * 4)) + 2);
+
+        var html = '';
+        for (var i = 0; i < bands; i++) {
+          html += '<div class="bg-row"><span>' + word + '</span><span>' + word + '</span></div>';
+        }
+
+        el.style.width = el.style.height = side + 'px';
+        el.style.setProperty('--band-h', bandH + 'px');
+        el.style.setProperty('--band-fs', fs + 'px');
+        el.innerHTML = html;
+      }
+
+      build();
+      var t;
+      window.addEventListener('resize', function () {
+        clearTimeout(t);
+        t = setTimeout(build, 250);
+      });
+    })();
+  </script>
+
   <div class="wrap">
     <div class="card col-span-2">
       <div class="topbar">
@@ -130,7 +394,7 @@
           <label class="small" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
             <input type="checkbox" id="minGamesToggle" checked> Min 20 Games
           </label>
-          <button id="refresh" class="btn">Refresh Data</button>
+          <button id="findMe" class="btn btn-primary">Find me</button>
         </div>
       </div>
       <div class="chartWrap"><canvas id="chart1"></canvas></div>
@@ -164,7 +428,7 @@
           <div class="slider-container">
             <div class="small">Target Elo: <span id="eloVal" style="color: var(--accent); font-weight: bold;">1000</span></div>
             <input type="range" id="eloSlider" min="700" max="1300" value="1000" step="10">
-            <div class="small">Averaging damage of the 10 nearest players. Drag the bars to find players matching the profile!</div>
+            <div class="small">Weighted average of the 16 nearest players. Drag the bars to find matching profiles!</div>
           </div>
           <div id="combatGrid" class="combat-grid"></div>
         </div>
@@ -188,11 +452,36 @@
     </div>
   </div>
 
+  <footer class="page-footer">
+    <p class="small-p">
+      Stats come from the ROWA game datastore. If you would rather your data was not here,
+      <a href="/#contact-frame">get in touch</a> and I will remove it.
+    </p>
+    <p class="small-p">© 2024 Airzy Turqueza.</p>
+  </footer>
+
+  <div id="finder" class="modal">
+    <div class="modal-content finder-modal">
+      <span id="closeFinder" class="close">&times;</span>
+      <h1>Find yourself</h1>
+      <div class="small finder-blurb">Search your roblox username to see how you stack up. Skip if you just want the charts.</div>
+      <div class="finder-glow">
+        <input id="finderInput" class="finder-input" placeholder="roblox username" autocomplete="off">
+      </div>
+      <div id="finderResults" class="finder-results"></div>
+    </div>
+  </div>
+
   <div id="modal" class="modal">
     <div class="modal-content">
       <span id="closeModal" class="close">&times;</span>
-      <h1 id="modalTitle">Decompressed Data</h1>
-      <pre id="modalContent"></pre>
+      <div class="modal-head">
+        <img id="modalAvatar" class="avatar" alt="" hidden>
+        <h1 id="modalTitle">Decompressed Data</h1>
+      </div>
+      <div id="highlights"></div>
+      <pre id="modalContent" hidden></pre>
+      <button id="toggleJson" class="btn json-toggle">show json</button>
     </div>
   </div>
 
@@ -201,7 +490,6 @@
   import { decompress as zstdDecompress } from 'https://esm.sh/fzstd@0.1.1';
 
   const lbWrap = document.getElementById('lbWrap');
-  const refresh = document.getElementById('refresh');
   const modal = document.getElementById('modal');
   const modalContent = document.getElementById('modalContent');
   const modalTitle = document.getElementById('modalTitle');
@@ -220,18 +508,19 @@
   let players = [];
   let allKeys = new Set();
   let currentXKey = '_calcWinrate';
-  let currentYKey = '_calcWinrate';
+  let currentYKey = 'elo';
   let uniqueRegions = [];
   let regionColors = {};
   let targetProfile = [0, 0, 0, 0, 0, 0, 0, 0];
   let highlightQuadrant = null;
+  const nowSecs = Math.floor(Date.now() / 1000);
 
   const statMap = {
     'Parried': 0, 'Blocked': 1, 'Dodged': 2, 'DamageTaken': 3,
     'ParriedBy': 4, 'BlockedBy': 5, 'DodgedBy': 6, 'DamageDealt': 7
   };
 
-  Chart.defaults.color = '#807a6d';
+  Chart.defaults.color = '#b0a896';
   Chart.defaults.borderColor = '#322d25';
   Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
 
@@ -244,6 +533,10 @@
 
   const validCounts = {};
   const statLabels = ['Parried', 'Blocked', 'Dodged', 'DamageTaken', 'ParriedBy', 'BlockedBy', 'DodgedBy', 'DamageDealt'];
+
+  // solid, no gradient. saturated so parry gold and damage red actually read as
+  // themselves, value pulled down a little so they feel heavy rather than pastel.
+  const STAT_COLORS = ['#dcab3c', '#5697e6', '#52c47d', '#de4f4f'];
 
   function flattenObject(obj, prefix = '') {
     const result = {};
@@ -288,8 +581,11 @@
           result[nKey] = val[9];
           validCounts[nKey] = (validCounts[nKey] || 0) + 1;
         }
-      } else if (typeof val === 'number') {
-        result[newKey] = val;
+      } else if (typeof val === 'number' || (typeof val === 'string' && isFinite(parseNum(val)))) {
+        // parseNum here too. the player filter accepts "1500" as an elo, so if this
+        // only counted typeof number a string elo would keep the player but quietly
+        // drop the metric off the axis list.
+        result[newKey] = typeof val === 'number' ? val : parseNum(val);
         validCounts[newKey] = (validCounts[newKey] || 0) + 1;
       } else if (typeof val === 'object' && val !== null) {
         Object.assign(result, flattenObject(val, newKey));
@@ -324,9 +620,17 @@
   function getBestScaleType(data) {
     const validNums = data.filter(v => typeof v === 'number' && isFinite(v) && v > 0);
     if (validNums.length < 2) return 'linear';
+    
     const min = Math.min(...validNums);
     const max = Math.max(...validNums);
-    if (max / min > 50) return 'logarithmic';
+    if (max / min <= 50) return 'linear';
+    
+    const sorted = [...validNums].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    
+    if (median < min + 0.20 * (max - min)) {
+      return 'logarithmic';
+    }
     return 'linear';
   }
 
@@ -337,7 +641,6 @@
     return s.length % 2 !== 0 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
   }
 
-  // Highly Optimized k-NN Imputation (No array allocations/sorts inside loop)
   function synthesizeMissingData() {
     const features = ['elo', 'winrate', 'playtimeHrs'];
     const minMax = {};
@@ -353,13 +656,13 @@
       minMax.playtimeHrs.max === minMax.playtimeHrs.min ? 0 : (p.playtimeHrs - minMax.playtimeHrs.min) / (minMax.playtimeHrs.max - minMax.playtimeHrs.min)
     ];
 
-    const playersWithPing = players.filter(p => p.primaryPing > 0);
+    const playersWithPing = players.filter(p => p.weightedPing > 0);
     if (playersWithPing.length === 0) return;
 
-    const validVecs = playersWithPing.map(p => ({ vec: getVec(p), ping: p.primaryPing }));
+    const validVecs = playersWithPing.map(p => ({ vec: getVec(p), ping: p.weightedPing }));
 
     players.forEach(p => {
-      if (p.primaryPing <= 0) {
+      if (p.weightedPing <= 0) {
         const tVec = getVec(p);
         
         const closest = [];
@@ -379,18 +682,369 @@
         const pings = closest.map(c => c.ping).sort((a, b) => a - b);
         const medianPing = pings.length % 2 !== 0 ? pings[Math.floor(pings.length / 2)] : (pings[pings.length / 2 - 1] + pings[pings.length / 2]) / 2;
         
-        p.primaryPing = Math.round(medianPing);
-        p.flatData['_calcPrimaryPing'] = p.primaryPing;
-        validCounts['_calcPrimaryPing'] = (validCounts['_calcPrimaryPing'] || 0) + 1;
+        p.weightedPing = Math.round(medianPing);
+        p.flatData['_calcWeightedPing'] = p.weightedPing;
+        validCounts['_calcWeightedPing'] = (validCounts['_calcWeightedPing'] || 0) + 1;
         
-        // Track that this metric was synthesized for UI transparency
         if (!p.synthesized) p.synthesized = [];
-        p.synthesized.push('primaryPing');
+        p.synthesized.push('weightedPing');
       }
     });
   }
 
-  // Custom Chart.js Plugin to draw the highlighted quadrant BEHIND the dots
+  // roblox usernames. ids are what the datastore gives us, nobody wants to read those.
+  const nameMap = {};
+  let namesReady = Promise.resolve(false);
+
+  function playerLabel(id) {
+    return nameMap[id] || id;
+  }
+
+  // one request for the whole page, the server batches upstream and caches
+  async function loadNames(ids) {
+    const missing = [...new Set(ids)].filter(id => !nameMap[id]);
+    if (!missing.length) return false;
+
+    try {
+      const res = await fetch('/api/roblox-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: missing })
+      });
+      if (!res.ok) return false;
+      Object.assign(nameMap, await res.json());
+      return true;
+    } catch (err) {
+      // names are a nicety, ids still render fine without them
+      console.warn('name lookup failed', err);
+      return false;
+    }
+  }
+
+  // ---- player highlights ----
+  // metric, label, and whether a high value is the good end
+  // high: which end rank 1 sits at. top/bottom are the words for each end, because
+  // "Losses 2, 1st of 37" is meaningless without saying which direction 1st means.
+  const RANKED = [
+    { key: 'elo',      label: 'elo',          high: true,  top: 'highest', bottom: 'lowest', get: p => p.elo },
+    // zero wins / zero win rate is not worth a line, it just reads as piling on
+    { key: 'wins',     label: 'wins',         high: true,  top: 'most',    bottom: 'fewest', hideZero: true, get: p => p.wins },
+    { key: 'winrate',  label: 'win rate',     high: true,  top: 'highest', bottom: 'lowest', hideZero: true, get: p => p.winrate, fmt: v => v.toFixed(1) + '%' },
+    { key: 'games',    label: 'games played', high: true,  top: 'most',    bottom: 'fewest', get: p => p.wins + p.loss },
+    { key: 'playtime', label: 'hours played', high: true,  top: 'most',    bottom: 'fewest', get: p => p.playtimeHrs, fmt: v => v.toFixed(1) + 'h' },
+    // most losses is the notable end, and fewest losses is not an achievement worth listing
+    { key: 'loss',     label: 'losses',       high: true,  top: 'most',    bottom: null,     get: p => p.loss },
+    { key: 'ping',     label: 'ping',         high: false, top: 'lowest',  bottom: 'highest', get: p => p.weightedPing, fmt: v => Math.round(v) + 'ms' },
+
+    // combat splits. these are a share of that players own total, so being top means
+    // you lean on that option harder than anyone else, not that you played more.
+    // `only` keeps players with no real combat data out of the comparison, otherwise
+    // a pile of zeroes drags every percentage around.
+    // good: true means a bigger share is the flattering end. the damage buckets are the
+    // leftovers after parry/block/dodge, so a high one means nothing got stopped. a player
+    // with no defensive actions at all sits at 100% damage taken, which is the worst
+    // possible profile, not a first place finish.
+    ...[
+      ['Parried',     'parried %',      true],
+      ['Blocked',     'blocked %',      true],
+      ['Dodged',      'dodged %',       true],
+      ['DamageTaken', 'damage taken %', false],
+      ['ParriedBy',   'parried by %',   false],
+      ['BlockedBy',   'blocked by %',   false],
+      ['DodgedBy',    'dodged by %',    false],
+      ['DamageDealt', 'damage dealt %', true]
+    ].map(([stat, label, good]) => ({
+      key: stat, label,
+      high: good,
+      top: good ? 'highest' : 'lowest',
+      bottom: good ? 'lowest' : 'highest',
+      only: hasCombatVolume,
+      get: p => p.flatData[`plrStats.${stat}.Pct`],
+      fmt: v => v.toFixed(1) + '%'
+    }))
+  ];
+
+  // hasValidCombatData only means "not all zero", which is far too loose to rank shares on.
+  // two fights gives you a clean 0% dodged by and ties you with fifteen other people for
+  // first. 1000 damage on both sides is around the lower quartile and drops the noise.
+  const MIN_COMBAT_DMG = 1000;
+
+  function hasCombatVolume(p) {
+    const ps = p.raw && p.raw.plrStats;
+    if (!Array.isArray(ps)) return false;
+    let inc = 0, out = 0;
+    for (let i = 0; i < 4; i++) if (Array.isArray(ps[i])) inc += ps[i][1] || 0;
+    for (let i = 4; i < 8; i++) if (Array.isArray(ps[i])) out += ps[i][1] || 0;
+    return inc >= MIN_COMBAT_DMG && out >= MIN_COMBAT_DMG;
+  }
+
+  function ordinal(n) {
+    const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  // rank 1 is always the good end of the metric
+  function rankPlayer(me, pool) {
+    const out = [];
+    for (const m of RANKED) {
+      if (m.only && !m.only(me)) continue;
+      const mine = m.get(me);
+      if (!isFinite(mine)) continue;
+      if (m.hideZero && mine === 0) continue;
+
+      const from = m.only ? pool.filter(m.only) : pool;
+      const vals = from.map(m.get).filter(isFinite);
+      if (vals.length < 2) continue;
+
+      const better = vals.filter(v => m.high ? v > mine : v < mine).length;
+      const rank = better + 1;
+      // ties share a rank, so first place is only worth a crown when nobody matches it
+      const sharing = vals.filter(v => v === mine).length;
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const fmt = m.fmt || (v => Math.round(v).toLocaleString());
+
+      out.push({
+        label: m.label, top: m.top, bottom: m.bottom,
+        rank, total: vals.length, value: mine, avg,
+        sole: rank === 1 && sharing === 1,
+        pct: rank / vals.length,
+        beatsAvg: m.high ? mine > avg : mine < avg,
+        text: fmt(mine), avgText: fmt(avg)
+      });
+    }
+    return out;
+  }
+
+  const COMBAT_STACKS = [
+    { id: 'combatTaken', from: 0, title: 'What happened to you', labels: ['Parried', 'Blocked', 'Dodged', 'Damage Taken'] },
+    { id: 'combatDealt', from: 4, title: 'What you did to them', labels: ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'] }
+  ];
+
+  const combatCharts = {};
+
+  function stackedBars(p) {
+    const stats = p.raw && p.raw.plrStats;
+    if (!Array.isArray(stats)) return '';
+
+    return `<div class="stack-wrap">` + COMBAT_STACKS.map(c =>
+      `<div class="stack-col">
+        <div class="title">${c.title}</div>
+        <div class="stack-chart"><canvas id="${c.id}"></canvas></div>
+      </div>`
+    ).join('') + `</div>`;
+  }
+
+  // canvases have to exist in the dom before chart.js can bind to them,
+  // so this runs after the highlights html is inserted
+  function renderCombatCharts(p) {
+    for (const k in combatCharts) {
+      if (combatCharts[k]) { combatCharts[k].destroy(); delete combatCharts[k]; }
+    }
+
+    const stats = p.raw && p.raw.plrStats;
+    if (!Array.isArray(stats)) return;
+
+    for (const c of COMBAT_STACKS) {
+      const el = document.getElementById(c.id);
+      if (!el) continue;
+
+      const vals = [];
+      for (let i = 0; i < 4; i++) {
+        const s = stats[c.from + i];
+        vals.push(Array.isArray(s) ? (s[1] || 0) : 0);
+      }
+      const total = vals.reduce((a, b) => a + b, 0);
+      if (!total) {
+        el.parentElement.innerHTML = '<div class="hl-empty">no data</div>';
+        continue;
+      }
+
+      combatCharts[c.id] = new Chart(el.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: [''],
+          // plotted as percent with a hard 0-100 axis so both bars are exactly the same
+          // length. on raw damage chart.js rounds each axis to its own nice number and
+          // the two bars end up slightly different widths.
+          datasets: vals.map((v, i) => ({
+            label: c.labels[i],
+            data: [v / total * 100],
+            raw: v,
+            backgroundColor: STAT_COLORS[i],
+            borderWidth: 0,
+            barThickness: 30
+          }))
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true, display: false, min: 0, max: 100, grid: { display: false } },
+            y: { stacked: true, display: false, grid: { display: false } }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 11 }, color: '#b0a896' } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const dmg = ctx.dataset.raw || 0;
+                  return `${ctx.dataset.label}: ${Math.round(dmg).toLocaleString()} dmg (${ctx.parsed.x.toFixed(1)}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // same max delta measure the side panel uses, but matched against this player
+  // instead of the slider profile
+  function similarPlayers(me, n = 4) {
+    if (!me.hasValidCombatData) return [];
+    const keys = Object.keys(statMap);
+    const mine = keys.map(k => me.flatData[`plrStats.${k}.Pct`] || 0);
+
+    return players
+      .filter(p => p.hasValidCombatData && p.id !== me.id)
+      .map(p => {
+        let maxDelta = 0;
+        keys.forEach((k, i) => {
+          const d = Math.abs((p.flatData[`plrStats.${k}.Pct`] || 0) - mine[i]);
+          if (d > maxDelta) maxDelta = d;
+        });
+        return { p, delta: maxDelta };
+      })
+      .sort((a, b) => a.delta - b.delta)
+      .slice(0, n);
+  }
+
+  function similarList(me) {
+    const hits = similarPlayers(me, 4);
+    if (!hits.length) return '';
+
+    return `<div class="similar">
+      <div class="similar-title">Similar to combat styles</div>
+      ${hits.map(h => `<div class="hl-row">
+          <span><button type="button" class="pjump" data-pid="${h.p.id}">${playerLabel(h.p.id)}</button> <span class="muted">${h.p.elo} elo</span></span>
+          <span class="rank">within ${h.delta.toFixed(1)}%</span>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  function buildHighlights(p) {
+    // rank against everyone, not getFilteredPlayers. the leaderboard you clicked from
+    // lists all players, so ranking against the min-games subset produced things like
+    // "1st lowest elo" for someone with plenty of lower elos visible below them.
+    const ranks = rankPlayer(p, players);
+
+    // best first, so a genuine 1st place leads the section instead of whatever
+    // happened to sit earliest in the metric list
+    // outright wins lead, then shared firsts, then the rest
+    const best = ranks.filter(r => r.rank <= 3 || r.pct <= 0.1)
+      .sort((a, b) => (b.sole - a.sole) || a.rank - b.rank || a.pct - b.pct);
+    const worst = ranks.filter(r => r.bottom && !best.includes(r) && (r.rank > r.total - 3 || r.pct >= 0.9))
+      .sort((a, b) => b.rank - a.rank);
+    // 15 metrics means this bucket can get long, keep it to the strongest few
+    const okay = ranks.filter(r => !best.includes(r) && !worst.includes(r) && r.beatsAvg)
+      .sort((a, b) => a.pct - b.pct)
+      .slice(0, 6);
+
+    // rank 1 is whichever end `top` names, so say the word instead of a bare ordinal
+    const topRow = r => `<div class="hl-row${r.sole ? ' sole' : ''}">
+        <span>${r.sole ? '<span class="crown" title="first and the only one">👑</span> ' : ''}${ordinal(r.rank)} ${r.top} ${r.label} <span class="muted">${r.text}</span></span>
+        <span class="rank">of ${r.total}</span>
+      </div>`;
+
+    const bottomRow = r => `<div class="hl-row">
+        <span>${ordinal(r.total - r.rank + 1)} ${r.bottom} ${r.label} <span class="muted">${r.text}</span></span>
+        <span class="rank">of ${r.total}</span>
+      </div>`;
+
+    const okayRow = r => `<div class="hl-row">
+        <span>${r.label} <span class="muted">${r.text}</span></span>
+        <span class="rank">above the ${r.avgText} average</span>
+      </div>`;
+
+    let html = '';
+
+    if (best.length) {
+      const one = best[0];
+      html += `<div class="hl-group">
+        <h2>Highlights</h2>
+        <div class="small" style="margin-bottom:8px">${one.sole
+          ? `You have the ${one.top} ${one.label} here, outright. Nobody else even matches it.`
+          : one.rank === 1
+            ? `You are tied for the ${one.top} ${one.label} here.`
+            : `Top ${Math.max(1, Math.round(one.pct * 100))}% for ${one.top} ${one.label}.`}</div>
+        ${best.map(topRow).join('')}
+      </div>`;
+    }
+
+    if (worst.length) {
+      html += `<div class="hl-group">
+        <h2>Not so much</h2>
+        ${worst.map(bottomRow).join('')}
+      </div>`;
+    }
+
+    if (okay.length) {
+      html += `<div class="hl-group">
+        <h2>Quietly above average</h2>
+        ${okay.map(okayRow).join('')}
+      </div>`;
+    }
+
+    if (!html) html = `<div class="hl-empty">Not enough data on this player to compare.</div>`;
+
+    const bars = stackedBars(p);
+    if (bars) html += `<div class="hl-group"><h2>Combat breakdown</h2>${bars}${similarList(p)}</div>`;
+
+    return html;
+  }
+
+  let modalToken = 0;
+
+  function loadAvatar(p) {
+    const av = document.getElementById('modalAvatar');
+    const mine = ++modalToken;
+
+    av.hidden = true;
+    av.removeAttribute('src');
+
+    fetch(`/api/roblox-thumb/${p.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        // jumping between players fires several of these, only the newest may paint
+        if (mine !== modalToken || !d || !d.imageUri) return;
+        av.onerror = () => { av.hidden = true; };
+        av.src = d.imageUri;
+        av.alt = playerLabel(p.id);
+        av.hidden = false;
+      })
+      .catch(() => {});   // headshot is decoration, never block the modal on it
+  }
+
+  function openPlayerModal(p) {
+    modalTitle.innerText = `${playerLabel(p.id)}`;
+    document.getElementById('highlights').innerHTML = buildHighlights(p);
+    renderCombatCharts(p);
+    loadAvatar(p);
+
+    const displayObj = {
+      id: p.id, elo: p.elo, wins: p.wins, loss: p.loss, clientInfo: p.clientInfo,
+      primaryRegion: p.primaryRegion, weightedPing: p.weightedPing,
+      decodedSlots: p.decodedSlots, decodedFlags: p.decodedFlags, raw: p.raw
+    };
+    if (p.synthesized && p.synthesized.length > 0) displayObj._synthesized = p.synthesized;
+    modalContent.textContent = JSON.stringify(displayObj, null, 2);
+
+    modalContent.hidden = true;
+    document.getElementById('toggleJson').textContent = 'show json';
+    modal.style.display = 'block';
+  }
+
   const quadrantPlugin = {
     id: 'quadrantHighlight',
     beforeDatasetsDraw: (chart) => {
@@ -458,37 +1112,86 @@
         const playtimeHrs = (meta.totalPlaytime || 0) / 3600;
 
         let primaryRegion = 'Unknown';
-        let primaryPing = 0;
         let maxPlayTime = 0;
+        let totalPlayTimeForPing = 0;
+        let weightedPingSum = 0;
+        let hasPingData = false;
+
         if (meta.regionsData) {
+          const isUnknown = r => !r || String(r).toLowerCase() === 'unknown';
+          // an Unknown region drags the ping average toward a number that means nothing.
+          // only fall back to it when its all the player has.
+          const named = Object.keys(meta.regionsData).filter(r => !isUnknown(r) && (meta.regionsData[r].ping || 0) > 0);
+          const pingFrom = named.length ? new Set(named) : null;
+
           for (const r in meta.regionsData) {
             const playTime = meta.regionsData[r].playTime || 0;
+            const ping = meta.regionsData[r].ping || 0;
+
             regionPlaytime[r] = (regionPlaytime[r] || 0) + playTime;
+
             if (playTime > maxPlayTime) {
               maxPlayTime = playTime;
               primaryRegion = r;
-              primaryPing = meta.regionsData[r].ping || 0;
+            }
+
+            if (ping > 0 && (!pingFrom || pingFrom.has(r))) {
+              totalPlayTimeForPing += playTime;
+              weightedPingSum += ping * playTime;
+              hasPingData = true;
             }
           }
         }
         regionSet.add(primaryRegion);
 
+        let weightedPing = 0;
+        if (hasPingData && totalPlayTimeForPing > 0) {
+          weightedPing = Math.round(weightedPingSum / totalPlayTimeForPing);
+        }
+
+        let hasValidCombatData = false;
+        if (v.plrStats) {
+          const sum = v.plrStats.reduce((acc, stat) => {
+            if (Array.isArray(stat)) return acc + (stat[0] || 0) + (stat[1] || 0);
+            if (typeof stat === 'number') return acc + stat;
+            return acc;
+          }, 0);
+          hasValidCombatData = sum > 0;
+        }
+
         const flatData = flattenObject(v);
         flatData['_calcWinrate'] = winrate;
         flatData['_calcTotalGames'] = games;
         
-        if (primaryPing > 0) {
-          flatData['_calcPrimaryPing'] = primaryPing;
-          validCounts['_calcPrimaryPing'] = (validCounts['_calcPrimaryPing'] || 0) + 1;
+        if (weightedPing > 0) {
+          flatData['_calcWeightedPing'] = weightedPing;
+          validCounts['_calcWeightedPing'] = (validCounts['_calcWeightedPing'] || 0) + 1;
         }
 
         validCounts['_calcWinrate'] = (validCounts['_calcWinrate'] || 0) + 1;
         validCounts['_calcTotalGames'] = (validCounts['_calcTotalGames'] || 0) + 1;
 
+        if (meta.first) {
+          flatData['meta.first'] = meta.first;
+          validCounts['meta.first'] = (validCounts['meta.first'] || 0) + 1;
+          
+          const ageDays = Math.max(0, Math.floor((nowSecs - meta.first) / 86400));
+          flatData['_calcAccountAgeDays'] = ageDays;
+          validCounts['_calcAccountAgeDays'] = (validCounts['_calcAccountAgeDays'] || 0) + 1;
+        }
+        if (meta.last) {
+          flatData['meta.last'] = meta.last;
+          validCounts['meta.last'] = (validCounts['meta.last'] || 0) + 1;
+          
+          const lastSeenDays = Math.max(0, Math.floor((nowSecs - meta.last) / 86400));
+          flatData['_calcDaysSinceLastSeen'] = lastSeenDays;
+          validCounts['_calcDaysSinceLastSeen'] = (validCounts['_calcDaysSinceLastSeen'] || 0) + 1;
+        }
+
         if (!isFinite(elo)) continue;
 
         players.push({
-          id, elo, winrate, wins, loss, clientInfo, os, primaryRegion, primaryPing, playtimeHrs,
+          id, elo, winrate, wins, loss, clientInfo, os, primaryRegion, weightedPing, playtimeHrs, hasValidCombatData,
           decodedSlots: decodeBuffer(v.slots),
           decodedFlags: decodeBuffer(v.flags),
           flatData, raw: v, synthesized: []
@@ -497,11 +1200,10 @@
 
       synthesizeMissingData();
 
-      // Console log users with synthesized data
       const synthUsers = players.filter(p => p.synthesized.length > 0);
       if (synthUsers.length > 0) {
         console.log("%c[Data Imputation] Synthesized data for users:", "color: #bfa173; font-weight: bold;");
-        console.table(synthUsers.map(p => ({ id: p.id, synthesized: p.synthesized.join(', '), guessedPing: p.primaryPing })));
+        console.table(synthUsers.map(p => ({ id: p.id, synthesized: p.synthesized.join(', '), guessedPing: p.weightedPing })));
       }
 
       uniqueRegions = Array.from(regionSet).sort();
@@ -518,9 +1220,29 @@
 
       const xAxisList = document.getElementById('xAxisList');
       const yAxisList = document.getElementById('yAxisList');
+
+      // Reverted to Alphabetical Sorting
       const sortedKeys = Array.from(allKeys).sort();
-      
-      if (xAxisList.children.length === 0) {
+
+      // the defaults are hardcoded key names but the list comes from the data, so they
+      // are not guaranteed to be in it. fall back instead of leaving an axis with nothing
+      // selected and a chart plotting undefined.
+      const pick = (want, fallbacks) =>
+        sortedKeys.includes(want) ? want : (fallbacks.find(k => sortedKeys.includes(k)) || sortedKeys[0]);
+      if (sortedKeys.length) {
+        currentXKey = pick(currentXKey, ['_calcWinrate', '_calcTotalGames']);
+        currentYKey = pick(currentYKey, ['elo', '_calcTotalGames']);
+        if (currentYKey === currentXKey) {
+          const other = sortedKeys.find(k => k !== currentXKey);
+          if (other) currentYKey = other;
+        }
+      }
+
+      // rebuilt every load. building once meant a sparse first fetch locked in a bad
+      // metric list for the whole session, refresh included.
+      xAxisList.innerHTML = '';
+      yAxisList.innerHTML = '';
+      {
         for (const key of sortedKeys) {
           const xItem = document.createElement('div');
           xItem.className = 'metric-item';
@@ -561,12 +1283,22 @@
       }
 
       const c1ctx = document.getElementById('chart1').getContext('2d');
+      
+      const initialDatasets = uniqueRegions.map(region => ({
+        label: region,
+        data: [],
+        backgroundColor: regionColors[region],
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }));
+
       charts.c1 = new Chart(c1ctx, {
         type: 'scatter',
-        data: { datasets: [] },
+        data: { datasets: initialDatasets },
         plugins: [quadrantPlugin],
         options: {
           responsive: true, maintainAspectRatio: false,
+          animation: { duration: 600, easing: 'easeInOutQuart' },
           onClick: (e, elements) => {
             if (elements.length > 0) {
               const { datasetIndex, index } = elements[0];
@@ -588,9 +1320,15 @@
             tooltip: {
               callbacks: {
                 label: (ctx) => {
-                  const x = typeof ctx.raw.x === 'number' ? ctx.raw.x.toFixed(2) : ctx.raw.x;
-                  const y = typeof ctx.raw.y === 'number' ? ctx.raw.y.toFixed(2) : ctx.raw.y;
-                  return [`id:${ctx.raw.id} (${ctx.raw.region} - ${ctx.raw.ping}ms)`, `${ctx.raw.xKey}: ${x}`, `${ctx.raw.yKey}: ${y}`];
+                  const fmtVal = (val, key) => {
+                    if ((key === 'meta.first' || key === 'meta.last') && typeof val === 'number') {
+                      return new Date(val * 1000).toLocaleDateString();
+                    }
+                    return typeof val === 'number' ? val.toFixed(2) : val;
+                  };
+                  const x = fmtVal(ctx.raw.x, ctx.raw.xKey);
+                  const y = fmtVal(ctx.raw.y, ctx.raw.yKey);
+                  return [`${playerLabel(ctx.raw.id)} (${ctx.raw.region} - ${ctx.raw.ping}ms)`, `${ctx.raw.xKey}: ${x}`, `${ctx.raw.yKey}: ${y}`];
                 }
               }
             }
@@ -645,35 +1383,32 @@
       players.sort((a, b) => b.elo - a.elo);
       const table = document.createElement('table');
       table.innerHTML = `<thead><tr>
-        <th style="width:30px">#</th><th>id</th><th style="width:60px">elo</th><th style="width:70px">win%</th><th class="muted" style="width:50px">W</th><th class="muted" style="width:50px">L</th>
+        <th style="width:30px">#</th><th>player</th><th style="width:60px">elo</th><th style="width:70px">win%</th><th class="muted" style="width:50px">W</th><th class="muted" style="width:50px">L</th>
       </tr></thead>`;
       const body = document.createElement('tbody');
-      
+
       for (let i = 0; i < players.length; i++) {
         const p = players[i];
         const tr = document.createElement('tr');
         tr.id = `row-${p.id}`;
-        tr.innerHTML = `<td>${i + 1}</td><td>${p.id}</td><td>${p.elo}</td><td>${p.winrate.toFixed(2)}%</td><td class="muted">${p.wins}</td><td class="muted">${p.loss}</td>`;
-        
-        tr.onclick = () => {
-          modalTitle.innerText = `Player ${p.id} Data`;
-          const displayObj = {
-            id: p.id, elo: p.elo, wins: p.wins, loss: p.loss, clientInfo: p.clientInfo, primaryRegion: p.primaryRegion, primaryPing: p.primaryPing,
-            decodedSlots: p.decodedSlots, decodedFlags: p.decodedFlags, raw: p.raw
-          };
-          
-          if (p.synthesized && p.synthesized.length > 0) {
-            displayObj._synthesized = p.synthesized;
-          }
-          
-          modalContent.textContent = JSON.stringify(displayObj, null, 2);
-          modal.style.display = 'block';
-        };
+        tr.innerHTML = `<td>${i + 1}</td><td class="pname">${playerLabel(p.id)}</td><td>${p.elo}</td><td>${p.winrate.toFixed(2)}%</td><td class="muted">${p.wins}</td><td class="muted">${p.loss}</td>`;
+
+        tr.onclick = () => openPlayerModal(p);
         body.appendChild(tr);
       }
       table.appendChild(body);
       lbWrap.innerHTML = '';
       lbWrap.appendChild(table);
+
+      // rows are already on screen, names swap in when they land
+      namesReady = loadNames(players.map(p => p.id)).then(filled => {
+        if (!filled) return;
+        for (const p of players) {
+          if (!nameMap[p.id]) continue;
+          const cell = document.querySelector(`#row-${p.id} .pname`);
+          if (cell) cell.textContent = nameMap[p.id];
+        }
+      });
 
       updateAverageCombat(parseInt(document.getElementById('eloSlider').value));
 
@@ -687,25 +1422,38 @@
     if (!charts.c1) return;
     const filteredPlayers = getFilteredPlayers();
     
+    const usesPlrStats = currentXKey.startsWith('plrStats.') || currentYKey.startsWith('plrStats.');
+    
     const validPoints = [];
-    const datasets = uniqueRegions.map(region => ({
-      label: region,
-      data: filteredPlayers
+    
+    uniqueRegions.forEach((region, i) => {
+      if (!charts.c1.data.datasets[i]) {
+        charts.c1.data.datasets[i] = {
+          label: region,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        };
+      }
+      charts.c1.data.datasets[i].label = region;
+      charts.c1.data.datasets[i].backgroundColor = regionColors[region];
+      
+      charts.c1.data.datasets[i].data = filteredPlayers
         .filter(p => p.primaryRegion === region)
         .map(p => {
+          if (usesPlrStats && !p.hasValidCombatData) return null;
+          
           const x = p.flatData[currentXKey];
           const y = p.flatData[currentYKey];
           if (typeof x === 'number' && typeof y === 'number' && isFinite(x) && isFinite(y)) {
             validPoints.push({ x, y, elo: p.elo });
-            return { x, y, id: p.id, region: p.primaryRegion, ping: p.primaryPing, xKey: currentXKey, yKey: currentYKey };
+            return { x, y, id: p.id, region: p.primaryRegion, ping: p.weightedPing, xKey: currentXKey, yKey: currentYKey };
           }
           return null;
         })
-        .filter(p => p !== null),
-      backgroundColor: regionColors[region],
-      pointRadius: 4,
-      pointHoverRadius: 6
-    }));
+        .filter(p => p !== null);
+    });
+    
+    charts.c1.data.datasets.length = uniqueRegions.length;
 
     if (validPoints.length > 4) {
       const medX = median(validPoints.map(p => p.x));
@@ -735,11 +1483,11 @@
       highlightQuadrant = null;
     }
 
-    charts.c1.data.datasets = datasets;
     charts.c1.options.scales.x.title.text = currentXKey;
     charts.c1.options.scales.y.title.text = currentYKey;
     charts.c1.options.scales.x.type = document.getElementById('xLogToggle').checked ? 'logarithmic' : 'linear';
     charts.c1.options.scales.y.type = document.getElementById('yLogToggle').checked ? 'logarithmic' : 'linear';
+    
     charts.c1.update();
   }
 
@@ -773,33 +1521,39 @@
   function updateAverageCombat(targetElo) {
     if (players.length === 0) return;
 
-    const filteredPlayers = getFilteredPlayers();
+    const filteredPlayers = getFilteredPlayers().filter(p => p.hasValidCombatData);
     const sorted = [...filteredPlayers].sort((a, b) => Math.abs(a.elo - targetElo) - Math.abs(b.elo - targetElo));
-    const top = sorted.slice(0, 10);
+    const top = sorted.slice(0, 16);
+    if (top.length === 0) return;
 
     const avgs = Array(8).fill(0).map(() => 0);
+    const totalWeight = Array(8).fill(0);
+    
     top.forEach(p => {
+      const dist = Math.abs(p.elo - targetElo);
+      const weight = 1 / (dist + 1);
+      
       if (p.raw.plrStats) {
         for (let i = 0; i < 8; i++) {
           if (Array.isArray(p.raw.plrStats[i])) {
-            avgs[i] += p.raw.plrStats[i][1] || 0;
+            const dmg = p.raw.plrStats[i][1] || 0;
+            avgs[i] += weight * dmg;
+            totalWeight[i] += weight;
           }
         }
       }
     });
-    for (let i = 0; i < 8; i++) avgs[i] /= top.length;
+    
+    for (let i = 0; i < 8; i++) {
+      avgs[i] = totalWeight[i] > 0 ? avgs[i] / totalWeight[i] : 0;
+    }
 
     const incomingTotal = avgs[0] + avgs[1] + avgs[2] + avgs[3];
     const outgoingTotal = avgs[4] + avgs[5] + avgs[6] + avgs[7];
 
     const incomingLabels = ['Parried', 'Blocked', 'Dodged', 'Damage Taken'];
     const outgoingLabels = ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'];
-    const colorMap = [
-      'linear-gradient(90deg,var(--accent), #d99b3a)',
-      'linear-gradient(90deg,#60a5fa, #2b78e6)',
-      'linear-gradient(90deg,#86efac, #43c46b)',
-      'linear-gradient(90deg,#ff8b8b, #ff4b4b)'
-    ];
+    const colorMap = STAT_COLORS;
 
     combatGrid.innerHTML = '';
     for (let i = 0; i < 4; i++) {
@@ -818,7 +1572,7 @@
   }
 
   function updateCombatSidePanel() {
-    const validPlayers = getFilteredPlayers().filter(p => p.flatData['plrStats.Parried.Pct'] != null);
+    const validPlayers = getFilteredPlayers().filter(p => p.hasValidCombatData);
     
     validPlayers.forEach(p => {
       let maxDelta = 0;
@@ -838,7 +1592,7 @@
     const sidePanelContent = document.getElementById('sidePanelContent');
     sidePanelContent.innerHTML = top10.map(p => {
       const maxDelta = p._combatDist.toFixed(2);
-      return `<div class="side-player"><span class="muted">${p.id}</span><span>Δ max ${maxDelta}%</span></div>`;
+      return `<div class="side-player"><span class="muted">${playerLabel(p.id)}</span><span>Δ max ${maxDelta}%</span></div>`;
     }).join('');
     
     document.getElementById('combatSidePanel').classList.add('active');
@@ -864,8 +1618,81 @@
     }
   });
 
-  refresh.addEventListener('click', load);
+  // ---- find yourself ----
+  const finder = document.getElementById('finder');
+  const finderInput = document.getElementById('finderInput');
+  const finderResults = document.getElementById('finderResults');
+
+  function closeFinder() { finder.style.display = 'none'; }
+
+  function renderFinder(term) {
+    const q = term.trim().toLowerCase();
+    if (!q) {
+      finderResults.innerHTML = `<div class="hl-empty" style="padding:8px 0">Type a username to search ${players.length} players.</div>`;
+      return;
+    }
+
+    const hits = players
+      .filter(p => String(nameMap[p.id] || p.id).toLowerCase().includes(q))
+      .slice(0, 25);
+
+    if (!hits.length) {
+      finderResults.innerHTML = `<div class="hl-empty" style="padding:8px 0">Nobody here matches that. You might not be in this dataset.</div>`;
+      return;
+    }
+
+    finderResults.innerHTML = hits.map(p =>
+      `<div class="finder-hit" data-id="${p.id}">
+        <span>${playerLabel(p.id)}</span>
+        <span class="muted">${p.elo} elo</span>
+      </div>`).join('');
+  }
+
+  finderInput.addEventListener('input', () => renderFinder(finderInput.value));
+  finderResults.addEventListener('click', (e) => {
+    const hit = e.target.closest('.finder-hit');
+    if (!hit) return;
+    const p = players.find(x => String(x.id) === hit.dataset.id);
+    if (!p) return;
+    closeFinder();
+    openPlayerModal(p);
+  });
+
+  document.getElementById('closeFinder').addEventListener('click', closeFinder);
+  finder.addEventListener('click', (e) => { if (e.target === finder) closeFinder(); });
+
+  async function openFinder() {
+    finder.style.display = 'block';
+    finderInput.focus();
+    // searching by username is pointless until the names land
+    finderResults.innerHTML = `<div class="hl-empty" style="padding:8px 0">Loading usernames…</div>`;
+    await namesReady;
+    renderFinder(finderInput.value);
+  }
+
+  document.getElementById('findMe').addEventListener('click', openFinder);
+
+  // the similar list is rebuilt every time the modal opens, so delegate
+  document.getElementById('highlights').addEventListener('click', (e) => {
+    const jump = e.target.closest('.pjump');
+    if (!jump) return;
+    const p = players.find(x => String(x.id) === jump.dataset.pid);
+    if (p) openPlayerModal(p);
+  });
+
+  document.getElementById('toggleJson').addEventListener('click', () => {
+    const pre = modalContent;
+    pre.hidden = !pre.hidden;
+    document.getElementById('toggleJson').textContent = pre.hidden ? 'show json' : 'hide json';
+  });
+
   await load();
+
+  // only on a real first visit, not on every reload of the tab
+  if (!sessionStorage.getItem('rowaFinderSeen')) {
+    sessionStorage.setItem('rowaFinderSeen', '1');
+    openFinder();
+  }
 </script>
 </body>
 </html>

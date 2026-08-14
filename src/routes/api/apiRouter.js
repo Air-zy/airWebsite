@@ -13,6 +13,8 @@ router.use('/status', require('./status/router.js'));
 router.use('/gam3DB', require('../rblxapp/routes/gam3DB.js'));
 
 router.get('/roblox-user/:userId', require('../rblxapp/routes/userlookup.js'));
+router.post('/roblox-users', require('../rblxapp/routes/usersLookup.js'));
+router.get('/roblox-thumb/:userId', require('../rblxapp/routes/thumbLookup.js'));
 
 router.get('/anime2/data',         require('./anime2/data.js')             );
 router.get('/anime3/data',         require('./anime3/data.js')             );

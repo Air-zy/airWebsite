@@ -98,8 +98,8 @@ function readResetToken(token, passwordHash) {
   return Number(parts[1]);
 }
 
-// uid 1 is the owner account. a hardcoded compare beats a roles system for one admin.
-const ADMIN_UID = 1;
+// uid 3 is me. a hardcoded compare beats a roles system for one admin.
+const ADMIN_UID = 3;
 
 function requireAdmin(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'not-authenticated' });
@@ -108,6 +108,7 @@ function requireAdmin(req, res, next) {
 }
 
 module.exports = {
+  ADMIN_UID,
   makeToken, readToken,
   makeResetToken, readResetToken, parseResetUid,
   setAuthCookie, clearAuthCookie, attachUser, requireAuth, requireAdmin

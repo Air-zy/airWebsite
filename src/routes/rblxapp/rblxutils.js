@@ -1,14 +1,25 @@
+const envDecrypt = require('../../FallbackEncryption/envDecrypt.js');
+const rbxApiKey = envDecrypt(process.env.airKey, process.env.rowaCloudApi);
+
 const roUNameIDcache = {};
 
+// open cloud instead of users.roblox.com. single lookups are what this does anyway,
+// and being authenticated means a 1k/min key quota instead of an ip throttle that
+// was 429ing about two thirds of a leaderboard render.
 async function idtoname(userId) {
     const cached = roUNameIDcache[userId];
     if (cached) return cached;
 
-    const response = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+    const response = await fetch(`https://apis.roblox.com/cloud/v2/users/${userId}`, {
+        headers: { 'x-api-key': rbxApiKey },
+        signal: AbortSignal.timeout(8000)
+    });
+
     if (!response.ok) {
-        throw new Error(`Failed to fetch user data from ${response.url}: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch user ${userId}: ${response.status} ${response.statusText}`);
     }
 
+    // shape matches the old endpoint for the fields anyone uses, id name displayName
     const data = await response.json();
     roUNameIDcache[userId] = data;
     return data;

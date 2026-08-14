@@ -123,6 +123,16 @@
     .icon-button:hover .button-text {
       display: inline;
     }
+    /* the edit link is an anchor so it can be opened in a new tab,
+       these match what 'article button' gives the refresh button next to it */
+    a.icon-button {
+      background: 0 0;
+      color: var(--text-grey);
+      text-decoration: none;
+    }
+    a.icon-button:hover {
+      color: var(--text-normal);
+    }
     @media (max-width: 600px) {
       #projects {
         width: 100%;
@@ -134,6 +144,9 @@
     <button class="icon-button" onclick="reloadProjects()">
       <span class="button-text"></span> <i class="fa fa-refresh"></i>
     </button>
+    <a class="icon-button" href="/projectsEdit.html" title="edit projects">
+      <span class="button-text"></span> <i class="fa fa-pencil"></i>
+    </a>
   </p>
   <div id="projects">
     

@@ -1,8 +1,21 @@
 const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js');
 const rbxApiKey = envDecrypt(process.env.airKey, process.env.rowaCloudApi);
 
+// one uncached call pages the whole datastore then fetches every entry, roughly
+// 900 open cloud requests against a 1k/min key quota. an hour is plenty fresh for this.
+const cache = { data: null, lastFetch: 0, ttl: 60 * 60 * 1000 };
+let inFlight = null;
+
 module.exports = async (req, res) => {
+  if (cache.data && Date.now() - cache.lastFetch < cache.ttl) {
+    return res.json(cache.data);
+  }
+
+  // if two people load the page at once, only one of them hits roblox
+  if (inFlight) return res.json(await inFlight);
+
   try {
+    inFlight = (async () => {
     const universeId = '8502229770';
     const store = 'plrDataV3';
     const scope = 'global';
@@ -44,9 +57,16 @@ module.exports = async (req, res) => {
     });
     await Promise.all(workers);
 
-    return res.json(results);
+      cache.data = results;
+      cache.lastFetch = Date.now();
+      return results;
+    })();
+
+    return res.json(await inFlight);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'plr data request err' });
+  } finally {
+    inFlight = null;
   }
 };
