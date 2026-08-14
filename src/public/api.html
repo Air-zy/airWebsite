@@ -90,6 +90,15 @@
     async function fetchLogs() {
       try {
         const res = await fetch('/api/logs');
+        // owner only now, send everyone else to log in
+        if (res.status === 401) {
+          location.href = '/auth/?next=/trafic';
+          return;
+        }
+        if (res.status === 403) {
+          document.getElementById('log-body').innerHTML = '<tr><td colspan="7">Owner only</td></tr>';
+          return;
+        }
         const text = await res.text();
         logs = parseLines(text);
         renderTable();
