@@ -20,5 +20,6 @@ router.get('/anime',      page('/anime.html'));
 router.get('/encryption', page('/encryption/cbc.html'));
 router.get('/trafic',     page('/api.html'));
 router.get('/anime2',     page('/anime2/main.html'));
+router.get('/rowa2',      page('/ROWA/rowa2.html'));
 
 module.exports = router;

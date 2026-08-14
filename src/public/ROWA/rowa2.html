@@ -239,6 +239,13 @@
     background: var(--bg); border: 1px solid var(--border); object-fit: cover;
   }
 
+  .feints { margin-top: 14px; font-size: 12px; }
+  .feint-head { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 5px; }
+  .feint-head b { color: var(--text); font-weight: 600; }
+  .fs-bar { display: flex; height: 8px; width: 100%; overflow: hidden; background: rgba(255,255,255,0.05); }
+  .fs-bar span { display: block; height: 100%; }
+  .fs-key { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
   .similar { margin-top: 14px; }
   .similar-title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .pjump {
@@ -335,7 +342,7 @@
   .crown { font-size: 12px; }
   .hl-empty { font-size: 12px; color: var(--muted); }
 
-  /* horizontal bars, so stack the two of them so each gets the full width */
+  /* horizontal bars stacked one above the other so each gets the full width */
   .stack-wrap { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
   .stack-col .title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .stack-chart { height: 105px; width: 100%; }
@@ -480,6 +487,30 @@
         <h1 id="modalTitle">Decompressed Data</h1>
       </div>
       <div id="highlights"></div>
+
+      <!-- kept out of #highlights on purpose. that div gets innerHTML replaced on every
+           open, which would destroy the canvas and force a rebuild every time. -->
+      <div id="combatSection" class="hl-group" hidden>
+        <h2>Combat breakdown</h2>
+
+        <div class="stack-wrap">
+          <div class="stack-col">
+            <div class="title">What happened to you</div>
+            <div class="stack-chart"><canvas id="combatTaken"></canvas></div>
+          </div>
+          <div class="stack-col">
+            <div class="title">What you did to them</div>
+            <div class="stack-chart"><canvas id="combatDealt"></canvas></div>
+          </div>
+        </div>
+
+        <!-- feints are bare counts with no damage attached, so they cannot join the
+             composition above. separate line, separately normalised. -->
+        <div id="feintLine" class="feints" hidden></div>
+
+        <div id="similarList"></div>
+      </div>
+
       <pre id="modalContent" hidden></pre>
       <button id="toggleJson" class="btn json-toggle">show json</button>
     </div>
@@ -493,7 +524,16 @@
   const modal = document.getElementById('modal');
   const modalContent = document.getElementById('modalContent');
   const modalTitle = document.getElementById('modalTitle');
-  document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
+  function closeModal() {
+    modal.style.display = 'none';
+    // drop the id again so a refresh does not reopen a profile you just closed
+    if (new URLSearchParams(location.search).has('id')) {
+      history.replaceState(null, '', location.pathname);
+    }
+  }
+
+  document.getElementById('closeModal').onclick = closeModal;
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
 
   const minGamesToggle = document.getElementById('minGamesToggle');
@@ -739,6 +779,10 @@
     { key: 'loss',     label: 'losses',       high: true,  top: 'most',    bottom: null,     get: p => p.loss },
     { key: 'ping',     label: 'ping',         high: false, top: 'lowest',  bottom: 'highest', get: p => p.weightedPing, fmt: v => Math.round(v) + 'ms' },
 
+    // style, not skill, so bottom is null. feinting less than everyone is not a flaw.
+    { key: 'feintRate', label: 'feints per 100 attacks', high: true, top: 'most', bottom: null,
+      get: p => p.flatData['_calcFeintRate'], fmt: v => v.toFixed(1) },
+
     // combat splits. these are a share of that players own total, so being top means
     // you lean on that option harder than anyone else, not that you played more.
     // `only` keeps players with no real combat data out of the comparison, otherwise
@@ -819,46 +863,96 @@
   }
 
   const COMBAT_STACKS = [
-    { id: 'combatTaken', from: 0, title: 'What happened to you', labels: ['Parried', 'Blocked', 'Dodged', 'Damage Taken'] },
-    { id: 'combatDealt', from: 4, title: 'What you did to them', labels: ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'] }
+    { id: 'combatTaken', from: 0, labels: ['Parried', 'Blocked', 'Dodged', 'Damage Taken'] },
+    { id: 'combatDealt', from: 4, labels: ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'] }
   ];
 
   const combatCharts = {};
 
-  function stackedBars(p) {
-    const stats = p.raw && p.raw.plrStats;
-    if (!Array.isArray(stats)) return '';
+  // two separate stacked bars was the wrong encoding. in a stack only the first segment
+  // sits on a common baseline, the rest float, so comparing "dodged" between two bars is
+  // the least accurate thing you can ask an eye to do. worse, the bars sat far apart.
+  // a diverging chart gives every pair a shared spine at zero, which is the one case
+  // where stacking two series is genuinely readable.
+  // feints are raw counts, and raw counts correlate with games played at r=0.99, so on
+  // their own they just measure playtime. dividing by attacks thrown drops that to 0.04.
+  // note plrStats[4..7][0] is a COUNT and [1] is damage, so the counts are the denominator.
+  function renderFeints(p) {
+    const el = document.getElementById('feintLine');
+    const s = p.raw && p.raw.plrStats;
 
-    return `<div class="stack-wrap">` + COMBAT_STACKS.map(c =>
-      `<div class="stack-col">
-        <div class="title">${c.title}</div>
-        <div class="stack-chart"><canvas id="${c.id}"></canvas></div>
-      </div>`
-    ).join('') + `</div>`;
-  }
+    const fb = (s && typeof s[8] === 'number') ? s[8] : 0;
+    const fa = (s && typeof s[9] === 'number') ? s[9] : 0;
+    const total = fb + fa;
+    if (!total) { el.hidden = true; return; }
 
-  // canvases have to exist in the dom before chart.js can bind to them,
-  // so this runs after the highlights html is inserted
-  function renderCombatCharts(p) {
-    for (const k in combatCharts) {
-      if (combatCharts[k]) { combatCharts[k].destroy(); delete combatCharts[k]; }
+    let attacks = 0;
+    if (Array.isArray(s)) {
+      for (let i = 4; i < 8; i++) if (Array.isArray(s[i])) attacks += s[i][0] || 0;
+    }
+    const games = p.wins + p.loss;
+
+    // per attack is cleanest, per game is the fallback for players with no counts
+    let rate;
+    if (attacks > 0) {
+      const per = attacks / total;
+      rate = per >= 1 ? `1 every ${per.toFixed(1)} attacks` : `${(total / attacks).toFixed(1)} per attack`;
+    } else if (games > 0) {
+      rate = `${(total / games).toFixed(1)} per game`;
+    } else {
+      rate = `${total.toLocaleString()} total`;
     }
 
+    const bPct = fb / total * 100;
+    // round once and derive the other, else 87.5 and 12.5 both round up and print 101%
+    const bShown = Math.round(bPct);
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="feint-head"><span>Feints</span><b>${rate}</b></div>
+      <div class="fs-bar">
+        <span style="width:${bPct}%;background:#a9a396" title="basic ${fb.toLocaleString()}"></span>
+        <span style="width:${100 - bPct}%;background:#5f5a52" title="ability ${fa.toLocaleString()}"></span>
+      </div>
+      <div class="fs-key">
+        <span>${bShown}% basic</span>
+        <span>${100 - bShown}% ability</span>
+      </div>`;
+  }
+
+  function renderCombatCharts(p) {
+    const section = document.getElementById('combatSection');
     const stats = p.raw && p.raw.plrStats;
-    if (!Array.isArray(stats)) return;
+
+    if (!Array.isArray(stats)) { section.hidden = true; return; }
+
+    const inc = [], out = [];
+    for (let i = 0; i < 4; i++) inc.push(Array.isArray(stats[i]) ? (stats[i][1] || 0) : 0);
+    for (let i = 4; i < 8; i++) out.push(Array.isArray(stats[i]) ? (stats[i][1] || 0) : 0);
+
+    const ti = inc.reduce((a, b) => a + b, 0);
+    const to = out.reduce((a, b) => a + b, 0);
+    if (!ti && !to) { section.hidden = true; return; }
+
+    section.hidden = false;
+    renderFeints(p);
+    document.getElementById('similarList').innerHTML = similarList(p);
 
     for (const c of COMBAT_STACKS) {
       const el = document.getElementById(c.id);
       if (!el) continue;
 
-      const vals = [];
-      for (let i = 0; i < 4; i++) {
-        const s = stats[c.from + i];
-        vals.push(Array.isArray(s) ? (s[1] || 0) : 0);
-      }
-      const total = vals.reduce((a, b) => a + b, 0);
-      if (!total) {
-        el.parentElement.innerHTML = '<div class="hl-empty">no data</div>';
+      const vals = c.from === 0 ? inc : out;
+      const total = c.from === 0 ? ti : to;
+      const pct = vals.map(v => total ? v / total * 100 : 0);
+
+      // in place update so switching players tweens instead of rebuilding
+      if (combatCharts[c.id]) {
+        const ch = combatCharts[c.id];
+        pct.forEach((v, i) => {
+          ch.data.datasets[i].data = [v];
+          ch.data.datasets[i].raw = vals[i];
+        });
+        ch.update();
         continue;
       }
 
@@ -866,13 +960,12 @@
         type: 'bar',
         data: {
           labels: [''],
-          // plotted as percent with a hard 0-100 axis so both bars are exactly the same
-          // length. on raw damage chart.js rounds each axis to its own nice number and
-          // the two bars end up slightly different widths.
-          datasets: vals.map((v, i) => ({
+          // percent with a hard 0-100 axis, so both bars are exactly the same length.
+          // on raw damage chart.js rounds each axis to its own nice number and they differ.
+          datasets: pct.map((v, i) => ({
             label: c.labels[i],
-            data: [v / total * 100],
-            raw: v,
+            data: [v],
+            raw: vals[i],
             backgroundColor: STAT_COLORS[i],
             borderWidth: 0,
             barThickness: 30
@@ -902,12 +995,31 @@
     }
   }
 
+  // feints as two comparable numbers: how often, and which kind. both land on roughly a
+  // 0-100 scale like the damage shares, so they can join the same max delta measure.
+  // raw feint counts could not, they track games played at r=0.99.
+  function feintMetrics(p) {
+    const s = p.raw && p.raw.plrStats;
+    if (!Array.isArray(s)) return null;
+    const fb = typeof s[8] === 'number' ? s[8] : 0;
+    const fa = typeof s[9] === 'number' ? s[9] : 0;
+    const total = fb + fa;
+    if (!total) return null;
+
+    let attacks = 0;
+    for (let i = 4; i < 8; i++) if (Array.isArray(s[i])) attacks += s[i][0] || 0;
+    if (!attacks) return null;
+
+    return { per100: total / attacks * 100, basicPct: fb / total * 100 };
+  }
+
   // same max delta measure the side panel uses, but matched against this player
   // instead of the slider profile
   function similarPlayers(me, n = 4) {
     if (!me.hasValidCombatData) return [];
     const keys = Object.keys(statMap);
     const mine = keys.map(k => me.flatData[`plrStats.${k}.Pct`] || 0);
+    const myFeints = feintMetrics(me);
 
     return players
       .filter(p => p.hasValidCombatData && p.id !== me.id)
@@ -917,6 +1029,16 @@
           const d = Math.abs((p.flatData[`plrStats.${k}.Pct`] || 0) - mine[i]);
           if (d > maxDelta) maxDelta = d;
         });
+
+        // only compare feints when both sides have them, otherwise a player with no
+        // feint data would be scored as maximally different rather than unknown
+        const theirs = myFeints && feintMetrics(p);
+        if (theirs) {
+          maxDelta = Math.max(maxDelta,
+            Math.abs(theirs.per100 - myFeints.per100),
+            Math.abs(theirs.basicPct - myFeints.basicPct));
+        }
+
         return { p, delta: maxDelta };
       })
       .sort((a, b) => a.delta - b.delta)
@@ -936,6 +1058,74 @@
     </div>`;
   }
 
+  // Windows/MacOS/Linux vs Android/iOS, so a phone player can win something even when
+  // there are only a couple of them
+  const DEVICE_CLASS = { Windows: 'PC', MacOS: 'PC', Linux: 'PC', Android: 'mobile', iOS: 'mobile' };
+
+  const isUnknownSeg = s => !s || /^unknown$/i.test(String(s).trim());
+
+  function regionTable(p) {
+    const rd = p.raw && p.raw.meta && p.raw.meta.regionsData;
+    if (!rd || typeof rd !== 'object') return '';
+
+    const rows = Object.keys(rd)
+      .map(name => ({ name, hrs: (rd[name].playTime || 0) / 3600, ping: rd[name].ping || 0 }))
+      .filter(r => r.hrs > 0 || r.ping > 0)
+      .sort((a, b) => b.hrs - a.hrs);
+
+    if (!rows.length) return '';
+
+    return `<div class="hl-group"><h2>Regions</h2>${rows.map(r => `
+      <div class="hl-row">
+        <span>${r.name} <span class="muted">${r.hrs.toFixed(1)}h</span></span>
+        <span class="rank">${r.ping ? r.ping + 'ms' : 'no ping'}</span>
+      </div>`).join('')}</div>`;
+  }
+
+  // elo ranked inside a slice of the pool. these are category awards rather than claims
+  // about the whole field, so the group size is always printed alongside.
+  function segmentAwards(me, pool) {
+    const out = [];
+    const key = q => String(q || '').trim().toLowerCase();
+
+    const seen = new Set();
+
+    const add = (label, mineSeg, segOf) => {
+      if (isUnknownSeg(mineSeg)) return;
+      const group = pool.filter(q => key(segOf(q)) === key(mineSeg));
+      if (group.length < 3) return;              // top of two is not an award
+
+      // a segment holding most of the pool just restates the global rank. windows was
+      // 39 of 46 and PC 41 of 46, so one player collected the same fact three times.
+      if (group.length > pool.length * 0.6) return;
+
+      // platform and device class often cover the same people, only award it once
+      const members = group.map(q => q.id).sort().join(',');
+      if (seen.has(members)) return;
+      seen.add(members);
+
+      const rank = group.filter(q => q.elo > me.elo).length + 1;
+      if (rank > 3) return;
+
+      const sharing = group.filter(q => q.elo === me.elo).length;
+      out.push({
+        label: `elo in ${label}`, top: 'highest', bottom: null, high: true,
+        rank, total: group.length,
+        sole: rank === 1 && sharing === 1,
+        pct: rank / group.length, beatsAvg: false,
+        text: Math.round(me.elo).toLocaleString(), avgText: ''
+      });
+    };
+
+    add(me.primaryRegion, me.primaryRegion, q => q.primaryRegion);
+    add(me.os, me.os, q => q.os);
+
+    const dev = DEVICE_CLASS[String(me.os || '').trim()];
+    if (dev) add(dev, dev, q => DEVICE_CLASS[String(q.os || '').trim()]);
+
+    return out;
+  }
+
   function buildHighlights(p) {
     // everyone ranked here has a real sample, so a 100% win rate off two games cannot
     // take first place. under the threshold you get no ranks at all rather than a rank
@@ -952,6 +1142,7 @@
     // stopped being a highlight. top ten always counts now, whatever the pool size.
     // outright wins lead, then shared firsts, then the rest
     const best = ranks.filter(r => r.rank <= 10 || r.pct <= 0.1)
+      .concat(ranked ? segmentAwards(p, pool) : [])
       .sort((a, b) => (b.sole - a.sole) || a.rank - b.rank || a.pct - b.pct);
     const worst = ranks.filter(r => r.bottom && !best.includes(r) && (r.rank > r.total - 3 || r.pct >= 0.9))
       .sort((a, b) => b.rank - a.rank);
@@ -1013,9 +1204,10 @@
         : `<div class="hl-empty">Needs ${MIN_RANKED_GAMES} games to be ranked, this one has ${games(p)}.</div>`;
     }
 
-    const bars = stackedBars(p);
-    if (bars) html += `<div class="hl-group"><h2>Combat breakdown</h2>${bars}${similarList(p)}</div>`;
+    html += regionTable(p);
 
+    // the combat chart and similar list live in their own static section now, see
+    // renderCombatCharts. keeping the canvas out of here is what lets it animate.
     return html;
   }
 
@@ -1042,6 +1234,10 @@
   }
 
   function openPlayerModal(p) {
+    // replaceState not pushState, so the back button leaves the page rather than
+    // walking through every profile you clicked
+    history.replaceState(null, '', `${location.pathname}?id=${encodeURIComponent(p.id)}`);
+
     modalTitle.innerText = `${playerLabel(p.id)}`;
     document.getElementById('highlights').innerHTML = buildHighlights(p);
     renderCombatCharts(p);
@@ -1139,6 +1335,9 @@
           const named = Object.keys(meta.regionsData).filter(r => !isUnknown(r) && (meta.regionsData[r].ping || 0) > 0);
           const pingFrom = named.length ? new Set(named) : null;
 
+          const totalRegionTime = Object.keys(meta.regionsData)
+            .reduce((s, r) => s + (meta.regionsData[r].playTime || 0), 0);
+
           for (const r in meta.regionsData) {
             const playTime = meta.regionsData[r].playTime || 0;
             const ping = meta.regionsData[r].ping || 0;
@@ -1147,7 +1346,7 @@
 
             if (playTime > maxPlayTime) {
               maxPlayTime = playTime;
-              primaryRegion = r;
+              primaryRegion = r;      // provisional, replaced by the ping pick below
             }
 
             if (ping > 0 && (!pingFrom || pingFrom.has(r))) {
@@ -1155,6 +1354,38 @@
               weightedPingSum += ping * playTime;
               hasPingData = true;
             }
+          }
+
+          // home region is where the connection is best, not where the most hours landed.
+          // a player can sit 15h on a 118ms server while their real region pings 44ms.
+          // the 10% floor stops a single brief 0.0h session from deciding it.
+          let bestPing = Infinity, bestPingTime = 0;
+          for (const r in meta.regionsData) {
+            const playTime = meta.regionsData[r].playTime || 0;
+            const ping = meta.regionsData[r].ping || 0;
+            if (!ping || isUnknown(r)) continue;
+            if (totalRegionTime && playTime < totalRegionTime * 0.10) continue;
+            if (ping < bestPing) {
+              bestPing = ping;
+              bestPingTime = playTime;
+              primaryRegion = r;
+            }
+          }
+
+          // nobody feels 10ms, so let hours break a near tie. catches players sitting on
+          // one server for 4x the time at +3ms, which is plainly their real home.
+          if (isFinite(bestPing)) {
+            let alt = null;
+            for (const r in meta.regionsData) {
+              if (r === primaryRegion || isUnknown(r)) continue;
+              const ping = meta.regionsData[r].ping || 0;
+              const playTime = meta.regionsData[r].playTime || 0;
+              if (!ping) continue;
+              if (ping - bestPing <= 10 && playTime > bestPingTime * 2 && (!alt || playTime > alt.t)) {
+                alt = { r, t: playTime };
+              }
+            }
+            if (alt) primaryRegion = alt.r;
           }
         }
         regionSet.add(primaryRegion);
@@ -1185,6 +1416,30 @@
 
         validCounts['_calcWinrate'] = (validCounts['_calcWinrate'] || 0) + 1;
         validCounts['_calcTotalGames'] = (validCounts['_calcTotalGames'] || 0) + 1;
+
+        // raw FeintedBasic/FeintedAbility track games played at r=0.99, so on their own
+        // they rank playtime. per 100 attacks thrown drops that correlation to 0.04.
+        if (Array.isArray(v.plrStats)) {
+          const fBasic = typeof v.plrStats[8] === 'number' ? v.plrStats[8] : 0;
+          const fAbility = typeof v.plrStats[9] === 'number' ? v.plrStats[9] : 0;
+          const feints = fBasic + fAbility;
+
+          // [i][0] is the event count, [i][1] is damage. counts are the denominator here.
+          let attacksThrown = 0;
+          for (let i = 4; i < 8; i++) {
+            if (Array.isArray(v.plrStats[i])) attacksThrown += v.plrStats[i][0] || 0;
+          }
+
+          // 50 attack floor. below that the rate is noise, one player sat at a perfect
+          // 100 per 100 off a single feint and a single attack.
+          if (feints > 0 && attacksThrown >= 50) {
+            flatData['_calcFeintRate'] = feints / attacksThrown * 100;
+            validCounts['_calcFeintRate'] = (validCounts['_calcFeintRate'] || 0) + 1;
+
+            flatData['_calcFeintBasicPct'] = fBasic / feints * 100;
+            validCounts['_calcFeintBasicPct'] = (validCounts['_calcFeintBasicPct'] || 0) + 1;
+          }
+        }
 
         if (meta.first) {
           flatData['meta.first'] = meta.first;
@@ -1687,13 +1942,15 @@
 
   document.getElementById('findMe').addEventListener('click', openFinder);
 
-  // the similar list is rebuilt every time the modal opens, so delegate
-  document.getElementById('highlights').addEventListener('click', (e) => {
+  // delegated on the modal, not #highlights, since the similar list lives in its own
+  // section now and both get rebuilt on open
+  modal.addEventListener('click', (e) => {
     const jump = e.target.closest('.pjump');
     if (!jump) return;
     const p = players.find(x => String(x.id) === jump.dataset.pid);
     if (p) openPlayerModal(p);
   });
+
 
   document.getElementById('toggleJson').addEventListener('click', () => {
     const pre = modalContent;
@@ -1703,8 +1960,15 @@
 
   await load();
 
-  // only on a real first visit, not on every reload of the tab
-  if (!sessionStorage.getItem('rowaFinderSeen')) {
+  // /rowa2?id=123 opens straight to that profile, so a link can be shared
+  const wantId = new URLSearchParams(location.search).get('id');
+  const linked = wantId && players.find(x => String(x.id) === String(wantId));
+
+  if (linked) {
+    await namesReady;           // otherwise the title says the raw id for a moment
+    openPlayerModal(linked);
+  } else if (!sessionStorage.getItem('rowaFinderSeen')) {
+    // only on a real first visit, not on every reload of the tab
     sessionStorage.setItem('rowaFinderSeen', '1');
     openFinder();
   }
