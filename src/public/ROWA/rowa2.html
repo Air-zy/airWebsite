@@ -723,6 +723,9 @@
 
   // ---- player highlights ----
   // metric, label, and whether a high value is the good end
+  // a 100% win rate off two games is not an award, it is a small sample
+  const MIN_RANKED_GAMES = 10;
+
   // high: which end rank 1 sits at. top/bottom are the words for each end, because
   // "Losses 2, 1st of 37" is meaningless without saying which direction 1st means.
   const RANKED = [
@@ -934,15 +937,21 @@
   }
 
   function buildHighlights(p) {
-    // rank against everyone, not getFilteredPlayers. the leaderboard you clicked from
-    // lists all players, so ranking against the min-games subset produced things like
-    // "1st lowest elo" for someone with plenty of lower elos visible below them.
-    const ranks = rankPlayer(p, players);
+    // everyone ranked here has a real sample, so a 100% win rate off two games cannot
+    // take first place. under the threshold you get no ranks at all rather than a rank
+    // against a pool you are not part of.
+    const games = q => q.wins + q.loss;
+    const pool = players.filter(q => games(q) >= MIN_RANKED_GAMES);
+    const ranked = games(p) >= MIN_RANKED_GAMES;
+    const ranks = ranked ? rankPlayer(p, pool) : [];
 
     // best first, so a genuine 1st place leads the section instead of whatever
     // happened to sit earliest in the metric list
+    // absolute rank as well as percentage. on a 134 pool the 10% rule reached rank 13,
+    // on the gated 46 pool it only reaches rank 4, so placing 9th at something quietly
+    // stopped being a highlight. top ten always counts now, whatever the pool size.
     // outright wins lead, then shared firsts, then the rest
-    const best = ranks.filter(r => r.rank <= 3 || r.pct <= 0.1)
+    const best = ranks.filter(r => r.rank <= 10 || r.pct <= 0.1)
       .sort((a, b) => (b.sole - a.sole) || a.rank - b.rank || a.pct - b.pct);
     const worst = ranks.filter(r => r.bottom && !best.includes(r) && (r.rank > r.total - 3 || r.pct >= 0.9))
       .sort((a, b) => b.rank - a.rank);
@@ -996,7 +1005,11 @@
       </div>`;
     }
 
-    if (!html) html = `<div class="hl-empty">Not enough data on this player to compare.</div>`;
+    if (!html) {
+      html = ranked
+        ? `<div class="hl-empty">Not enough data on this player to compare.</div>`
+        : `<div class="hl-empty">Needs ${MIN_RANKED_GAMES} games to be ranked, this one has ${games(p)}.</div>`;
+    }
 
     const bars = stackedBars(p);
     if (bars) html += `<div class="hl-group"><h2>Combat breakdown</h2>${bars}${similarList(p)}</div>`;
