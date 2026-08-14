@@ -5,76 +5,444 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rowa Dashboard</title>
 <style>
-  :root{--bg:#0b0d10;--panel:#0f1418;--muted:#8f9aa2;--text:#e6eef3;--accent:#6ce6b5}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1100px;margin:28px auto;padding:18px;display:grid;grid-template-columns:1fr 360px;gap:18px}
-  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
-  h1{margin:0 0 8px 0;font-size:18px}
-  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;border-radius:6px;color:var(--muted);cursor:pointer}
-  .small{font-size:12px;color:var(--muted)}
-  .chartWrap{height:520px;width:100%;display:block}
-  canvas{width:100% !important;height:100% !important;display:block}
-  #lbWrap{overflow:auto;max-height:720px}
-  table{width:100%;border-collapse:collapse;font-size:13px;color:var(--text)}
-  th,td{padding:8px 6px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03)}
-  th{color:var(--muted);font-weight:600;font-size:12px}
-  tr:hover td{background:rgba(255,255,255,0.01)}
-  .muted{color:var(--muted)}
+  :root {
+    color-scheme: dark;
+    --bg: #131110;
+    --panel: #1e1b16;
+    --muted: #807a6d;
+    --text: #ddd5c5;
+    --accent: #bfa173;
+    --accent2: #a38350;
+    --border: #322d25;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap {
+    max-width: 1400px;
+    margin: 20px auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .col-span-2 { grid-column: span 2; }
+  .col-span-3 { grid-column: span 3; }
+  
+  h1 { margin: 0 0 4px 0; font-size: 18px; font-weight: 600; color: var(--text); }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 15px; flex-wrap: wrap; }
+  .btn { background: transparent; border: 1px solid var(--border); padding: 6px 12px; color: var(--accent); cursor: pointer; font-size: 13px; transition: 0.2s; }
+  .btn:hover { background: rgba(191, 161, 115, 0.1); border-color: var(--accent); }
+  .small { font-size: 12px; color: var(--muted); }
+  
+  .chartWrap { height: 400px; width: 100%; display: block; }
+  .chartWrap.small { height: 280px; }
+  canvas { width: 100% !important; height: 100% !important; display: block; }
+  
+  .axis-controls { display: flex; gap: 20px; margin-top: 16px; }
+  .axis-col { flex: 1; min-width: 200px; }
+  .metric-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 140px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    padding: 8px;
+    margin-top: 4px;
+  }
+  .metric-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--muted);
+    transition: 0.1s;
+    user-select: none;
+  }
+  .metric-item:hover { background: rgba(191, 161, 115, 0.1); color: var(--text); }
+  .metric-item.active { background: rgba(191, 161, 115, 0.2); color: var(--accent); border-left: 2px solid var(--accent); }
+
+  #lbWrap { overflow: auto; max-height: 800px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); z-index: 1; }
+  tr { cursor: pointer; transition: 0.1s; }
+  tr:hover td { background: rgba(191, 161, 115, 0.05); }
+  tr.highlight td { animation: highlightFade 3s ease-out; }
+  @keyframes highlightFade {
+    0% { background: rgba(191, 161, 115, 0.4); }
+    100% { background: transparent; }
+  }
+  .muted { color: var(--muted); }
+  
+  .modal { position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(0,0,0,0.8); display: none; }
+  .modal-content { background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 900px; max-height: 80vh; overflow: auto; border: 1px solid var(--accent); }
+  .close { color: var(--muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+  .close:hover { color: var(--text); }
+  pre { white-space: pre-wrap; word-wrap: break-word; color: var(--text); font-size: 12px; }
+
+  /* Elo Slider & Combat Stats Styling */
+  .slider-container { margin-bottom: 20px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .combat-flex { display: flex; gap: 15px; align-items: flex-start; }
+  .combat-main { flex: 1; }
+  .combat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .combat-item { background: var(--bg); padding: 8px; border: 1px solid var(--border); border-radius: 4px; }
+  .combat-item .k { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .combat-item .v { font-size: 14px; color: var(--text); font-weight: 600; display: flex; justify-content: space-between; }
+  
+  .bar-bg { position: relative; height: 10px; width: 100%; background: rgba(255,255,255,0.05); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; transition: width 0.2s ease; pointer-events: none; }
+  .bar-scroll {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: ew-resize; margin: 0; padding: 0;
+    -webkit-appearance: none; appearance: none; background: transparent;
+  }
+
+  .combat-side-panel {
+    width: 0; overflow: hidden; transition: width 0.3s ease;
+    border-left: 1px solid var(--border); padding-left: 0; height: 100%;
+  }
+  .combat-side-panel.active { width: 280px; padding-left: 15px; }
+  .side-player { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 </style>
 </head>
 <body>
   <div class="wrap">
+    <div class="card col-span-2">
+      <div class="topbar">
+        <div>
+          <h1>Dynamic Scatter Plot</h1>
+          <div class="small">Color coded by Primary Region. Most attractive quadrant (by avg Elo) is highlighted.</div>
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+          <label class="small" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="minGamesToggle" checked> Min 20 Games
+          </label>
+          <button id="refresh" class="btn">Refresh Data</button>
+        </div>
+      </div>
+      <div class="chartWrap"><canvas id="chart1"></canvas></div>
+      
+      <div class="axis-controls">
+        <div class="axis-col">
+          <div class="small">X-Axis Metric <label style="float: right; cursor: pointer; user-select: none;"><input type="checkbox" id="xLogToggle"> Log</label></div>
+          <div id="xAxisList" class="metric-list"></div>
+        </div>
+        <div class="axis-col">
+          <div class="small">Y-Axis Metric <label style="float: right; cursor: pointer; user-select: none;"><input type="checkbox" id="yLogToggle"> Log</label></div>
+          <div id="yAxisList" class="metric-list"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="topbar">
         <div>
-          <h1>Elo vs Winrate</h1>
-          <div class="small">X = Elo · Y = Winrate (%)</div>
+          <h1>Leaderboard</h1>
+          <div class="small">Click row to view fully decompressed data</div>
         </div>
-        <div><button id="refresh" class="btn">Refresh</button></div>
       </div>
-      <div class="chartWrap">
-        <canvas id="chart" width="1200" height="520"></canvas>
+      <div id="lbWrap"><div class="small muted" style="padding: 10px;">Loading…</div></div>
+    </div>
+
+    <div class="card col-span-2">
+      <h1>Average Combat Stats</h1>
+      <div class="combat-flex">
+        <div class="combat-main">
+          <div class="slider-container">
+            <div class="small">Target Elo: <span id="eloVal" style="color: var(--accent); font-weight: bold;">1000</span></div>
+            <input type="range" id="eloSlider" min="700" max="1300" value="1000" step="10">
+            <div class="small">Averaging damage of the 10 nearest players. Drag the bars to find players matching the profile!</div>
+          </div>
+          <div id="combatGrid" class="combat-grid"></div>
+        </div>
+        <div id="combatSidePanel" class="combat-side-panel">
+          <div class="small" id="sidePanelTitle" style="margin-bottom: 8px; color: var(--accent);">Top 10 Matching Profile</div>
+          <div id="sidePanelContent"></div>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <h1>Leaderboard (All players)</h1>
-          <div class="small">Sorted by Elo (highest → lowest)</div>
-        </div>
-      </div>
-      <div id="lbWrap"><div class="small muted">Loading…</div></div>
+      <h1>Platform Distribution</h1>
+      <div class="small">Based on clientInfo</div>
+      <div class="chartWrap small"><canvas id="chart4"></canvas></div>
+    </div>
+
+    <div class="card col-span-3">
+      <h1>Region Playtime (Hours)</h1>
+      <div class="small">Aggregated playtime per region</div>
+      <div class="chartWrap small"><canvas id="chart5"></canvas></div>
     </div>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-(async function(){
-  const chartEl = document.getElementById('chart');
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span id="closeModal" class="close">&times;</span>
+      <h1 id="modalTitle">Decompressed Data</h1>
+      <pre id="modalContent"></pre>
+    </div>
+  </div>
+
+<script type="module">
+  import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/auto/+esm';
+  import { decompress as zstdDecompress } from 'https://esm.sh/fzstd@0.1.1';
+
   const lbWrap = document.getElementById('lbWrap');
   const refresh = document.getElementById('refresh');
-  let chart;
+  const modal = document.getElementById('modal');
+  const modalContent = document.getElementById('modalContent');
+  const modalTitle = document.getElementById('modalTitle');
+  document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
+  window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
 
-  function parseNum(v){
+  const minGamesToggle = document.getElementById('minGamesToggle');
+  let filterMinGames = minGamesToggle.checked;
+  minGamesToggle.addEventListener('change', () => {
+    filterMinGames = minGamesToggle.checked;
+    updateScatterChart();
+    updateAverageCombat(parseInt(document.getElementById('eloSlider').value));
+  });
+
+  let charts = {};
+  let players = [];
+  let allKeys = new Set();
+  let currentXKey = '_calcWinrate';
+  let currentYKey = '_calcWinrate';
+  let uniqueRegions = [];
+  let regionColors = {};
+  let targetProfile = [0, 0, 0, 0, 0, 0, 0, 0];
+  let highlightQuadrant = null;
+
+  const statMap = {
+    'Parried': 0, 'Blocked': 1, 'Dodged': 2, 'DamageTaken': 3,
+    'ParriedBy': 4, 'BlockedBy': 5, 'DodgedBy': 6, 'DamageDealt': 7
+  };
+
+  Chart.defaults.color = '#807a6d';
+  Chart.defaults.borderColor = '#322d25';
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+
+  function parseNum(v) {
     if (v == null) return NaN;
     if (typeof v === 'number') return v;
-    // strip commas and non-numeric trailing chars
-    const s = String(v).replace(/[^\d\.\-]/g,'');
+    const s = String(v).replace(/[^\d\.\-]/g, '');
     return s === '' ? NaN : Number(s);
   }
 
-  async function load(){
-    lbWrap.innerHTML = '<div class="small muted">Loading…</div>';
+  const validCounts = {};
+  const statLabels = ['Parried', 'Blocked', 'Dodged', 'DamageTaken', 'ParriedBy', 'BlockedBy', 'DodgedBy', 'DamageDealt'];
+
+  function flattenObject(obj, prefix = '') {
+    const result = {};
+    for (const key in obj) {
+      if (key === 'slots' || key === 'meta' || key === 'keybindData' || key === 'followedIds' || key === 'touchData' || key === 'extra' || key === 'flags' || key === 'seed' || key === 'version') continue;
+
+      const val = obj[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (key === 'plrStats' && Array.isArray(val)) {
+        const incomingDmgs = [0, 0, 0, 0];
+        const outgoingDmgs = [0, 0, 0, 0];
+        
+        for (let i = 0; i < 4; i++) {
+          if (Array.isArray(val[i])) incomingDmgs[i] = val[i][1] || 0;
+        }
+        for (let i = 4; i < 8; i++) {
+          if (Array.isArray(val[i])) outgoingDmgs[i - 4] = val[i][1] || 0;
+        }
+        
+        const totalIncoming = incomingDmgs.reduce((a, b) => a + b, 0);
+        const totalOutgoing = outgoingDmgs.reduce((a, b) => a + b, 0);
+
+        for (let i = 0; i < 8; i++) {
+          const lbl = statLabels[i];
+          const dmg = i < 4 ? incomingDmgs[i] : outgoingDmgs[i - 4];
+          const total = i < 4 ? totalIncoming : totalOutgoing;
+          const pct = total ? (dmg / total * 100) : 0;
+          
+          const pKey = `plrStats.${lbl}.Pct`;
+          result[pKey] = pct;
+          validCounts[pKey] = (validCounts[pKey] || 0) + 1;
+        }
+
+        if (typeof val[8] === 'number') {
+          const nKey = 'plrStats.FeintedBasic';
+          result[nKey] = val[8];
+          validCounts[nKey] = (validCounts[nKey] || 0) + 1;
+        }
+        if (typeof val[9] === 'number') {
+          const nKey = 'plrStats.FeintedAbility';
+          result[nKey] = val[9];
+          validCounts[nKey] = (validCounts[nKey] || 0) + 1;
+        }
+      } else if (typeof val === 'number') {
+        result[newKey] = val;
+        validCounts[newKey] = (validCounts[newKey] || 0) + 1;
+      } else if (typeof val === 'object' && val !== null) {
+        Object.assign(result, flattenObject(val, newKey));
+      }
+    }
+    return result;
+  }
+
+  function decodeBuffer(bufObj) {
+    if (!bufObj || typeof bufObj !== 'object') return null;
+    const b64 = bufObj.base64 || bufObj.zbase64;
+    if (!b64) return null;
+    try {
+      const binaryStr = atob(b64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const decompressed = zstdDecompress(bytes);
+      const text = new TextDecoder().decode(decompressed);
+      try { return JSON.parse(text); } catch { return text; }
+    } catch (err) {
+      return `[Decode Error: ${err.message}]`;
+    }
+  }
+
+  function getFilteredPlayers() {
+    if (filterMinGames) {
+      return players.filter(p => (p.wins + p.loss) >= 20);
+    }
+    return players;
+  }
+
+  function getBestScaleType(data) {
+    const validNums = data.filter(v => typeof v === 'number' && isFinite(v) && v > 0);
+    if (validNums.length < 2) return 'linear';
+    const min = Math.min(...validNums);
+    const max = Math.max(...validNums);
+    if (max / min > 50) return 'logarithmic';
+    return 'linear';
+  }
+
+  function median(arr) {
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 !== 0 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  }
+
+  // Highly Optimized k-NN Imputation (No array allocations/sorts inside loop)
+  function synthesizeMissingData() {
+    const features = ['elo', 'winrate', 'playtimeHrs'];
+    const minMax = {};
+    
+    features.forEach(f => {
+      const vals = players.map(p => p[f]).filter(v => typeof v === 'number' && isFinite(v));
+      minMax[f] = { min: Math.min(...vals), max: Math.max(...vals) };
+    });
+
+    const getVec = (p) => [
+      minMax.elo.max === minMax.elo.min ? 0 : (p.elo - minMax.elo.min) / (minMax.elo.max - minMax.elo.min),
+      minMax.winrate.max === minMax.winrate.min ? 0 : (p.winrate - minMax.winrate.min) / (minMax.winrate.max - minMax.winrate.min),
+      minMax.playtimeHrs.max === minMax.playtimeHrs.min ? 0 : (p.playtimeHrs - minMax.playtimeHrs.min) / (minMax.playtimeHrs.max - minMax.playtimeHrs.min)
+    ];
+
+    const playersWithPing = players.filter(p => p.primaryPing > 0);
+    if (playersWithPing.length === 0) return;
+
+    const validVecs = playersWithPing.map(p => ({ vec: getVec(p), ping: p.primaryPing }));
+
+    players.forEach(p => {
+      if (p.primaryPing <= 0) {
+        const tVec = getVec(p);
+        
+        const closest = [];
+        for (let i = 0; i < validVecs.length; i++) {
+          const vVec = validVecs[i].vec;
+          let dist = Math.pow(tVec[0] - vVec[0], 2) + Math.pow(tVec[1] - vVec[1], 2) + Math.pow(tVec[2] - vVec[2], 2);
+          
+          if (closest.length < 5) {
+            closest.push({ dist, ping: validVecs[i].ping });
+            closest.sort((a, b) => a.dist - b.dist);
+          } else if (dist < closest[4].dist) {
+            closest[4] = { dist, ping: validVecs[i].ping };
+            closest.sort((a, b) => a.dist - b.dist);
+          }
+        }
+        
+        const pings = closest.map(c => c.ping).sort((a, b) => a - b);
+        const medianPing = pings.length % 2 !== 0 ? pings[Math.floor(pings.length / 2)] : (pings[pings.length / 2 - 1] + pings[pings.length / 2]) / 2;
+        
+        p.primaryPing = Math.round(medianPing);
+        p.flatData['_calcPrimaryPing'] = p.primaryPing;
+        validCounts['_calcPrimaryPing'] = (validCounts['_calcPrimaryPing'] || 0) + 1;
+        
+        // Track that this metric was synthesized for UI transparency
+        if (!p.synthesized) p.synthesized = [];
+        p.synthesized.push('primaryPing');
+      }
+    });
+  }
+
+  // Custom Chart.js Plugin to draw the highlighted quadrant BEHIND the dots
+  const quadrantPlugin = {
+    id: 'quadrantHighlight',
+    beforeDatasetsDraw: (chart) => {
+      if (!highlightQuadrant || chart.canvas.id !== 'chart1') return;
+      
+      const { ctx, scales: { x, y } } = chart;
+      const { medX, medY, target } = highlightQuadrant;
+      
+      const px = x.getPixelForValue(medX);
+      const py = y.getPixelForValue(medY);
+      const L = x.left, R = x.right, T = y.top, B = y.bottom;
+      
+      let rectX, rectY, rectW, rectH;
+      if (target === 'TR') { rectX = px; rectY = T; rectW = R - px; rectH = py - T; }
+      else if (target === 'TL') { rectX = L; rectY = T; rectW = px - L; rectH = py - T; }
+      else if (target === 'BL') { rectX = L; rectY = py; rectW = px - L; rectH = B - py; }
+      else if (target === 'BR') { rectX = px; rectY = py; rectW = R - px; rectH = B - py; }
+      
+      ctx.save();
+      ctx.fillStyle = 'rgba(191, 161, 115, 0.04)';
+      ctx.fillRect(rectX, rectY, rectW, rectH);
+      
+      ctx.strokeStyle = 'rgba(191, 161, 115, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(rectX, rectY, rectW, rectH);
+      
+      ctx.beginPath();
+      ctx.moveTo(px, T); ctx.lineTo(px, B);
+      ctx.moveTo(L, py); ctx.lineTo(R, py);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  async function load() {
+    lbWrap.innerHTML = '<div class="small muted" style="padding: 10px;">Loading…</div>';
     try {
       const res = await fetch('/api/rowa/all');
       if (!res.ok) throw new Error('fetch failed ' + res.status);
       const list = await res.json();
 
-      const points = [];
-      const rows = [];
-      for (const item of list){
+      players = [];
+      allKeys = new Set();
+      Object.keys(validCounts).forEach(k => delete validCounts[k]);
+      const osCounts = {};
+      const regionPlaytime = {};
+      const regionSet = new Set();
+
+      const palette = ['#bfa173', '#8ca39b', '#a37b69', '#7d8c9e', '#9c8c6d', '#807a6d', '#a89070', '#6b7a8f', '#b89478'];
+
+      for (const item of list) {
         const id = (item.id ?? item.userid ?? item.userId ?? 'unknown').toString();
         const v = item.value || {};
         const wins = parseNum(v.wins) || 0;
@@ -82,74 +450,422 @@
         const games = wins + loss;
         const winrate = games ? (wins / games) * 100 : 0;
         const elo = parseNum(v.elo);
+        
+        const meta = v.meta || {};
+        const clientInfo = meta.clientInfo || 'Unknown, Unknown';
+        const os = clientInfo.split(',')[0].trim();
+        osCounts[os] = (osCounts[os] || 0) + 1;
+        const playtimeHrs = (meta.totalPlaytime || 0) / 3600;
+
+        let primaryRegion = 'Unknown';
+        let primaryPing = 0;
+        let maxPlayTime = 0;
+        if (meta.regionsData) {
+          for (const r in meta.regionsData) {
+            const playTime = meta.regionsData[r].playTime || 0;
+            regionPlaytime[r] = (regionPlaytime[r] || 0) + playTime;
+            if (playTime > maxPlayTime) {
+              maxPlayTime = playTime;
+              primaryRegion = r;
+              primaryPing = meta.regionsData[r].ping || 0;
+            }
+          }
+        }
+        regionSet.add(primaryRegion);
+
+        const flatData = flattenObject(v);
+        flatData['_calcWinrate'] = winrate;
+        flatData['_calcTotalGames'] = games;
+        
+        if (primaryPing > 0) {
+          flatData['_calcPrimaryPing'] = primaryPing;
+          validCounts['_calcPrimaryPing'] = (validCounts['_calcPrimaryPing'] || 0) + 1;
+        }
+
+        validCounts['_calcWinrate'] = (validCounts['_calcWinrate'] || 0) + 1;
+        validCounts['_calcTotalGames'] = (validCounts['_calcTotalGames'] || 0) + 1;
+
         if (!isFinite(elo)) continue;
-        points.push({ x: elo, y: Math.round(winrate*10)/10, id, wins, loss });
-        rows.push({ id, elo, winrate: Math.round(winrate*10)/10, wins, loss });
+
+        players.push({
+          id, elo, winrate, wins, loss, clientInfo, os, primaryRegion, primaryPing, playtimeHrs,
+          decodedSlots: decodeBuffer(v.slots),
+          decodedFlags: decodeBuffer(v.flags),
+          flatData, raw: v, synthesized: []
+        });
       }
 
-      const elos = points.map(p => p.x);
-      const minE = elos.length ? Math.min(...elos) : 0;
-      const maxE = elos.length ? Math.max(...elos) : 100;
-      const pad = Math.max(10, Math.round((maxE - minE) * 0.05));
+      synthesizeMissingData();
 
-      const ctx = chartEl.getContext('2d');
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
+      // Console log users with synthesized data
+      const synthUsers = players.filter(p => p.synthesized.length > 0);
+      if (synthUsers.length > 0) {
+        console.log("%c[Data Imputation] Synthesized data for users:", "color: #bfa173; font-weight: bold;");
+        console.table(synthUsers.map(p => ({ id: p.id, synthesized: p.synthesized.join(', '), guessedPing: p.primaryPing })));
+      }
+
+      uniqueRegions = Array.from(regionSet).sort();
+      uniqueRegions.forEach((region, i) => {
+        regionColors[region] = palette[i % palette.length];
+      });
+
+      const minRequired = Math.max(1, Math.floor(players.length * 0.1));
+      for (const key in validCounts) {
+        if (validCounts[key] >= minRequired) {
+          allKeys.add(key);
+        }
+      }
+
+      const xAxisList = document.getElementById('xAxisList');
+      const yAxisList = document.getElementById('yAxisList');
+      const sortedKeys = Array.from(allKeys).sort();
+      
+      if (xAxisList.children.length === 0) {
+        for (const key of sortedKeys) {
+          const xItem = document.createElement('div');
+          xItem.className = 'metric-item';
+          xItem.textContent = key;
+          xItem.dataset.key = key;
+          xItem.onclick = () => {
+            currentXKey = key;
+            document.querySelectorAll('#xAxisList .metric-item').forEach(el => el.classList.remove('active'));
+            xItem.classList.add('active');
+            
+            const pData = getFilteredPlayers().map(p => p.flatData[currentXKey]);
+            document.getElementById('xLogToggle').checked = getBestScaleType(pData) === 'logarithmic';
+            updateScatterChart();
+          };
+          if (key === currentXKey) xItem.classList.add('active');
+          xAxisList.appendChild(xItem);
+
+          const yItem = document.createElement('div');
+          yItem.className = 'metric-item';
+          yItem.textContent = key;
+          yItem.dataset.key = key;
+          yItem.onclick = () => {
+            currentYKey = key;
+            document.querySelectorAll('#yAxisList .metric-item').forEach(el => el.classList.remove('active'));
+            yItem.classList.add('active');
+            
+            const pData = getFilteredPlayers().map(p => p.flatData[currentYKey]);
+            document.getElementById('yLogToggle').checked = getBestScaleType(pData) === 'logarithmic';
+            updateScatterChart();
+          };
+          if (key === currentYKey) yItem.classList.add('active');
+          yAxisList.appendChild(yItem);
+        }
+      }
+
+      for (const key in charts) {
+        if (charts[key]) charts[key].destroy();
+      }
+
+      const c1ctx = document.getElementById('chart1').getContext('2d');
+      charts.c1 = new Chart(c1ctx, {
         type: 'scatter',
-        data: {
-          datasets: [{
-            label: 'Players',
-            data: points,
-            parsing: false,
-            pointRadius: 1.5,
-            pointHoverRadius: 5,
-            showLine: false,
-            backgroundColor: 'rgba(108,230,181,0.9)'
-          }]
-        },
+        data: { datasets: [] },
+        plugins: [quadrantPlugin],
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: true, maintainAspectRatio: false,
+          onClick: (e, elements) => {
+            if (elements.length > 0) {
+              const { datasetIndex, index } = elements[0];
+              const dataPoint = charts.c1.data.datasets[datasetIndex].data[index];
+              const row = document.getElementById(`row-${dataPoint.id}`);
+              if (row) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.classList.remove('highlight');
+                void row.offsetWidth;
+                row.classList.add('highlight');
+              }
+            }
+          },
           plugins: {
-            legend: { display: false },
+            legend: {
+              position: 'bottom',
+              labels: { usePointStyle: true, boxWidth: 8, padding: 15, font: { size: 11 } }
+            },
             tooltip: {
               callbacks: {
-                label(ctx){
-                  const p = ctx.raw;
-                  return `id:${p.id} — Elo:${p.x} — ${p.y}% — W:${p.wins} L:${p.loss}`;
+                label: (ctx) => {
+                  const x = typeof ctx.raw.x === 'number' ? ctx.raw.x.toFixed(2) : ctx.raw.x;
+                  const y = typeof ctx.raw.y === 'number' ? ctx.raw.y.toFixed(2) : ctx.raw.y;
+                  return [`id:${ctx.raw.id} (${ctx.raw.region} - ${ctx.raw.ping}ms)`, `${ctx.raw.xKey}: ${x}`, `${ctx.raw.yKey}: ${y}`];
                 }
               }
             }
           },
           scales: {
-            x: { title:{display:true,text:'Elo'}, min: Math.max(0, minE - pad), max: maxE + pad, ticks:{color:'#9fb6ad'}, grid:{color:'rgba(255,255,255,0.03)'} },
-            y: { title:{display:true,text:'Winrate (%)'}, min:0, max:100, ticks:{color:'#9fb6ad'}, grid:{color:'rgba(255,255,255,0.03)'} }
+            x: { type: 'linear', title: { display: true, text: currentXKey }, grid: { color: 'rgba(255,255,255,0.02)' } },
+            y: { type: 'linear', title: { display: true, text: currentYKey }, grid: { color: 'rgba(255,255,255,0.02)' } }
+          }
+        }
+      });
+      
+      document.getElementById('xLogToggle').addEventListener('change', updateScatterChart);
+      document.getElementById('yLogToggle').addEventListener('change', updateScatterChart);
+      
+      updateScatterChart();
+
+      const c4ctx = document.getElementById('chart4').getContext('2d');
+      charts.c4 = new Chart(c4ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(osCounts),
+          datasets: [{
+            data: Object.values(osCounts),
+            backgroundColor: ['#bfa173', '#8ca39b', '#a37b69', '#7d8c9e', '#9c8c6d', '#807a6d'],
+            borderColor: '#1e1b16', borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } } }
+        }
+      });
+
+      const c5ctx = document.getElementById('chart5').getContext('2d');
+      const regionLabels = Object.keys(regionPlaytime);
+      const regionData = regionLabels.map(r => regionPlaytime[r] / 3600);
+      charts.c5 = new Chart(c5ctx, {
+        type: 'bar',
+        data: {
+          labels: regionLabels,
+          datasets: [{ label: 'Hours Played', data: regionData, backgroundColor: 'rgba(191, 161, 115, 0.7)', borderColor: 'rgba(191, 161, 115, 1)', borderWidth: 1 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'Hours' }, grid: { color: 'rgba(255,255,255,0.02)' } },
+            y: { grid: { display: false } }
           }
         }
       });
 
-      rows.sort((a,b)=>b.elo - a.elo);
+      players.sort((a, b) => b.elo - a.elo);
       const table = document.createElement('table');
-      table.innerHTML = `<thead><tr><th style="width:36px">#</th><th>id</th><th style="width:90px">elo</th><th style="width:90px">winrate</th><th class="muted" style="width:48px">W</th><th class="muted" style="width:48px">L</th></tr></thead>`;
+      table.innerHTML = `<thead><tr>
+        <th style="width:30px">#</th><th>id</th><th style="width:60px">elo</th><th style="width:70px">win%</th><th class="muted" style="width:50px">W</th><th class="muted" style="width:50px">L</th>
+      </tr></thead>`;
       const body = document.createElement('tbody');
-      for (let i=0;i<rows.length;i++){
-        const r = rows[i];
+      
+      for (let i = 0; i < players.length; i++) {
+        const p = players[i];
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${r.id}</td><td>${r.elo}</td><td>${r.winrate}%</td><td class="muted">${r.wins}</td><td class="muted">${r.loss}</td>`;
+        tr.id = `row-${p.id}`;
+        tr.innerHTML = `<td>${i + 1}</td><td>${p.id}</td><td>${p.elo}</td><td>${p.winrate.toFixed(2)}%</td><td class="muted">${p.wins}</td><td class="muted">${p.loss}</td>`;
+        
+        tr.onclick = () => {
+          modalTitle.innerText = `Player ${p.id} Data`;
+          const displayObj = {
+            id: p.id, elo: p.elo, wins: p.wins, loss: p.loss, clientInfo: p.clientInfo, primaryRegion: p.primaryRegion, primaryPing: p.primaryPing,
+            decodedSlots: p.decodedSlots, decodedFlags: p.decodedFlags, raw: p.raw
+          };
+          
+          if (p.synthesized && p.synthesized.length > 0) {
+            displayObj._synthesized = p.synthesized;
+          }
+          
+          modalContent.textContent = JSON.stringify(displayObj, null, 2);
+          modal.style.display = 'block';
+        };
         body.appendChild(tr);
       }
       table.appendChild(body);
       lbWrap.innerHTML = '';
       lbWrap.appendChild(table);
+
+      updateAverageCombat(parseInt(document.getElementById('eloSlider').value));
+
     } catch (err) {
-      lbWrap.innerHTML = `<div class="small muted">Failed to load — ${err.message}</div>`;
+      lbWrap.innerHTML = `<div class="small muted" style="padding: 10px;">Failed to load — ${err.message}</div>`;
       console.error(err);
     }
   }
 
+  function updateScatterChart() {
+    if (!charts.c1) return;
+    const filteredPlayers = getFilteredPlayers();
+    
+    const validPoints = [];
+    const datasets = uniqueRegions.map(region => ({
+      label: region,
+      data: filteredPlayers
+        .filter(p => p.primaryRegion === region)
+        .map(p => {
+          const x = p.flatData[currentXKey];
+          const y = p.flatData[currentYKey];
+          if (typeof x === 'number' && typeof y === 'number' && isFinite(x) && isFinite(y)) {
+            validPoints.push({ x, y, elo: p.elo });
+            return { x, y, id: p.id, region: p.primaryRegion, ping: p.primaryPing, xKey: currentXKey, yKey: currentYKey };
+          }
+          return null;
+        })
+        .filter(p => p !== null),
+      backgroundColor: regionColors[region],
+      pointRadius: 4,
+      pointHoverRadius: 6
+    }));
+
+    if (validPoints.length > 4) {
+      const medX = median(validPoints.map(p => p.x));
+      const medY = median(validPoints.map(p => p.y));
+      
+      const quads = { TR: [], TL: [], BL: [], BR: [] };
+      validPoints.forEach(p => {
+        if (p.x >= medX && p.y >= medY) quads.TR.push(p.elo);
+        else if (p.x < medX && p.y >= medY) quads.TL.push(p.elo);
+        else if (p.x < medX && p.y < medY) quads.BL.push(p.elo);
+        else if (p.x >= medX && p.y < medY) quads.BR.push(p.elo);
+      });
+      
+      let bestQ = null;
+      let maxAvgElo = -Infinity;
+      for (const q in quads) {
+        if (quads[q].length > 0) {
+          const avg = quads[q].reduce((a, b) => a + b, 0) / quads[q].length;
+          if (avg > maxAvgElo) {
+            maxAvgElo = avg;
+            bestQ = q;
+          }
+        }
+      }
+      highlightQuadrant = { medX, medY, target: bestQ };
+    } else {
+      highlightQuadrant = null;
+    }
+
+    charts.c1.data.datasets = datasets;
+    charts.c1.options.scales.x.title.text = currentXKey;
+    charts.c1.options.scales.y.title.text = currentYKey;
+    charts.c1.options.scales.x.type = document.getElementById('xLogToggle').checked ? 'logarithmic' : 'linear';
+    charts.c1.options.scales.y.type = document.getElementById('yLogToggle').checked ? 'logarithmic' : 'linear';
+    charts.c1.update();
+  }
+
+  const eloSlider = document.getElementById('eloSlider');
+  const eloVal = document.getElementById('eloVal');
+  const combatGrid = document.getElementById('combatGrid');
+
+  eloSlider.addEventListener('input', () => {
+    eloVal.textContent = eloSlider.value;
+    updateAverageCombat(parseInt(eloSlider.value));
+  });
+
+  function createCombatItem(label, dmg, pct, color) {
+    const item = document.createElement('div');
+    item.className = 'combat-item';
+    const cleanStat = label.replace(/\s/g, '');
+    item.innerHTML = `
+      <div class="k">${label}</div>
+      <div class="v">
+        <span>${Math.round(dmg).toLocaleString()} dmg</span>
+        <span class="pct-val">${pct.toFixed(2)}%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" style="width:${pct}%; background:${color}"></div>
+        <input type="range" class="bar-scroll" min="0" max="100" value="${pct.toFixed(2)}" step="0.1" data-stat="${cleanStat}">
+      </div>
+    `;
+    return item;
+  }
+
+  function updateAverageCombat(targetElo) {
+    if (players.length === 0) return;
+
+    const filteredPlayers = getFilteredPlayers();
+    const sorted = [...filteredPlayers].sort((a, b) => Math.abs(a.elo - targetElo) - Math.abs(b.elo - targetElo));
+    const top = sorted.slice(0, 10);
+
+    const avgs = Array(8).fill(0).map(() => 0);
+    top.forEach(p => {
+      if (p.raw.plrStats) {
+        for (let i = 0; i < 8; i++) {
+          if (Array.isArray(p.raw.plrStats[i])) {
+            avgs[i] += p.raw.plrStats[i][1] || 0;
+          }
+        }
+      }
+    });
+    for (let i = 0; i < 8; i++) avgs[i] /= top.length;
+
+    const incomingTotal = avgs[0] + avgs[1] + avgs[2] + avgs[3];
+    const outgoingTotal = avgs[4] + avgs[5] + avgs[6] + avgs[7];
+
+    const incomingLabels = ['Parried', 'Blocked', 'Dodged', 'Damage Taken'];
+    const outgoingLabels = ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'];
+    const colorMap = [
+      'linear-gradient(90deg,var(--accent), #d99b3a)',
+      'linear-gradient(90deg,#60a5fa, #2b78e6)',
+      'linear-gradient(90deg,#86efac, #43c46b)',
+      'linear-gradient(90deg,#ff8b8b, #ff4b4b)'
+    ];
+
+    combatGrid.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+      const incDmg = avgs[i];
+      const incPct = incomingTotal ? (incDmg / incomingTotal * 100) : 0;
+      targetProfile[i] = incPct;
+      combatGrid.appendChild(createCombatItem(incomingLabels[i], incDmg, incPct, colorMap[i]));
+
+      const outDmg = avgs[i + 4];
+      const outPct = outgoingTotal ? (outDmg / outgoingTotal * 100) : 0;
+      targetProfile[i + 4] = outPct;
+      combatGrid.appendChild(createCombatItem(outgoingLabels[i], outDmg, outPct, colorMap[i]));
+    }
+
+    updateCombatSidePanel();
+  }
+
+  function updateCombatSidePanel() {
+    const validPlayers = getFilteredPlayers().filter(p => p.flatData['plrStats.Parried.Pct'] != null);
+    
+    validPlayers.forEach(p => {
+      let maxDelta = 0;
+      const keys = Object.keys(statMap);
+      keys.forEach((k, i) => {
+        const pVal = p.flatData[`plrStats.${k}.Pct`] || 0;
+        const delta = Math.abs(pVal - targetProfile[i]);
+        if (delta > maxDelta) maxDelta = delta;
+      });
+      p._combatDist = maxDelta;
+    });
+    
+    validPlayers.sort((a, b) => a._combatDist - b._combatDist);
+    const top10 = validPlayers.slice(0, 10);
+    
+    document.getElementById('sidePanelTitle').innerText = 'Top 10 Matching Profile';
+    const sidePanelContent = document.getElementById('sidePanelContent');
+    sidePanelContent.innerHTML = top10.map(p => {
+      const maxDelta = p._combatDist.toFixed(2);
+      return `<div class="side-player"><span class="muted">${p.id}</span><span>Δ max ${maxDelta}%</span></div>`;
+    }).join('');
+    
+    document.getElementById('combatSidePanel').classList.add('active');
+  }
+
+  combatGrid.addEventListener('input', (e) => {
+    if (e.target.classList.contains('bar-scroll')) {
+      const val = parseFloat(e.target.value);
+      const stat = e.target.dataset.stat;
+      const idx = statMap[stat];
+      
+      const barFill = e.target.previousElementSibling;
+      if (barFill) barFill.style.width = val + '%';
+      
+      const parentV = e.target.parentElement.previousElementSibling;
+      if (parentV) {
+        const span = parentV.querySelector('.pct-val');
+        if (span) span.textContent = val.toFixed(2) + '%';
+      }
+      
+      targetProfile[idx] = val;
+      updateCombatSidePanel();
+    }
+  });
+
   refresh.addEventListener('click', load);
   await load();
-})();
 </script>
 </body>
 </html>
