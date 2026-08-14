@@ -1,105 +1,106 @@
 # airWebsite
-[![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/Air-zy/airWebsite)
 
-This repository contains the source code for a MONOLITH full-stack personal portfolio and project showcase website. Built with Node.js and Express.
-The app  serves as both a personal hub and a platform for hosting a variety of web-based tools and demos, from an AI-powered Connect 4 game to an in-depth anime relationship graph.
+Monolith personal site on Node and Express. Portfolio, plus a bunch of tools and demos (anime relationship graph, connect 4 AI, quadtree stuff, ROWA leaderboards). Runs at [airzy.ca](https://airzy.ca).
 
-## Features
+Firestore for most data, one postgres db for the anime blob. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with a hand written AES-128-CBC module in `src/FallbackEncryption/`.
 
-*   **Dynamic Personal Website**: Serves a personal portfolio with skills, contact information, and a project showcase powered by a backend database.
-*   **Interactive Tools & Visualizations**:
-    *   **Anime Graph**: A D3.js-based force-directed graph visualizing relationships and recommendations between anime series.
-    *   **Connect 4 AI**: A playable Connect 4 game against a Minimax-based AI.
-    *   **Data Visualizers**: Includes tools for viewing server traffic, quadtree simulations, and game data leaderboards.
-    *   **Web Apps**: A variety of smaller applications like a coin sorter, quadratic equation solver, and journal app.
-*   **Backend API**: A RESTful API built with Express to serve data for projects, game statistics, system info, and handle authenticated user actions.
-*   **Roblox Integration (ROWA)**:
-    *   Features a dedicated PostgreSQL database (`rowaDB`) to log and retrieve player data and fight statistics for the Roblox game ROWA.
-    *   Provides API endpoints for fetching player data, fight histories, and leaderboards.
-    *   Includes a webhook to push code from Roblox Studio directly to a GitHub repository.
-*   **Custom Authentication**: A self-built user account system using Argon2 for secure password hashing and a session-based login mechanism.
-*   **Custom Tooling**:
-    *   **On-the-fly Asset Minification**: A custom build script minifies HTML, CSS, and JavaScript files from `/public` into a `/dist` directory upon server startup.
-    *   **Environment Variable Encryption**: A custom AES-128-CBC implementation is used to encrypt and decrypt sensitive keys stored in the environment configuration.
+No auth, session, validation or mail library. All hand rolled on node builtins to keep deps down.
 
-## Tech Stack
+Diagrams of the request path, auth and boot are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-*   **Backend**: Node.js, Express.js
-*   **Frontend**: HTML5, CSS3, Vanilla JavaScript, D3.js
-*   **Databases**: PostgreSQL, Firebase Firestore
-*   **Key Libraries**:
-    *   `argon2`: For password hashing.
-    *   `express-rate-limit`: For API rate limiting.
-    *   `node-fetch`: For making server-to-server HTTP requests.
-    *   `html-minifier-terser`, `terser`, `clean-css`: For frontend asset minification.
+## Setup
 
-## Getting Started
-
-Follow these instructions to get a local copy of the project up and running.
-
-### Prerequisites
-
-*   Node.js (v18.x or later)
-*   NPM (Node Package Manager)
-
-### Installation
-
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/air-zy/airWebsite.git
-    cd airWebsite
-    ```
-
-2.  **Install NPM packages:**
-    ```sh
-    npm install
-    ```
-
-3.  **Configure Environment Variables:**
-    Create a `.env` file in the root directory and populate it with the necessary keys. Use the `.env.example` file as a template.
-
-    | Variable                 | Description                                                                     |
-    | ------------------------ | ------------------------------------------------------------------------------- |
-    | `airKey`                 | The master secret key for the custom AES encryption/decryption module.          |
-    | `airWebToken`            | A secret token for authorizing specific backend functionalities and webhooks.     |
-    | `animePass`              | API password for commiting changes to the anime database.                       |
-    | `discord`, `dwebhook`    | Discord invite link and webhook URL for notifications.                          |
-    | `firebaseJsonKey`        | The encrypted Firebase service account JSON key.                                |
-    | `publicClusterKey`       | Key for decrypting the list of cluster URLs for the heartbeat system.           |
-    | `airClusterAcolyteToken` | Authorization token for the cluster's internal fetch gateway.                   |
-    | `repoPat`                | A GitHub Personal Access Token (PAT) for pushing code from Roblox Studio.       |
-    | `whookPass`              | Password for authenticating incoming webhooks.                                  |
-    | `ROWA_DB`, `UTIL_DB`     | Encrypted JSON strings containing PostgreSQL connection details.                  |
-    | `rowaDBPass`             | Middleware password to protect the `/api/rowadb` endpoint.                       |
-    | `rowaCloudApi`           | API key for the Roblox Open Cloud API.                                          |
-
-### Running the Application
-
-Start the server using the following command:
+Needs node 20.6+ (the dev script uses `--env-file`).
 
 ```sh
-npm start
+npm install
+cp .env.example .env    # then fill it in
+npm run dev             # local, reads .env
+npm start               # prod, env comes from the host
 ```
 
-The application will be available at `http://localhost:3000`. The server will first minify all frontend assets into the `src/dist` directory before serving them.
+Serves on 3000 or `PORT`. First request waits for the minify pass to finish.
 
-## Project Structure
+Most env values are encrypted with `airKey`, not plaintext. See `.env.example` for the full list. The ones worth calling out:
 
-The repository is organized into several key directories:
+| var | |
+| --- | --- |
+| `airKey` | master key for the AES module, everything else depends on it |
+| `sessionSecret` | signs session cookies. required, server wont boot without it |
+| `resendKey` | optional. without it reset links print to console instead of emailing |
+| `airWebToken` | admin and roblox endpoints |
+| `UTIL_DB` | postgres connection json for the anime store |
 
-```
-/
-├── src/
-│   ├── server.js              # Main application entry point
-│   ├── DATABASE/              # PostgreSQL connection, schemas, and helpers
-│   ├── FallbackEncryption/    # Custom AES encryption implementation
-│   ├── firebase/              # Firebase Firestore integration logic
-│   ├── heartSystem/           # Heartbeat service to keep external services warm
-│   ├── modules/               # Reusable backend modules (account management, minifier)
-│   ├── public/                # Source frontend assets (HTML, CSS, JS)
-│   └── routes/                # Express route handlers and API logic
-├── .env.example             # Template for environment variables
-└── package.json             # Project dependencies and scripts
+`sessionSecret` is fatal on purpose. A signing key falling back to a default means forgeable cookies, so it crashes at boot instead.
+
+## Layout
 
 ```
-this readme is AI generated
+src/
+├── server.js               middleware stack, five router mounts, 404, error handler
+├── DATABASE/               postgres
+├── FallbackEncryption/     AES-128-CBC
+├── firebase/               firestore
+├── heartSystem/            keeps external services warm
+├── modules/                account service, mailer, minifier
+├── public/                 frontend source
+└── routes/
+    ├── pagesRouter.js      static pages
+    ├── rootRouter.js       top level endpoints
+    ├── api/apiRouter.js    /api
+    ├── auth/authRouter.js  /auth
+    ├── rblxapp/            roblox
+    ├── middleware/         auth, rate limit, request log, cookies
+    └── classes/            address registry, session registry, api clients
+```
+
+Every route lives in a `Router()`. `server.js` only mounts them, it declares none itself.
+
+## Auth
+
+Sessions are a stateless signed cookie, no server side state:
+
+```
+airzy_session = <uid>.<expiresAt>.<hmac-sha256 of the above>
+```
+
+Signed with `sessionSecret`, checked with `timingSafeEqual`, `httpOnly` + `sameSite=Lax`. Seven day window that slides when you show up past the halfway mark. Survives redeploys and costs no db read to verify.
+
+Reset tokens reuse the same signer, but mix the account's current `passwordHash` into the signature. Using one changes the password, which changes the hash, which kills every outstanding token for that account. Single use with nothing stored.
+
+Two ceilings, both deliberate:
+
+- no per token revocation. rotating `sessionSecret` is the break glass and logs everyone out. add a `tokenVersion` on the account doc if per device logout is ever wanted.
+- no email verification. reset already proves mailbox control. this is also why changing your email isnt in the UI, an unverified change would be a takeover path.
+
+| route | |
+| --- | --- |
+| `POST /auth/register` | create account, logs you in |
+| `POST /auth/login` | log in |
+| `POST /auth/logout` | clear cookie |
+| `GET /auth/me` | current user, email masked |
+| `POST /auth/password` | change password, needs the current one |
+| `POST /auth/reset/request` | email a reset link, never says whether the address exists |
+| `POST /auth/reset/confirm` | set new password from a token, logs you in |
+| `GET /auth/account/:uid` | public lookup, no email |
+
+Machine to machine endpoints use a shared bearer token instead, see `routes/middleware/requireToken.js`.
+
+## Weird bits
+
+Things that look wrong at a glance but arent, so nobody "fixes" them:
+
+- Hand written AES instead of `node:crypto`. Its also the demo behind `/encryption`, and only touches env secrets. Sessions use hmac, passwords use argon2.
+- `envDecrypt` reads its own stack trace and warns if the caller isnt under `src/`. Tripwire for a dependency that starts asking for secrets.
+- Build runs at server start. Free hosts redeploy from source with no build step, so minify happens at boot behind a promise gate.
+- Heartbeat pings a gist for its peer list. Keeps sleepy free containers awake, jittered 2 to 10 min with a rotating UA so it doesnt read as a bot.
+- The `/c` fingerprint beacon is injected into every page at minify time. Self hosted analytics, no third party script.
+- User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
+- `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.
+
+## Notes
+
+- `/api/logs` is the raw request log, owner only (uid 1).
+- `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
+- Accounts made before email was required cant use reset until you add an `email` field and an `email:<lower>` index doc in the firestore console.
+- No test framework. `auth.js` has a self check: `node --env-file=.env src/routes/middleware/auth.js`.
