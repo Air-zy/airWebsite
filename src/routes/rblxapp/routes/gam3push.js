@@ -1,14 +1,8 @@
 const rowagit = require('./rowagit.js')
-const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js')
-const airWebToken2 = envDecrypt(process.env.airKey, process.env.airWebToken2)
 
+// auth lives on the route declaration, see rblxapp/router.js
 module.exports = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== airWebToken2) {
-      return res.sendStatus(401);
-    }
-    
     const { fpath, content, commitMsg } = req.body;
     rowagit.game3git(fpath, content, commitMsg);  
     return res.status(200).json({ message: 'Success' });

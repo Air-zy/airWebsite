@@ -7,19 +7,7 @@ const logStream = fs.createWriteStream(
   { flags: 'a' }
 );
 
-function getIP(req) {
-  const ipList = req.headers['x-forwarded-for']
-  if (ipList) {
-    const ips = ipList.split(',');
-    const firstIp = ips[0].trim();
-    return firstIp;
-  }
-
-  return req.connection?.remoteAddress ||
-         req.socket?.remoteAddress ||
-         req.connection?.socket?.remoteAddress ||
-         null;
-}
+const { getIP } = require('../ip_utils.js');
 
 module.exports = (req, res, next) => {
     const start = Date.now();

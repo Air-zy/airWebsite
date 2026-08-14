@@ -1,14 +1,8 @@
-const envDecrypt = require('../FallbackEncryption/envDecrypt.js');
-const clusterAcolyteToken = process.env.airClusterAcolyteToken
 const { Readable, pipeline } = require("stream");
 
+// auth lives on the route declaration, see rootRouter.js
 module.exports = async (req, res) => { // node fetch gateway
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || envDecrypt(process.env.publicClusterKey, authHeader) !== clusterAcolyteToken) {
-      return res.sendStatus(401);
-    }
-    
     const { url, options } = req.body;
     const response = await fetch(url, options);
     res.status(response.status);

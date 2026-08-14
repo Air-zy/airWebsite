@@ -12,4 +12,4 @@ const clientLimiter = rateLimit({
   handler: silent429,
 });
 
-module.exports = clientLimiter;
+module.exports = { clientLimiter, silent429 };

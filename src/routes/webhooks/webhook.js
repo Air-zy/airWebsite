@@ -1,18 +1,15 @@
 const envDecrypt = require('../../FallbackEncryption/envDecrypt.js')
-const whookPass = envDecrypt(process.env.airKey, process.env.whookPass)
-const discordWebhookUrl = envDecrypt(process.env.airKey, process.env.dwebhook)
 const sendDiscordWebhook = require('./sendWebhook.js');
 
-module.exports = async (req, res) => {
-  const auth = req.headers["authorization"]; 
-  if (auth !== whookPass) { return res.status(401).send("Unauthorized: bad token"); }
-  if (!req || !req.body) return res.status(400).send('no request body');
+// takes the encrypted env value for whichever discord webhook this route posts to
+// auth lives on the route declaration, see rootRouter.js
+module.exports = (encryptedUrl) => {
+  const discordWebhookUrl = envDecrypt(process.env.airKey, encryptedUrl);
 
-  try {
+  return async (req, res) => {
+    if (!req.body) return res.status(400).json({ error: 'no request body' });
+
     await sendDiscordWebhook(discordWebhookUrl, req.body);
-    res.status(200).send('Message sent to Discord!');
-  } catch (error) {
-    console.error('err sending to Discord:', error);
-    res.status(500).send('failed to send message to Discord.');
-  }
+    res.json({ ok: true });
+  };
 };
