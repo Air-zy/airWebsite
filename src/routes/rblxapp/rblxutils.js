@@ -3,6 +3,10 @@ const rbxApiKey = envDecrypt(process.env.airKey, process.env.rowaCloudApi);
 
 const roUNameIDcache = {};
 
+// the open cloud key is shared with the datastore crawl in allPlrData, which already
+// spends most of the 1k/min. cap the fallback so a bad roproxy day cannot starve it.
+const OC_FALLBACK_CAP = 200;
+
 // open cloud instead of users.roblox.com. single lookups are what this does anyway,
 // and being authenticated means a 1k/min key quota instead of an ip throttle that
 // was 429ing about two thirds of a leaderboard render.
@@ -27,11 +31,14 @@ async function idtoname(userId) {
 
 async function fetchUsersByIds(ids, opts = {}) {
     if (!Array.isArray(ids)) throw new TypeError("ids must be an array");
+    // these used to be 5 retries at a 4s base, doubling. that is 4+8+16+32+64, so a
+    // throttled roproxy stalled a page load for two minutes before giving up.
+    // open cloud does the same job in a couple of seconds, so fail over quickly instead.
     const {
         url = "https://users.roproxy.com/v1/users",
         chunkSize = 200,
-        maxRetries = 5,
-        delayBetweenChunks = 4000
+        maxRetries = 2,
+        delayBetweenChunks = 1200
     } = opts;
 
     const uniqueIds = Array.from(new Set(ids.map(n => Number(n)).filter(Number.isFinite)));
@@ -59,7 +66,7 @@ async function fetchUsersByIds(ids, opts = {}) {
     }
 
     async function postChunk(chunk) {
-        let backoff = 4000;
+        let backoff = 600;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const resp = await fetch(url, {
@@ -105,8 +112,32 @@ async function fetchUsersByIds(ids, opts = {}) {
             }
             if (i < chunks.length - 1) await wait(delayBetweenChunks);
         }
-    } catch {
+    } catch (err) {
+        // used to be an empty catch. roproxy is shared and throttles hard, so a total
+        // failure silently returned a map of nulls and the page just showed raw ids.
+        console.error('[names] roproxy batch failed:', err.message);
+    }
 
+    // whatever roproxy did not return, ask open cloud one at a time. slower per user but
+    // authenticated, so it still works when the shared proxy is refusing everyone.
+    const missing = toFetch.filter(id => !out[id]);
+    if (missing.length) {
+        const take = missing.slice(0, OC_FALLBACK_CAP);
+        if (missing.length > take.length) {
+            console.warn(`[names] ${missing.length} missing, only falling back for ${take.length} to protect the open cloud quota`);
+        } else {
+            console.log(`[names] roproxy missed ${take.length}, falling back to open cloud`);
+        }
+
+        let i = 0;
+        await Promise.all(Array.from({ length: Math.min(10, take.length) }, async () => {
+            while (i < take.length) {
+                const id = take[i++];
+                // idtoname shares roUNameIDcache, so these get cached the same way
+                const u = await idtoname(id).catch(() => null);
+                if (u) out[id] = u;
+            }
+        }));
     }
 
     return out;
