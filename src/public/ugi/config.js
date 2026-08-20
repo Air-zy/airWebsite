@@ -1,4 +1,4 @@
-/* config.js — column definitions, getters, aggregation fields */
+/* config.js — column definitions, getters */
 
 const CSV = 'https://huggingface.co/spaces/DontPlanToEnd/UGI-Leaderboard/raw/main/ugi-leaderboard-data.csv';
 
@@ -131,30 +131,3 @@ const CL = [
   {id:'scty',l:'SCTY%',cls:'nm',g:'Political',tip:'Society axis % (12axes)'},
 ];
 
-const AF = [
-  {k:'ugi',l:'UGI',get:e=>e.scores.ugi,g:'Main'},
-  {k:'writing',l:'Writing',get:e=>e.scores.writing,g:'Main'},
-  {k:'natint',l:'NatInt',get:e=>e.scores.natint,g:'Main'},
-  {k:'w10',l:'W/10',get:e=>e.scores.w10.overall,g:'Main'},
-  {k:'params',l:'Params',get:e=>e.model.params.active,g:'Info'},
-  {k:'released',l:'Released',get:e=>pDate(e.model.released),g:'Info',t:'date'},
-  {k:'tested',l:'Tested',get:e=>pDate(e.model.tested),g:'Info',t:'date'},
-  {k:'sens',l:'Sensitive',get:e=>e.ugi_breakdown.sensitive_info,g:'UGI'},
-  {k:'haz',l:'Hazardous',get:e=>e.ugi_breakdown.hazardous,g:'UGI'},
-  {k:'ent',l:'Entertainment',get:e=>e.ugi_breakdown.entertainment,g:'UGI'},
-  {k:'socpol',l:'SocPol',get:e=>e.ugi_breakdown.socpol,g:'UGI'},
-  {k:'nsfw',l:'NSFW',get:e=>e.ugi_breakdown.nsfw_score,g:'UGI'},
-  {k:'dark',l:'Dark',get:e=>e.ugi_breakdown.dark_score,g:'UGI'},
-  {k:'textbook',l:'Textbook',get:e=>e.natint_breakdown.textbook,g:'NatInt'},
-  {k:'popculture',l:'Pop Cult',get:e=>e.natint_breakdown.pop_culture,g:'NatInt'},
-  {k:'worldmodel',l:'World Model',get:e=>e.natint_breakdown.world_model,g:'NatInt'},
-  {k:'style',l:'Style',get:e=>e.writing.style_score,g:'Writing'},
-  {k:'orig',l:'Originality',get:e=>e.writing.originality,g:'Writing'},
-  {k:'showrec',l:'Show Rec',get:e=>e.show_rec.score,g:'ShowRec'},
-  {k:'showcorr',l:'Correlation',get:e=>e.show_rec.correlation,g:'ShowRec'},
-  {k:'dipl',l:'Diplomacy %',get:e=>e.political.compass.dipl,g:'Political'},
-  {k:'lean',l:'Lean %',get:e=>e.political.lean,g:'Political'},
-  {k:'govt',l:'Govt %',get:e=>e.political.compass.govt,g:'Political'},
-  {k:'econ',l:'Econ %',get:e=>e.political.compass.econ,g:'Political'},
-  {k:'scty',l:'Society %',get:e=>e.political.compass.scty,g:'Political'},
-];

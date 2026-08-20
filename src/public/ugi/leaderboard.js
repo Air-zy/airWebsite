@@ -5,9 +5,7 @@ let W = {};
 let FF = { finetuned: null, merged: null, foundation: null, thinking: null, open: null };
 let sC = 'score', sD = -1, exR = null, sq = '', vw = 'lb';
 let vC = new Set(['rank','name','score','ugi','writing','natint','w10','params']);
-let aVC = new Set(['ugi','writing','natint','w10','params']);
 let rowLimit = 20;
-function renderAgg() {}
 
 const DATE_KEYS = new Set(['released', 'tested']);
 
@@ -228,6 +226,14 @@ function closeDet() {
   document.querySelectorAll('#ltb tr.ex').forEach(r => r.classList.remove('ex'));
 }
 
+function modelType(f) {
+  if (f.thinking)   return 'Thinking';
+  if (f.finetuned)  return 'Finetuned';
+  if (f.merged)     return 'Merged';
+  if (f.foundation) return 'Foundation';
+  return 'Other';
+}
+
 function hasTypeFilter() { return Object.values(FF).some(v => v !== null); }
 
 function renderLB() {
@@ -284,7 +290,7 @@ function renderLB() {
   });
   tb.innerHTML = '';
   tb.appendChild(fr);
-  document.getElementById('status').textContent = `${Math.min(rowLimit, data.length)} / ${data.length} / ${D.length}`;
+  document.getElementById('status').textContent = `${data.length} / ${D.length}`;
 }
 
 const cbCollapsed = new Set(['Info','NatInt','Political','ShowRec','UGI','Writing','params']);
@@ -359,31 +365,6 @@ function renderColBar() {
     i.classList.toggle('nz', v !== 0);
     renderLB();
   });
-}
-
-function renderCP() {
-  const el = document.getElementById('cpick');
-  const gr = {};
-  for (const c of AF) { const g = c.g || 'General'; if (!gr[g]) gr[g] = []; gr[g].push(c); }
-  let h = `<div class="cp-hdr"><span>COLUMNS</span><span id="cp-def">Default</span></div>`;
-  for (const [n, cs] of Object.entries(gr)) {
-    h += `<div class="cpg"><div class="cpgn">${n}</div>`;
-    for (const c of cs) {
-      const ck = aVC.has(c.k) ? 'checked' : '';
-      h += `<label class="cpi"><input type="checkbox" data-c="${c.k}" ${ck}> ${c.l}</label>`;
-    }
-    h += '</div>';
-  }
-  el.innerHTML = h;
-  el.querySelectorAll('input[data-c]').forEach(i => i.onchange = () => {
-    if (i.checked) aVC.add(i.dataset.c); else aVC.delete(i.dataset.c);
-    renderAgg();
-  });
-  const def = el.querySelector('#cp-def');
-  if (def) def.onclick = () => {
-    aVC = new Set(['ugi','writing','natint','w10','params']);
-    renderCP(); renderAgg();
-  };
 }
 
 let popCol = null;
@@ -570,7 +551,76 @@ function renderAbout() {
     </div>`;
 }
 
-/* ── Map view: PCA on atomic features ── */
+/* -- Shared chart scaffolding (Chart + Map views) -- */
+
+const TYPE_COLORS = { Thinking:'#e05c5c', Finetuned:'#a88fe0', Merged:'#5db87a', Foundation:'#5ca8d8', Other:'#686862' };
+const TYPE_ORDER  = ['Thinking','Finetuned','Merged','Foundation','Other'];
+
+/* Charts want days-since-2020 on their axes, not the fractional years G returns */
+const CHART_EPOCH  = new Date('2020-01-01').getTime();
+const dateToNum    = s => { if (!s) return NaN; const d = new Date(s); return isNaN(d) ? NaN : (d.getTime() - CHART_EPOCH) / 86400000; };
+const numToDateLbl = n => { const d = new Date(CHART_EPOCH + n * 86400000); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
+const EG = Object.assign({}, G, { released: e => dateToNum(e.model.released), tested: e => dateToNum(e.model.tested) });
+
+const AXIS_COLS = [
+  ...CL.filter(c => G[c.id] && c.cls?.includes('nm') && c.t !== 'date'),
+  { id:'released', l:'RELEASED', g:'Info' }, { id:'tested', l:'TESTED', g:'Info' },
+];
+const axisLabel = k => AXIS_COLS.find(c => c.id === k)?.l || k;
+const fmtAxisV  = (k, v) => DATE_KEYS.has(k) ? numToDateLbl(v) : fN(v);
+
+function axisOptHTML(sel) {
+  const gr = {};
+  for (const c of AXIS_COLS) (gr[c.g || 'Other'] ??= []).push(c);
+  return Object.entries(gr).map(([g, cols]) =>
+    `<optgroup label="${g}">${cols.map(c => `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${c.l}</option>`).join('')}</optgroup>`
+  ).join('');
+}
+
+const SS   = 'background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px IBM Plex Mono,monospace;padding:3px 5px;outline:none';
+const btnS = on => `background:${on?'var(--ac)':'var(--bg3)'};border:1px solid ${on?'var(--ac)':'transparent'};color:${on?'var(--bg)':'var(--t2)'};font:${on?600:500} 10px IBM Plex Mono,monospace;padding:3px 9px;cursor:pointer`;
+
+const CH_FONT   = { family:'IBM Plex Mono', size:9 };
+const CH_LEGEND = { labels: { color:'#686862', font: CH_FONT, boxWidth:8, padding:12 } };
+const CH_TIP    = { backgroundColor:'#131315', borderColor:'#303035', borderWidth:1, titleColor:'#ccccc4', bodyColor:'#686862', displayColors:false };
+const CH_AXIS   = { grid: { color:'#252528' }, ticks: { color:'#686862', font: CH_FONT } };
+
+function updateColorUI(isCol) {
+  document.getElementById('cm-type').setAttribute('style', btnS(!isCol));
+  document.getElementById('cm-col').setAttribute('style', btnS(isCol));
+  document.getElementById('z-wrap').style.display = isCol ? 'flex' : 'none';
+  document.getElementById('z-legend').style.display = isCol ? 'flex' : 'none';
+}
+
+/* One dataset per model type */
+function typeDatasets(pts, r) {
+  const by = {};
+  for (const p of pts) (by[modelType(p.e.model.flags)] ??= []).push(p);
+  return TYPE_ORDER.filter(t => by[t]).map(t => ({
+    label: t, data: by[t], backgroundColor: TYPE_COLORS[t] + 'b3',
+    pointRadius: r, pointHoverRadius: r + 2, pointBorderWidth: 0,
+  }));
+}
+
+/* Single dataset shaded by the Z column, plus its gradient legend */
+function colorDataset(pts, zKey, r) {
+  const zs = pts.map(p => { const z = EG[zKey]?.(p.e); return (typeof z === 'number' && !isNaN(z)) ? z : null; });
+  const vals = zs.filter(v => v !== null);
+  const lo = vals.length ? Math.min(...vals) : 0, hi = vals.length ? Math.max(...vals) : 1;
+  const rng = hi - lo || 1;
+  const grad = [0,.25,.5,.75,1].map(t => `${viridis(t)} ${t*100}%`).join(',');
+  const leg = document.getElementById('z-legend');
+  if (leg) leg.innerHTML = `<span class="cap">${axisLabel(zKey)}</span><span>${fmtAxisV(zKey, lo)}</span>` +
+    `<div class="z-grad" style="background:linear-gradient(to right,${grad})"></div><span>${fmtAxisV(zKey, hi)}</span>`;
+  return {
+    label: axisLabel(zKey),
+    data: pts.map((p, i) => ({ ...p, z: zs[i] })),
+    backgroundColor: zs.map(z => z !== null ? viridis((z - lo) / rng) : 'rgba(80,80,80,.35)'),
+    pointRadius: r, pointHoverRadius: r + 2, pointBorderWidth: 0,
+  };
+}
+
+/* -- Map view: PCA on atomic features -- */
 
 const MAP_FEATURES = [
   {l:'Hazardous',     get:e=>e.ugi_breakdown.hazardous},
@@ -663,8 +713,13 @@ function _jacobi(A, maxIter = 200, eps = 1e-12) {
   return { eigenvalues, eigenvectors };
 }
 
-function computeMapPCA() {
-  const n = D.length, m = MAP_FEATURES.length;
+/* Standardized atomic-feature matrix, missing values imputed to the column mean.
+   Built once, shared by the map PCA and the recommendation model. */
+let _Z = null;
+
+function buildZ() {
+  if (_Z) return _Z;
+  const m = MAP_FEATURES.length;
   const colVals = Array.from({length:m}, () => []);
   const M = D.map(e => MAP_FEATURES.map((f, j) => {
     const v = f.get(e);
@@ -672,10 +727,15 @@ function computeMapPCA() {
     return v;
   }));
   const colMeans = colVals.map(vs => vs.length ? vs.reduce((a,b) => a+b, 0) / vs.length : 0);
-  for (let i = 0; i < n; i++) for (let j = 0; j < m; j++)
+  for (let i = 0; i < M.length; i++) for (let j = 0; j < m; j++)
     if (typeof M[i][j] !== 'number' || isNaN(M[i][j])) M[i][j] = colMeans[j];
   const stds = _colStds(M, colMeans);
-  const Z = M.map(row => row.map((v, j) => (v - colMeans[j]) / stds[j]));
+  _Z = M.map(row => row.map((v, j) => (v - colMeans[j]) / stds[j]));
+  return _Z;
+}
+
+function computeMapPCA() {
+  const Z = buildZ();
   const cov = _covariance(Z);
   const { eigenvalues, eigenvectors } = _jacobi(cov);
   const order = eigenvalues.map((v, i) => i).sort((a, b) => eigenvalues[b] - eigenvalues[a]);
@@ -701,33 +761,10 @@ function mapShortName(full) {
 function renderMap() {
   const el = document.getElementById('v-map');
   if (!el) return;
-  el.style.padding = '0';
   _mapSearch = document.getElementById('search').value;
 
-  /* Destroy any stale chart from a previous render (e.g. after visiting Chart view) */
+  /* Drop any stale chart from a previous render (e.g. after visiting Chart view) */
   if (_mapChart) { _mapChart.destroy(); _mapChart = null; }
-
-  const typeColors = { Thinking:'#e05c5c', Finetuned:'#a88fe0', Merged:'#5db87a', Foundation:'#5ca8d8', Other:'#686862' };
-  const typeOrder = ['Thinking','Finetuned','Merged','Foundation','Other'];
-
-  const DATE_EPOCH = new Date('2020-01-01').getTime();
-  const dateToNum = s => { if (!s) return NaN; const d = new Date(s); return isNaN(d) ? NaN : (d.getTime() - DATE_EPOCH) / 86400000; };
-  const numToDateLbl = n => { const d = new Date(DATE_EPOCH + n * 86400000); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
-  const MAP_DATE_KEYS = new Set(['released','tested']);
-
-  const EG = Object.assign({}, G, {
-    released: e => dateToNum(e.model.released),
-    tested:   e => dateToNum(e.model.tested),
-  });
-
-  const numCols = CL.filter(c => G[c.id] && c.cls?.includes('nm') && c.t !== 'date');
-  const dateCols = [{ id:'released', l:'RELEASED', g:'Info' }, { id:'tested', l:'TESTED', g:'Info' }];
-  const allAxisCols = [...numCols, ...dateCols];
-  const axisGroups = {};
-  for (const c of allAxisCols) { const g = c.g || 'Other'; (axisGroups[g] = axisGroups[g] || []).push(c); }
-  const optHTML = sel => Object.entries(axisGroups).map(([g, cols]) =>
-    `<optgroup label="${g}">${cols.map(c => `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${c.l}</option>`).join('')}</optgroup>`
-  ).join('');
 
   const pca = computeMapPCA();
   const pcCount = Math.min(6, pca.order.length);
@@ -735,28 +772,22 @@ function renderMap() {
 
   let xPC = 1, yPC = 2, zKey = 'ugi', colorMode = 'type', showLabels = true;
 
-  const SS = 'background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px IBM Plex Mono,monospace;padding:2px 4px;outline:none';
-  const btnS = on => `background:${on?'var(--ac)':'var(--bg3)'};border:1px solid ${on?'var(--ac)':'var(--bd)'};color:${on?'var(--bg)':'var(--t2)'};font:${on?600:500} 10px IBM Plex Mono,monospace;padding:2px 8px;cursor:pointer;transition:all .1s`;
-
   el.innerHTML =
-    `<div class="map-toolbar">` +
-      `<span class="map-title">Similarity Map</span>` +
-      `<span class="map-subtitle">${MAP_FEATURES.length} atomic · ${D.length} models · PCA</span>` +
-      `<div style="width:1px;height:14px;background:var(--bd);flex-shrink:0"></div>` +
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">X <select id="pc-x" style="${SS}">${pcOptHTML(1)}</select></label>` +
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Y <select id="pc-y" style="${SS}">${pcOptHTML(2)}</select></label>` +
-      `<div style="width:1px;height:14px;background:var(--bd);flex-shrink:0"></div>` +
-      `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Color</span>` +
+    `<div class="ctrl-bar">` +
+      `<span class="ctrl-title">Similarity Map</span>` +
+      `<span class="ctrl-sub">${MAP_FEATURES.length} atomic · ${D.length} models · PCA</span>` +
+      `<label class="ctrl">X <select id="pc-x" style="${SS}">${pcOptHTML(1)}</select></label>` +
+      `<label class="ctrl">Y <select id="pc-y" style="${SS}">${pcOptHTML(2)}</select></label>` +
+      `<span class="cap">Color</span>` +
       `<button id="cm-type" style="${btnS(true)}">Type</button>` +
       `<button id="cm-col" style="${btnS(false)}">Column</button>` +
-      `<label id="z-wrap" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Z <select id="sc-z" style="${SS}">${optHTML('ugi')}</select></label>` +
-      `<div style="width:1px;height:14px;background:var(--bd);flex-shrink:0"></div>` +
+      `<label id="z-wrap" class="ctrl" style="display:none">Z <select id="sc-z" style="${SS}">${axisOptHTML('ugi')}</select></label>` +
       `<button id="map-labels" style="${btnS(true)}">Labels</button>` +
-      `<button id="map-reset" class="map-reset">Reset view</button>` +
-      `<span class="map-hint">scroll = zoom · drag = pan · click = details</span>` +
+      `<button id="map-reset" style="${btnS(false)}">Reset view</button>` +
+      `<span class="ctrl-r">scroll zoom · drag pan · click details</span>` +
     `</div>` +
     `<div class="map-canvas-wrap"><canvas id="map-cv"></canvas><div class="map-loadings" id="map-loadings"></div></div>` +
-    `<div id="z-legend" style="display:none;padding:4px 12px;border-top:1px solid var(--bd);background:var(--bg2);flex-shrink:0;align-items:center;gap:8px;font-size:10px;color:var(--t2)"></div>`;
+    `<div id="z-legend" class="z-legend"></div>`;
 
   const getPCVec = n => pca.eigenvectors[pca.order[n-1]];
   const getPCVar = n => pca.eigenvalues[pca.order[n-1]] / pca.totalVar;
@@ -773,56 +804,17 @@ function renderMap() {
     el2.innerHTML = mk(xPC, xPC) + mk(yPC, yPC);
   }
 
-  function updateColorUI() {
-    const isCol = colorMode === 'column';
-    document.getElementById('cm-type').setAttribute('style', btnS(!isCol));
-    document.getElementById('cm-col').setAttribute('style', btnS(isCol));
-    document.getElementById('z-wrap').style.display = isCol ? 'flex' : 'none';
-    document.getElementById('z-legend').style.display = isCol ? 'flex' : 'none';
-  }
-
-  const viridisGradCSS = () => 'linear-gradient(to right,' + [0,0.25,0.5,0.75,1].map(t => `${viridis(t)} ${t*100}%`).join(',') + ')';
-  const fmtV = (key, v) => MAP_DATE_KEYS.has(key) ? numToDateLbl(v) : fN(v);
 
   function buildDatasets() {
     const vx = getPCVec(xPC), vy = getPCVec(yPC);
-    const proj = pca.Z.map((row, i) => ({ x: _dot(row, vx), y: _dot(row, vy), e: D[i] }));
-    let datasets;
-    if (colorMode === 'type') {
-      const byType = {};
-      for (const p of proj) { const t = modelType(p.e.model.flags); (byType[t] = byType[t] || []).push(p); }
-      datasets = typeOrder.filter(t => byType[t]).map(t => ({
-        label: t, data: byType[t], backgroundColor: typeColors[t] + 'b3',
-        pointRadius: 2.5, pointHoverRadius: 6, pointBorderWidth: 0,
-      }));
-    } else {
-      const pts = proj.map(p => {
-        const z = EG[zKey]?.(p.e);
-        return { x: p.x, y: p.y, z: (typeof z === 'number' && !isNaN(z)) ? z : null, e: p.e };
-      });
-      const zVals = pts.map(p => p.z).filter(v => v !== null);
-      const zMin = zVals.length ? Math.min(...zVals) : 0;
-      const zMax = zVals.length ? Math.max(...zVals) : 1;
-      const zRng = zMax - zMin || 1;
-      datasets = [{
-        label: allAxisCols.find(c => c.id === zKey)?.l || zKey,
-        data: pts,
-        backgroundColor: pts.map(p => p.z !== null ? viridis((p.z - zMin) / zRng) : 'rgba(80,80,80,0.35)'),
-        pointRadius: 2.5, pointHoverRadius: 6, pointBorderWidth: 0,
-      }];
-      const zLabel = allAxisCols.find(c => c.id === zKey)?.l || zKey;
-      const legendEl = document.getElementById('z-legend');
-      if (legendEl) legendEl.innerHTML =
-        `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">${zLabel}</span>` +
-        `<span>${fmtV(zKey, zMin)}</span>` +
-        `<div style="flex:1;max-width:180px;height:8px;background:${viridisGradCSS()};border:1px solid var(--bd);border-radius:1px"></div>` +
-        `<span>${fmtV(zKey, zMax)}</span>`;
-    }
+    const pts = pca.Z.map((row, i) => ({ x: _dot(row, vx), y: _dot(row, vy), e: D[i] }));
+    const datasets = colorMode === 'type' ? typeDatasets(pts, 2.5) : [colorDataset(pts, zKey, 2.5)];
     if (_mapSearch) {
       const lq = _mapSearch.toLowerCase();
+      const hit = p => (p.e.model.name || '').toLowerCase().includes(lq);
       for (const ds of datasets) {
-        ds.pointRadius = ds.data.map(p => (p.e.model.name || '').toLowerCase().includes(lq) ? 7 : 1.5);
-        ds.pointHoverRadius = ds.data.map(p => (p.e.model.name || '').toLowerCase().includes(lq) ? 9 : 3);
+        ds.pointRadius = ds.data.map(p => hit(p) ? 7 : 1.5);
+        ds.pointHoverRadius = ds.data.map(p => hit(p) ? 9 : 3);
       }
     }
     return datasets;
@@ -904,20 +896,14 @@ function renderMap() {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: colorMode === 'type'
-              ? { labels: { color: '#686862', font: { family: 'IBM Plex Mono', size: 9 }, boxWidth: 8, padding: 12 } }
-              : { display: false },
+            legend: colorMode === 'type' ? CH_LEGEND : { display: false },
             tooltip: {
-              mode: 'nearest', intersect: true,
+              ...CH_TIP, mode: 'nearest', intersect: true,
               callbacks: {
                 title: ctx => ctx[0].raw.e.model.name,
-                label: ctx => {
-                  if (colorMode !== 'column' || ctx.raw.z === null) return '';
-                  return `${allAxisCols.find(c => c.id === zKey)?.l || zKey}: ${fmtV(zKey, ctx.raw.z)}`;
-                },
+                label: ctx => (colorMode !== 'column' || ctx.raw.z === null) ? ''
+                  : `${axisLabel(zKey)}: ${fmtAxisV(zKey, ctx.raw.z)}`,
               },
-              backgroundColor: '#131315', borderColor: '#303035', borderWidth: 1,
-              titleColor: '#ccccc4', bodyColor: '#686862', displayColors: false,
             },
             zoom: {
               pan: { enabled: true, mode: 'xy' },
@@ -931,8 +917,8 @@ function renderMap() {
             }
           },
           scales: {
-            x: { title: { display: true, text: `PC${xPC} (${(xVar*100).toFixed(1)}%)`, color: '#686862', font: { family: 'IBM Plex Mono', size: 9 } }, grid: { color: '#252528' }, ticks: { color: '#686862', font: { family: 'IBM Plex Mono', size: 9 } } },
-            y: { title: { display: true, text: `PC${yPC} (${(yVar*100).toFixed(1)}%)`, color: '#686862', font: { family: 'IBM Plex Mono', size: 9 } }, grid: { color: '#252528' }, ticks: { color: '#686862', font: { family: 'IBM Plex Mono', size: 9 } } },
+            x: { ...CH_AXIS, title: { display: true, text: `PC${xPC} (${(xVar*100).toFixed(1)}%)`, color: '#686862', font: CH_FONT } },
+            y: { ...CH_AXIS, title: { display: true, text: `PC${yPC} (${(yVar*100).toFixed(1)}%)`, color: '#686862', font: CH_FONT } },
           },
         },
       });
@@ -942,8 +928,8 @@ function renderMap() {
   _mapDraw = draw;
   document.getElementById('pc-x').onchange = function() { xPC = parseInt(this.value); updateLoadings(); draw(); };
   document.getElementById('pc-y').onchange = function() { yPC = parseInt(this.value); updateLoadings(); draw(); };
-  document.getElementById('cm-type').onclick = () => { colorMode = 'type';   updateColorUI(); draw(); };
-  document.getElementById('cm-col').onclick  = () => { colorMode = 'column'; updateColorUI(); draw(); };
+  document.getElementById('cm-type').onclick = () => { colorMode = 'type';   updateColorUI(false); draw(); };
+  document.getElementById('cm-col').onclick  = () => { colorMode = 'column'; updateColorUI(true);  draw(); };
   document.getElementById('sc-z').onchange = function() { zKey = this.value; draw(); };
   document.getElementById('map-labels').onclick = function() {
     showLabels = !showLabels;

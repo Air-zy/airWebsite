@@ -8,37 +8,33 @@ function switchV(v) {
   closeDet();
   document.querySelectorAll('.bt[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   document.getElementById('v-lb').classList.toggle('hid',  v !== 'lb');
-  document.getElementById('v-agg').classList.toggle('hid', v !== 'agg');
   document.getElementById('v-info').classList.toggle('hid',v !== 'info');
   document.getElementById('v-map').classList.toggle('hid', v !== 'map');
-  document.getElementById('cwrap').classList.toggle('hid', v !== 'agg');
+  document.getElementById('v-rec').classList.toggle('hid', v !== 'rec');
   document.getElementById('sidebar').classList.toggle('hid', v !== 'lb');
+  document.getElementById('sbt').classList.toggle('hid', v !== 'lb');
   document.getElementById('search').placeholder =
     v === 'map' ? 'Highlight…' :
+    v === 'rec' ? 'Find model…' :
     v === 'info' ? 'Search…' : 'Filter…';
   closeThPop();
   if (v === 'lb')   renderLB();
-  if (v === 'agg')  { renderCP(); renderAgg(); }
   if (v === 'info') renderInfo();
   if (v === 'map')  renderMap();
+  if (v === 'rec')  renderRec();
 }
 
 let cpSel = 0;
 
 function renderCmd(c, idx, sel) {
-  const vs  = vw === 'agg' ? aVC : vC;
-  const key = c.k || c.id;
-  const on  = vs.has(key) ? '✓' : '';
-  const cls = 'ci' + (idx === sel ? ' sel' : '');
-  return `<div class="${cls}" data-c="${key}" data-idx="${idx}">
-    <span>${c.l}${on ? ' <span style="color:var(--ac)">✓</span>' : ''}</span>
-    <small>${c.g || 'General'}</small>
+  const on = vC.has(c.id) ? ' <span style="color:var(--ac)">✓</span>' : '';
+  return `<div class="ci${idx === sel ? ' sel' : ''}" data-c="${c.id}" data-idx="${idx}">
+    <span>${c.l}${on}</span><small>${c.g || 'General'}</small>
   </div>`;
 }
 
 function renderCmdList(q) {
-  const isA  = vw === 'agg';
-  const pool = isA ? AF : CL.filter(c => !c.a);
+  const pool = CL.filter(c => !c.a);
   const lq   = (q || '').toLowerCase();
   const hits  = lq ? pool.filter(c => c.l.toLowerCase().includes(lq) || (c.g || '').toLowerCase().includes(lq)) : pool;
   cpSel = 0;
@@ -60,12 +56,9 @@ function highlightCmd() {
 
 function toggleCmdCol(c) {
   if (!c) return;
-  const vs  = vw === 'agg' ? aVC : vC;
-  const key = c.k || c.id;
-  if (vs.has(key)) vs.delete(key); else vs.add(key);
-  if (vw === 'lb') renderColBar();
-  if (vw === 'agg') renderCP();
-  if (vw === 'agg') renderAgg(); else renderLB();
+  if (vC.has(c.id)) vC.delete(c.id); else vC.add(c.id);
+  renderColBar();
+  renderLB();
   renderCmdList(document.getElementById('cmdp-in').value);
 }
 
@@ -82,148 +75,35 @@ function closeCmdP() {
 
 function renderInfo() {
   const el = document.getElementById('v-info');
-  el.style.padding = '0';
-
-  /* ── Type color palette ── */
-  const typeColors = { Thinking:'#e05c5c', Finetuned:'#a88fe0', Merged:'#5db87a', Foundation:'#5ca8d8', Other:'#686862' };
-  const typeOrder  = ['Thinking','Finetuned','Merged','Foundation','Other'];
-
-  /* ── Date helpers (chart uses days-since-2020 for axis granularity) ── */
-  const DATE_EPOCH   = new Date('2020-01-01').getTime();
-  const dateToNum    = s => { if (!s) return NaN; const d = new Date(s); return isNaN(d) ? NaN : (d.getTime() - DATE_EPOCH) / 86400000; };
-  const numToDateLbl = n => { const d = new Date(DATE_EPOCH + n * 86400000); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
-  const DATE_KEYS    = new Set(['released','tested']);
-
-  /* ── Extended getters (chart axis uses days-since-2020 for date columns) ── */
-  const EG = Object.assign({}, G, {
-    released: e => dateToNum(e.model.released),
-    tested:   e => dateToNum(e.model.tested),
-  });
-
-  /* ── Axis column list: numeric + date.
-       Since G.released/G.tested are now numeric, exclude them from the
-       generic numeric list to avoid duplicating the date entries. ── */
-  const numCols    = CL.filter(c => G[c.id] && c.cls?.includes('nm') && c.t !== 'date');
-  const dateCols   = [{ id:'released', l:'RELEASED', g:'Info' }, { id:'tested', l:'TESTED', g:'Info' }];
-  const allAxisCols = [...numCols, ...dateCols];
-  const axisGroups = {};
-  for (const c of allAxisCols) { const g = c.g || 'Other'; (axisGroups[g] = axisGroups[g] || []).push(c); }
-
-  function optHTML(sel) {
-    return Object.entries(axisGroups).map(([g, cols]) =>
-      `<optgroup label="${g}">${cols.map(c =>
-        `<option value="${c.id}"${c.id === sel ? ' selected' : ''}>${c.l}</option>`
-      ).join('')}</optgroup>`
-    ).join('');
-  }
-
-  /* ── State — defaults to X: NatInt, Y: DIAL% as requested ── */
   let xKey = 'natint', yKey = 'dialogue', zKey = 'score', colorMode = 'type';
 
-  /* ── Shared style helpers ── */
-  const SS   = 'background:var(--bg3);border:1px solid var(--bd);color:var(--t);font:11px IBM Plex Mono,monospace;padding:2px 4px;outline:none';
-  const btnS = on => `background:${on?'var(--ac)':'var(--bg3)'};border:1px solid ${on?'var(--ac)':'var(--bd)'};color:${on?'var(--bg)':'var(--t2)'};font:${on?600:500} 10px IBM Plex Mono,monospace;padding:2px 8px;cursor:pointer;transition:all .1s`;
-
-  /* ── Build toolbar + canvas ── */
   el.innerHTML =
-    `<div style="padding:5px 10px;border-bottom:1px solid var(--bd);background:var(--bg2);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">` +
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">X <select id="sc-x" style="${SS}">${optHTML('natint')}</select></label>` +
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Y <select id="sc-y" style="${SS}">${optHTML('dialogue')}</select></label>` +
-      `<div style="width:1px;height:14px;background:var(--bd);flex-shrink:0"></div>` +
-      `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Color</span>` +
+    `<div class="ctrl-bar">` +
+      `<label class="ctrl">X <select id="sc-x" style="${SS}">${axisOptHTML(xKey)}</select></label>` +
+      `<label class="ctrl">Y <select id="sc-y" style="${SS}">${axisOptHTML(yKey)}</select></label>` +
+      `<span class="cap">Color</span>` +
       `<button id="cm-type" style="${btnS(true)}">Type</button>` +
-      `<button id="cm-col"  style="${btnS(false)}">Column</button>` +
-      `<label id="z-wrap" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--t2)">Z <select id="sc-z" style="${SS}">${optHTML('score')}</select></label>` +
-      `<span id="sc-count" style="margin-left:auto;font-size:10px;color:var(--t2)"></span>` +
+      `<button id="cm-col" style="${btnS(false)}">Column</button>` +
+      `<label id="z-wrap" class="ctrl" style="display:none">Z <select id="sc-z" style="${SS}">${axisOptHTML(zKey)}</select></label>` +
+      `<span class="ctrl-r" id="sc-count"></span>` +
     `</div>` +
-    `<div style="flex:1;position:relative;min-height:0"><canvas id="sc-cv"></canvas></div>` +
-    `<div id="z-legend" style="display:none;padding:4px 12px;border-top:1px solid var(--bd);background:var(--bg2);flex-shrink:0;align-items:center;gap:8px;font-size:10px;color:var(--t2)"></div>`;
+    `<div class="map-canvas-wrap"><canvas id="sc-cv"></canvas></div>` +
+    `<div id="z-legend" class="z-legend"></div>`;
 
-  /* ── Update toggle button + Z control visibility ── */
-  function updateColorUI() {
-    const isCol = colorMode === 'column';
-    document.getElementById('cm-type').setAttribute('style', btnS(!isCol));
-    document.getElementById('cm-col' ).setAttribute('style', btnS( isCol));
-    document.getElementById('z-wrap'  ).style.display  = isCol ? 'flex' : 'none';
-    document.getElementById('z-legend').style.display  = isCol ? 'flex' : 'none';
-  }
-
-  /* ── CSS gradient string for the legend bar ── */
-  function viridisGradCSS() {
-    return 'linear-gradient(to right,' + [0,0.25,0.5,0.75,1].map(t => `${viridis(t)} ${t*100}%`).join(',') + ')';
-  }
-
-  /* ── Per-axis config ── */
-  function axisOpts(key) {
-    return {
-      grid:  { color: '#252528' },
-      ticks: {
-        color: '#686862',
-        font:  { family: 'IBM Plex Mono', size: 9 },
-        ...(DATE_KEYS.has(key) ? { callback: v => numToDateLbl(v) } : {}),
-      },
-    };
-  }
-
-  /* ── Display-friendly value ── */
-  function fmtV(key, v) { return DATE_KEYS.has(key) ? numToDateLbl(v) : fN(v); }
-
-  /* ── Main draw ── */
   function draw() {
     if (_infoChart) { _infoChart.destroy(); _infoChart = null; }
-    let datasets, total = 0;
-    const data = filt();   /* respects sq (search) + FF (flag filters) */
-
-    if (colorMode === 'type') {
-      /* One dataset per model type */
-      const byType = {};
-      for (const e of data) {
-        const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
-        if (typeof x !== 'number' || isNaN(x) || typeof y !== 'number' || isNaN(y)) continue;
-        const t = modelType(e.model.flags);
-        (byType[t] = byType[t] || []).push({ x, y, e });
-        total++;
-      }
-      datasets = typeOrder.filter(t => byType[t]).map(t => ({
-        label: t,
-        data:  byType[t],
-        backgroundColor: typeColors[t] + 'b3',
-        pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 0,
-      }));
-
-    } else {
-      /* Single dataset, per-point viridis color based on Z column */
-      const pts = [];
-      for (const e of data) {
-        const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
-        if (typeof x !== 'number' || isNaN(x) || typeof y !== 'number' || isNaN(y)) continue;
-        const z = EG[zKey]?.(e);
-        pts.push({ x, y, z: (typeof z === 'number' && !isNaN(z)) ? z : null, e });
-        total++;
-      }
-      const zVals = pts.map(p => p.z).filter(v => v !== null);
-      const zMin  = zVals.length ? Math.min(...zVals) : 0;
-      const zMax  = zVals.length ? Math.max(...zVals) : 1;
-      const zRng  = zMax - zMin || 1;
-      const colors = pts.map(p => p.z !== null ? viridis((p.z - zMin) / zRng) : 'rgba(80,80,80,0.35)');
-      datasets = [{
-        label: allAxisCols.find(c => c.id === zKey)?.l || zKey,
-        data:  pts,
-        backgroundColor: colors,
-        pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 0,
-      }];
-
-      /* Legend bar */
-      const zLabel   = allAxisCols.find(c => c.id === zKey)?.l || zKey;
-      const legendEl = document.getElementById('z-legend');
-      if (legendEl) legendEl.innerHTML =
-        `<span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">${zLabel}</span>` +
-        `<span>${fmtV(zKey, zMin)}</span>` +
-        `<div style="flex:1;max-width:180px;height:8px;background:${viridisGradCSS()};border:1px solid var(--bd);border-radius:1px"></div>` +
-        `<span>${fmtV(zKey, zMax)}</span>`;
+    const pts = [];
+    for (const e of filt()) {
+      const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
+      if (typeof x === 'number' && !isNaN(x) && typeof y === 'number' && !isNaN(y)) pts.push({ x, y, e });
     }
+    const datasets = colorMode === 'type' ? typeDatasets(pts, 4) : [colorDataset(pts, zKey, 4)];
+    document.getElementById('sc-count').textContent = `${pts.length} / ${D.length}`;
 
-    document.getElementById('sc-count').textContent = `${total} / ${D.length}`;
+    /* Date columns hold days-since-2020, so their ticks need relabelling */
+    const axis = k => DATE_KEYS.has(k)
+      ? { ...CH_AXIS, ticks: { ...CH_AXIS.ticks, callback: v => numToDateLbl(v) } }
+      : CH_AXIS;
 
     _infoChart = new Chart(document.getElementById('sc-cv'), {
       type: 'scatter',
@@ -233,33 +113,27 @@ function renderInfo() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: colorMode === 'type'
-            ? { labels: { color: '#686862', font: { family: 'IBM Plex Mono', size: 9 }, boxWidth: 8, padding: 12 } }
-            : { display: false },
+          legend: colorMode === 'type' ? CH_LEGEND : { display: false },
           tooltip: {
+            ...CH_TIP,
             callbacks: {
               title: ctx => ctx[0].raw.e.model.name,
-              label: ctx => {
-                if (colorMode !== 'column' || ctx.raw.z === null) return '';
-                return `${allAxisCols.find(c => c.id === zKey)?.l || zKey}: ${fmtV(zKey, ctx.raw.z)}`;
-              },
+              label: ctx => (colorMode !== 'column' || ctx.raw.z === null) ? ''
+                : `${axisLabel(zKey)}: ${fmtAxisV(zKey, ctx.raw.z)}`,
             },
-            backgroundColor: '#131315', borderColor: '#303035', borderWidth: 1,
-            titleColor: '#ccccc4', bodyColor: '#686862', displayColors: false,
           },
         },
-        onClick: (_, elements) => {
-          if (elements.length) openDet(datasets[elements[0].datasetIndex].data[elements[0].index].e);
+        onClick: (_, els) => {
+          if (els.length) openDet(datasets[els[0].datasetIndex].data[els[0].index].e);
         },
-        scales: { x: axisOpts(xKey), y: axisOpts(yKey) },
+        scales: { x: axis(xKey), y: axis(yKey) },
       },
     });
   }
 
-  /* ── Wire controls ── */
   _infoDraw = draw;   /* let the search handler trigger redraws */
-  document.getElementById('cm-type').onclick = () => { colorMode = 'type';   updateColorUI(); draw(); };
-  document.getElementById('cm-col' ).onclick = () => { colorMode = 'column'; updateColorUI(); draw(); };
+  document.getElementById('cm-type').onclick = () => { colorMode = 'type';   updateColorUI(false); draw(); };
+  document.getElementById('cm-col' ).onclick = () => { colorMode = 'column'; updateColorUI(true);  draw(); };
   document.getElementById('sc-x').onchange = function() { xKey = this.value; draw(); };
   document.getElementById('sc-y').onchange = function() { yKey = this.value; draw(); };
   document.getElementById('sc-z').onchange = function() { zKey = this.value; draw(); };
@@ -283,22 +157,23 @@ async function init() {
   renderColBar();
   renderAbout();
 
-  /* Hide cols button initially (lb view) */
-  document.getElementById('cwrap').classList.add('hid');
+  /* Sidebar toggle — collapsed by default where it would crowd the table */
+  if (innerWidth < 900) document.body.classList.add('sb-off');
+  document.getElementById('sbt').onclick = () => document.body.classList.toggle('sb-off');
 
   /* View buttons */
   document.querySelectorAll('.bt[data-v]').forEach(b => {
     b.onclick = () => switchV(b.dataset.v);
   });
 
-  /* Search — feeds the active view (LB filter / agg filter / chart filter / map highlight) */
+  /* Search — feeds the active view (LB filter / chart filter / map highlight / rec filter) */
   const searchEl = document.getElementById('search');
   searchEl.oninput = function() {
     sq = this.value.toLowerCase().trim();
     if (vw === 'lb') renderLB();
-    else if (vw === 'agg') renderAgg();
     else if (vw === 'info') _infoDraw?.();
     else if (vw === 'map') { _mapSearch = this.value; _mapDraw?.(); }
+    else if (vw === 'rec') { renderRecRate(); recUpdate(); }
   };
 
   /* Column header: sort on label click, popover on ▾ icon */
@@ -313,17 +188,7 @@ async function init() {
     renderLB();
   });
 
-  /* Cols dropdown (agg only) */
-  const cbt   = document.getElementById('cbt');
-  const cpick = document.getElementById('cpick');
-  cbt.onclick = e => {
-    e.stopPropagation();
-    const hidden = cpick.classList.toggle('hid');
-    if (!hidden) renderCP();
-    closeThPop();
-  };
   document.addEventListener('click', e => {
-    if (!cpick.contains(e.target) && e.target !== cbt) cpick.classList.add('hid');
     const pop = document.getElementById('thpop');
     if (!pop.classList.contains('hide') &&
         !pop.contains(e.target) &&
@@ -372,9 +237,9 @@ async function init() {
     }
     if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
       if (e.key === '1') switchV('lb');
-      if (e.key === '2') switchV('agg');
-      if (e.key === '3') switchV('info');
-      if (e.key === '4') switchV('map');
+      if (e.key === '2') switchV('info');
+      if (e.key === '3') switchV('map');
+      if (e.key === '4') switchV('rec');
     }
   });
 }

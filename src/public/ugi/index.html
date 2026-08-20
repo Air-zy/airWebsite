@@ -10,15 +10,13 @@
 <body>
 <div id="app">
   <header id="hdr">
-    <h1>UGI</h1><div class="sep"></div>
+    <h1>UGI</h1>
+    <button class="bt ic" id="sbt" title="Toggle filter sidebar">☰</button>
     <button class="bt on" data-v="lb">Leaderboard</button>
-    <button class="bt" data-v="agg">Aggregate</button>
     <button class="bt" data-v="info">Chart</button>
     <button class="bt" data-v="map">Map</button>
-    <div class="sep"></div>
+    <button class="bt" data-v="rec">Recommend</button>
     <input id="search" type="text" placeholder="Filter…">
-    <div class="sep"></div>
-    <div style="position:relative" id="cwrap"><button class="bt" id="cbt">Cols</button><div id="cpick" class="hid"></div></div>
     <span id="status"></span>
   </header>
 
@@ -26,36 +24,18 @@
     <aside id="sidebar"></aside>
     <div id="main">
 
-      <div id="v-lb" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-        <div style="flex:1;overflow:auto">
+      <div id="v-lb" class="view">
+        <div class="lb-scroll">
           <table><thead id="lth"></thead><tbody id="ltb"></tbody></table>
           <div id="about-benchmarks"></div>
         </div>
       </div>
 
-      <div id="v-agg" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-        <div id="agg-bar">
-          <label>Group by
-            <select id="agrp">
-              <option value="architecture">Architecture</option>
-              <option value="paramSize">Params (Active)</option>
-              <option value="totalParamSize">Params (Total)</option>
-              <option value="type">Type</option>
-              <option value="template">Template</option>
-              <option value="released">Release Date (month)</option>
-              <option value="tested">Test Date (month)</option>
-              <option value="originality">Originality</option>
-            </select>
-          </label>
-        </div>
-        <div style="flex:1;overflow:auto">
-          <table><thead id="ath"></thead><tbody id="atb"></tbody></table>
-        </div>
-      </div>
+      <div id="v-info" class="view hid"></div>
 
-      <div id="v-info" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
+      <div id="v-map" class="view hid"></div>
 
-      <div id="v-map" class="hid" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
+      <div id="v-rec" class="view hid"></div>
 
     </div>
     <aside id="det-panel" class="hid"></aside>
@@ -76,7 +56,7 @@
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src="leaderboard.js"></script>
-<script src="aggregation.js"></script>
+<script src="recommendations.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>

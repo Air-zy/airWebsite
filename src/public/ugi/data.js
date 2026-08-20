@@ -29,12 +29,6 @@ function fDate(v) {
   return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
 }
 
-function fDateMonth(v) {
-  if (isNaN(v) || v === null) return '—';
-  const d = new Date(DATE_EPOCH_MS + v * MS_PER_YEAR);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
-
 function pPct(s) {
   if (s == null) return NaN;
   if (typeof s === 'number') return s;
@@ -42,18 +36,6 @@ function pPct(s) {
   if (t === '') return NaN;
   const n = parseFloat(t);
   return isNaN(n) ? NaN : n;
-}
-
-function buckParam(p) {
-  if (isNaN(p) || p === null) return '—';
-  if (p <   1) return '< 1B';
-  if (p <   4) return '1–4B';
-  if (p <   8) return '4–8B';
-  if (p <  15) return '8–15B';
-  if (p <  35) return '15–35B';
-  if (p <  75) return '35–75B';
-  if (p < 200) return '75–200B';
-  return '200B+';
 }
 
 function pRow(r) {
