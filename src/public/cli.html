@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>airzy.ca cli</title>
+    <meta name="description" content="the cli version of airzy.ca. same output curl gets." />
+    <link
+      rel="icon"
+      href="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/monitor.svg?v=1709768625757"
+    />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        padding: 1rem;
+        min-height: 100vh;
+        box-sizing: border-box;
+        background: #0b0d10;
+        color: #c8ccd4;
+        font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      #out { white-space: pre-wrap; word-break: break-word; }
+      #out a { color: inherit; }
+      form { display: flex; gap: .5ch; }
+      #ps1 { color: #5ee6a8; }
+      input {
+        flex: 1;
+        border: 0;
+        outline: 0;
+        padding: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
+      .c36 { color: #56d4e0; }
+      .c95 { color: #ff8ad8; }
+      .c1  { color: #fff; font-weight: 600; }
+      .c2  { opacity: .55; }
+    </style>
+  </head>
+  <body>
+    <div id="out"></div>
+    <form id="line" autocomplete="off">
+      <span id="ps1">airzy@ca:~$</span>
+      <input id="cmd" aria-label="command" autofocus spellcheck="false" />
+    </form>
+
+    <script>
+      const out = document.getElementById('out');
+      const input = document.getElementById('cmd');
+      const history = [];
+      let seek = 0;
+
+      const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+      // the endpoints answer in ansi because curl reads them too. only the codes terminal.js emits
+      function ansi(text) {
+        let open = 0;
+        return esc(text).replace(/\x1b\[(\d+)m/g, (_, code) => {
+          const close = '</span>'.repeat(open);
+          if (code === '0') { open = 0; return close; }
+          open = 1;
+          return close + `<span class="c${code}">`;
+        }) + '</span>'.repeat(open);
+      }
+
+      function linkify(html) {
+        return html.replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank">${u}</a>`);
+      }
+
+      function print(html) {
+        out.insertAdjacentHTML('beforeend', html + '\n');
+        scrollTo(0, document.body.scrollHeight);
+      }
+
+      async function run(cmd) {
+        if (cmd === 'clear') return (out.innerHTML = '');
+        if (cmd === 'exit' || cmd === 'home') return location.assign('/');
+
+        const res = await fetch('/cli/' + encodeURIComponent(cmd));
+        print(linkify(ansi(await res.text())));
+      }
+
+      document.getElementById('line').addEventListener('submit', async e => {
+        e.preventDefault();
+        const cmd = input.value.trim();
+        input.value = '';
+        print(`<span class="c2">airzy@ca:~$</span> ${esc(cmd)}`);
+        if (!cmd) return;
+
+        history.push(cmd);
+        seek = history.length;
+        try {
+          await run(cmd);
+        } catch (err) {
+          print(`<span class="c95">${esc(String(err))}</span>`);
+        }
+      });
+
+      input.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        seek = Math.max(0, Math.min(history.length, seek + (e.key === 'ArrowUp' ? -1 : 1)));
+        input.value = history[seek] || '';
+      });
+
+      addEventListener('click', () => getSelection().isCollapsed && input.focus());
+
+      fetch('/cli/motd').then(r => r.text()).then(t => print(linkify(ansi(t))));
+    </script>
+  </body>
+</html>

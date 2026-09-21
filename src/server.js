@@ -62,6 +62,9 @@ app.use(require('./routes/middleware/auth.js').attachUser);
 
 //
 
+// before static, otherwise index.html answers / first
+app.use(require('./routes/middleware/terminal.js').middleware);
+
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
 //

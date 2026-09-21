@@ -4,6 +4,7 @@ const path = require('path');
 const { minify: minifyHtml } = require('html-minifier-terser');
 const { minify: minifyJs } = require('terser');
 const CleanCSS = require('clean-css');
+const site = require('../config/site.js');
 
 const defaultHtmlOptions = {
   removeComments: true,
@@ -44,7 +45,14 @@ async function processFile(filePath, srcDir, outDir) {
 
     if (ext === '.html' || ext === '.htm') {
       const input = await fs.readFile(filePath, 'utf8');
-      content = await minifyHtml(input, defaultHtmlOptions);
+
+      // paste the shared lists in before minifying, removeComments would eat the tokens otherwise
+      const filled = input.replace(/<!--#(\w+)-->/g, (_, key) => {
+        if (!(key in site.html)) throw new Error(`unknown site token <!--#${key}--> in ${relPath}`);
+        return site.html[key];
+      });
+
+      content = await minifyHtml(filled, defaultHtmlOptions);
       
       if (content.includes('</body>') && content.includes('<head>')) {
         const scriptToInject = injectedStr;

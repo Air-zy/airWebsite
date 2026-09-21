@@ -38,6 +38,7 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 ```
 src/
 ├── server.js               middleware stack, five router mounts, 404, error handler
+├── config/                 site.js, the one copy of the socials, skills and nav
 ├── DATABASE/               postgres
 ├── FallbackEncryption/     AES-128-CBC
 ├── firebase/               firestore
@@ -47,6 +48,7 @@ src/
 └── routes/
     ├── pagesRouter.js      static pages
     ├── rootRouter.js       top level endpoints
+    ├── cli.js              the site as text, curl and the /cli terminal page
     ├── api/apiRouter.js    /api
     ├── auth/authRouter.js  /auth
     ├── rblxapp/            roblox
@@ -94,7 +96,16 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - `envDecrypt` reads its own stack trace and warns if the caller isnt under `src/`. Tripwire for a dependency that starts asking for secrets.
 - Build runs at server start. Free hosts redeploy from source with no build step, so minify happens at boot behind a promise gate.
 - Heartbeat pings a gist for its peer list. Keeps sleepy free containers awake, jittered 2 to 10 min with a rotating UA so it doesnt read as a bot.
+- `middleware/terminal.js` sits before `express.static` on purpose. It has to, or `index.html` answers `/` first.
+  curl and wget get an ascii card instead of html, `Accept: text/html` opts back out.
+- `/cli` serves the same text to both. curl gets it raw, browsers get `cli.html`, a terminal that fetches `/cli/<command>`
+  and paints the ansi codes as spans. `routes/cli.js` reads its page list back out of `pagesRouter.stack` so the list only exists once.
 - The `/c` fingerprint beacon is injected into every page at minify time. Self hosted analytics, no third party script.
+- Socials, skills, the nav, the about text and the copyright live once, in `config/site.js`. The minifier swaps `<!--#socialIcons-->` and friends for real markup on the
+  way to `dist`, so `index.html` holds tokens instead of link lists and `cli.js` reads the same array. A typo'd token kills the
+  build for that page on purpose, `removeComments` would have eaten it silently.
+  The about lines use `{phrase|#color}` so the page can tint a phrase and the cli can drop the braces. The "here to develop"
+  line is not in there on purpose, `main.js` animates it by id.
 - User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
 - `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.
 
@@ -103,4 +114,6 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - `/api/logs` is the raw request log, owner only (uid 1).
 - `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
 - Accounts made before email was required cant use reset until you add an `email` field and an `email:<lower>` index doc in the firestore console.
-- No test framework. `auth.js` has a self check: `node --env-file=.env src/routes/middleware/auth.js`.
+- No test framework. A few files have a self check you run directly:
+  `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js` and `routes/cli.js`,
+  and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).

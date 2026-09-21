@@ -7,6 +7,7 @@ const makeWebhook = require('./webhooks/webhook.js');
 const whookPass = envDecrypt(process.env.airKey, process.env.whookPass);
 const clusterAcolyteToken = process.env.airClusterAcolyteToken;
 
+router.use('/cli',         require('./cli.js')         ); // the whole site as text, for curl and the terminal page
 router.get('/info',        require('./info.js')        );
 router.get('/cookies',     require('./cookies.js')     );
 
