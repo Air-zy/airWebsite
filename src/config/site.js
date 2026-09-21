@@ -55,9 +55,8 @@ const skillGroup = ([name, items]) => name === 'Other'
 module.exports = {
   socials,
   repo: 'Air-zy/airWebsite',
-  accent: '#89af84',   // the terminal green, headings and the animation pane
+  accent: '#cebe78',   // the terminal headings and the animation pane
   about: about.map(plain),
-  aboutRaw: about,   // cliAnim tints the braces instead of dropping them
   skills,
 
   // the shapes index.html asks for by name, see the <!--#token--> comments in it.

@@ -141,7 +141,8 @@ const lines = (req = { headers: {} }) => [
 
 // a line starts 2.8 frames after the one above it and types at 3 chars a frame
 const START = 6, STAGGER = 2.8, CPS = 3;
-const typed = (row, f) => Math.floor((f - (START + (row - 6) * STAGGER)) * CPS);
+const delay = row => START + (row - 6) * STAGGER;
+const typed = (row, f) => Math.floor((f - delay(row)) * CPS);
 
 const rgb = (p, c) => `${p};2;${c[0]};${c[1]};${c[2]}`;
 const same = (a, b) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2]);
@@ -169,7 +170,7 @@ const cooldown = t => 1 - Math.sqrt(t / FADE);
 const STYLE = {
   default: { head: [255, 255, 255], span: FADE, k: cooldown },
   matrix:  { head: [0, 255, 70], span: FADE, k: cooldown },
-  // a cyan beam on a longer clock, held back so the brightest part never shows
+  // a cyan beam on a longer clock, started partway in so the brightest part never shows
   scanline: { head: [180, 255, 255], span: 7.8 - 2.74, k: t => 1 - Math.sqrt((t + 2.74) / 7.8) },
   bounce:  { head: [255, 255, 255], span: 13,
              k: t => t < 5 ? Math.sin(Math.PI * t / 5) * 0.57
@@ -228,7 +229,7 @@ function build(name, req) {
   const times = ART.map((r, y) => r.map((p, x) => (p ? at(x, y) : 0)));
   const text = lines(req);
   const last = Math.max(...times.flat());
-  const textEnd = Math.max(...text.map(([r, l]) => START + (r - 6) * STAGGER + visible(l) / CPS));
+  const textEnd = Math.max(...text.map(([r, l]) => delay(r) + visible(l) / CPS));
   return { times, text, style, frames: Math.ceil(Math.max(last + style.span, textEnd)) + 2 };
 }
 

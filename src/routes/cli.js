@@ -3,7 +3,6 @@ const router = require('express').Router();
 
 const { isTerminal, isAgent, text, card, quipOfTheDay, C } = require('./middleware/terminal.js');
 const { getProjects } = require('./ip_utils.js');
-const { getStatus } = require('../heartSystem/heart.js');
 const { getLastOnline } = require('../modules/myStatus/myStatus.js');
 const serverInfo = require('./middleware/serverInfo.js');
 const site = require('../config/site.js');
@@ -72,12 +71,10 @@ const CMDS = {
 
   status: async () => {
     const last = await getLastOnline();
-    const heart = getStatus();
     return heading('status') + [
       bullet('last online', last ? ago(last.lastOn) : 'unknown'),
       bullet('last commit', await lastCommit() || 'unknown'),
       bullet('uptime', serverInfo.uptime()),
-      bullet('heartbeat', `${heart.success}/${heart.total} ok${heart.lastError ? `, last error: ${heart.lastError}` : ''}`),
     ].join('\n');
   },
 
