@@ -3,8 +3,6 @@
 const fs = require('fs');
 const zlib = require('zlib');
 const site = require('../config/site.js');
-const serverInfo = require('./middleware/serverInfo.js');
-const { getIP } = require('./ip_utils.js');
 
 const MS = 25;                 // one frame
 const FADE = 6;                // frames a pixel takes to cool from white
@@ -125,23 +123,20 @@ const spans = line => line.split(/(\{[^|}]+\|[^}]+\})/).filter(Boolean).map(part
 
 const visible = line => spans(line).reduce((n, s) => n + s[0].length, 0);
 
-// pane row -> line, the rows left out are the spacing
-const lines = (req = { headers: {} }) => [
-  [6,  `{airzy.ca|${ACCENT}}`],
-  [8,  'i write code and build games for fun.'],
-  // an ipv6 runs 39 chars and the pane is 38, so it gets cut
-  [10, `{you|#555555}     ${String(getIP(req) || '???').slice(0, 24)}`],
-  [11, `{uptime|#555555}  ${serverInfo.uptime()}`],
-  [12, `{served|#555555}  ${serverInfo.requestsReceived} requests`],
-  [14, 'for more info'],
-  [15, `  {curl airzy.ca/cli|${ACCENT}}`],
-  [17, '{you can curl this again|#555555}'],
-  [18, '{for a new animation|#555555}'],
+// pane row -> line, the rows left out are the spacing. the you/uptime/served
+// stats live in /cli now
+const LINES = [
+  [7,  `{airzy.ca|${ACCENT}}`],
+  [9,  'i write code and build games for fun.'],
+  [11, 'for more info'],
+  [12, `  {curl airzy.ca/cli|${ACCENT}}`],
+  [14, '{you can curl this again|#555555}'],
+  [15, '{for a new animation|#555555}'],
 ];
 
 // a line starts 2.8 frames after the one above it and types at 3 chars a frame
 const START = 6, STAGGER = 2.8, CPS = 3;
-const delay = row => START + (row - 6) * STAGGER;
+const delay = row => START + (row - LINES[0][0]) * STAGGER;
 const typed = (row, f) => Math.floor((f - delay(row)) * CPS);
 
 const rgb = (p, c) => `${p};2;${c[0]};${c[1]};${c[2]}`;
@@ -223,19 +218,18 @@ function frame(shot, f) {
   return '\x1b[H' + out.join('\n');
 }
 
-function build(name, req) {
+function build(name) {
   const at = EFFECTS[name]();
   const style = STYLE[name] || STYLE.default;
   const times = ART.map((r, y) => r.map((p, x) => (p ? at(x, y) : 0)));
-  const text = lines(req);
   const last = Math.max(...times.flat());
-  const textEnd = Math.max(...text.map(([r, l]) => delay(r) + visible(l) / CPS));
-  return { times, text, style, frames: Math.ceil(Math.max(last + style.span, textEnd)) + 2 };
+  const textEnd = Math.max(...LINES.map(([r, l]) => delay(r) + visible(l) / CPS));
+  return { times, text: LINES, style, frames: Math.ceil(Math.max(last + style.span, textEnd)) + 2 };
 }
 
 function animate(req, res) {
   const name = pick(req.query.a);
-  const shot = build(name, req);
+  const shot = build(name);
 
   res.type('text/plain; charset=utf-8').set({
     'X-Animation': name,
@@ -285,7 +279,7 @@ if (require.main === module) {
     `\x1b[0m   \x1b[${rgb('38', FG)}mhi\x1b[0m${' '.repeat(TEXTW - GAP - 2)}`);
 
   // a wider line would push the row past 81 columns
-  for (const [, l] of lines()) a.ok(visible(l) <= TEXTW - GAP, `too wide: ${l}`);
+  for (const [, l] of LINES) a.ok(visible(l) <= TEXTW - GAP, `too wide: ${l}`);
 
   for (const name of NAMES) {
     const shot = build(name);

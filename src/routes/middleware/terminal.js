@@ -27,6 +27,7 @@ const AI_QUIPS = [
 
 const pick = list => list[Math.floor(Math.random() * list.length)];
 const randomQuip = () => pick(QUIPS);
+const aiQuip = () => pick(AI_QUIPS);
 // motd means message of the DAY, so this one holds still until utc midnight
 const quipOfTheDay = () => QUIPS[Math.floor(Date.now() / 86400000) % QUIPS.length];
 
@@ -70,11 +71,11 @@ const middleware = (req, res, next) => {
 
   if (isTerminal(req)) return animate(req, res);
   // only the blank lines, trim would take the indent with them
-  if (isAgent(req)) return text(req, res, card(req, pick(AI_QUIPS)).replace(/^\n+|\n+$/g, ''));
+  if (isAgent(req)) return text(req, res, card(req, aiQuip()).replace(/^\n+|\n+$/g, ''));
   next();
 };
 
-module.exports = { isTerminal, isAgent, text, card, quipOfTheDay, C, middleware };
+module.exports = { isTerminal, isAgent, text, card, quipOfTheDay, aiQuip, C, middleware };
 
 // ip_utils drags in firebase, so this needs the env file: node --env-file=.env src/routes/middleware/terminal.js
 if (require.main === module) {

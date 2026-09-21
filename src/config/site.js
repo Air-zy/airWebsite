@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const socials = [
   { label: 'GitHub',    icon: 'fa-github',           url: 'https://github.com/Air-zy' },
-  { label: 'Linked In', icon: 'fa-linkedin-square',  url: 'https://www.linkedin.com/in/airzyalt-altacc-7994762b3/' },
+  { label: 'Linked In', icon: 'fa-linkedin-square',  url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
   { label: 'Leetcode',  icon: 'fa-code',             url: 'https://leetcode.com/u/AirzyEz/' },
   { label: 'Youtube',   icon: 'fa-youtube-play',     url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
   { label: 'Instagram', icon: 'fa-instagram',        url: 'https://www.instagram.com/airzyalt' },
@@ -21,7 +21,7 @@ const nav = [
 ];
 
 const about = [
-  'studying {software development|#ffc300} at {SAIT|#ff5733}.',
+  'studied {software development|#ffc300} at {SAIT|#ff5733}.',
   'i write code and build games when I am bored.',
   'programming {since 2018|#ff99cc}.',
 ];

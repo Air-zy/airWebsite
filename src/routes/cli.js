@@ -1,8 +1,8 @@
 const path = require('path');
 const router = require('express').Router();
 
-const { isTerminal, isAgent, text, card, quipOfTheDay, C } = require('./middleware/terminal.js');
-const { getProjects } = require('./ip_utils.js');
+const { isTerminal, isAgent, text, card, quipOfTheDay, aiQuip, C } = require('./middleware/terminal.js');
+const { getProjects, getIP } = require('./ip_utils.js');
 const { getLastOnline } = require('../modules/myStatus/myStatus.js');
 const serverInfo = require('./middleware/serverInfo.js');
 const site = require('../config/site.js');
@@ -69,12 +69,14 @@ const CMDS = {
   socials: () => heading('socials')
     + site.socials.map(x => bullet(x.label.toLowerCase(), x.url)).join('\n'),
 
-  status: async () => {
+  status: async req => {
     const last = await getLastOnline();
     return heading('status') + [
+      bullet('you', getIP(req) || '???'),
       bullet('last online', last ? ago(last.lastOn) : 'unknown'),
       bullet('last commit', await lastCommit() || 'unknown'),
       bullet('uptime', serverInfo.uptime()),
+      bullet('served', `${serverInfo.requestsReceived} requests`),
     ].join('\n');
   },
 
@@ -101,7 +103,11 @@ async function run(name, req) {
 }
 
 router.get('/', async (req, res) => {
-  if (isTerminal(req) || isAgent(req)) return text(req, res, `${await CMDS.status()}\n\n${CMDS.help()}`);
+  if (isTerminal(req) || isAgent(req)) {
+    // an agent gets greeted here too, colours would be stripped for it anyway
+    const quip = isAgent(req) ? `  ${aiQuip()}\n\n` : '';
+    return text(req, res, `${quip}${await CMDS.status(req)}\n\n${CMDS.help()}`);
+  }
   res.sendFile('/cli.html', { root: path.join(__dirname, '../dist') }); // browsers get a terminal to type in
 });
 
@@ -131,6 +137,9 @@ if (require.main === module) {
 
   run('nonsense', req).then(out => {
     a.match(out, /not a command/);
+    return CMDS.status(req);
+  }).then(out => {
+    a.ok(out.includes('you') && out.includes('served'));         // the stats moved here off /
     console.log('cli ok');
     process.exit(0);
   });
