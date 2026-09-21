@@ -20,8 +20,20 @@
       property="og:description"
       content="i code and build games when bored. Software Developer, Airzy Turqueza"
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://airzy.ca/home" />
 
-    <meta name="twitter:card" content="summary" />
+    <!-- placeholder. 1200x630 png, drop it at src/public/og.png. scrapers cache
+         hard so bump the ?v when you replace it -->
+    <meta property="og:image" content="https://airzy.ca/og.png?v=1" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Airzy Turqueza, software developer"
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Airzy Turqueza" />
 
     <meta name="msvalidate.01" content="A51CBFAECCED0805854B46E68675BB9A" />
@@ -31,6 +43,7 @@
     />
 
     <title>Airzy Turqueza</title>
+    <link rel="canonical" href="https://airzy.ca/home" />
     <link
       href="https://fonts.googleapis.com/css?family=Montserrat"
       rel="stylesheet"
@@ -41,14 +54,10 @@
       href="https://cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/monitor.svg?v=1709768625757"
       type="image/webp"
     />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
-    />
-
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
+    <!--#icons-->
     <header>
       <nav>
         <div class="inlineb">
@@ -88,7 +97,7 @@
             <h4>Services</h4>
             <div class="item-list">
               <a href="https://www.fiverr.com/airzy_" target="_blank"
-                ><i class="fa fa-external-link"></i> fiverr freelancing</a
+                ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> fiverr freelancing</a
               >
               <p>- I’ll code / tutor</p>
               <p>for free in my free time!</p>
@@ -107,7 +116,7 @@
                 <!-- mailto added to simplify email process -->
               </p>
               <p id="main-location">
-                <i class="fa fa-map-marker"></i> loading location...
+                <svg class="fa fa-map-marker icon" aria-hidden="true"><use href="#i-map-marker"/></svg> loading location...
               </p>
             </div>
           </div>
@@ -120,12 +129,12 @@
                   <a
                     href="https://www.roblox.com/users/498605109"
                     target="_blank"
-                    ><i class="fa fa-external-link"></i> Account</a
+                    ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> Account</a
                   >
                   <a
                     href="https://devforum.roblox.com/u/airzy_az"
                     target="_blank"
-                    ><i class="fa fa-external-link"></i> Dev Forums</a
+                    ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> Dev Forums</a
                   >
                 </div>
               </details>
@@ -135,23 +144,23 @@
                   <a
                     href="https://campus.hellorubric.com/?s=10050"
                     target="_blank"
-                    ><i class="fa fa-external-link"></i> SAIT Programming
+                    ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> SAIT Programming
                     Club</a
                   >
                   <a
                     href="https://www.roblox.com/communities/8001123"
                     target="_blank"
-                    ><i class="fa fa-external-link"></i> Statical Productions</a
+                    ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> Statical Productions</a
                   >
                   <a
                     href="https://www.roblox.com/communities/8616919"
                     target="_blank"
-                    ><i class="fa fa-external-link"></i> Air's Basement</a
+                    ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> Air's Basement</a
                   >
                 </div>
               </details>
               <a href="/" target="_blank" id="main-discord"
-                ><i class="fa fa-external-link"></i> loading discord...</a
+                ><svg class="fa fa-external-link icon" aria-hidden="true"><use href="#i-external-link"/></svg> loading discord...</a
               >
             </div>
           </div>
@@ -165,7 +174,7 @@
         <div class="footer-bottom">
           <div class="inner-bottom">
             <button onclick="openChat()" class="chat-button">
-              Leave A Note <i class="fa fa-comments-o"></i>
+              Leave A Note <svg class="fa fa-comments-o icon" aria-hidden="true"><use href="#i-comments-o"/></svg>
             </button>
             <span class="social-medias"><!--#socialLinks--></span>
           </div>
@@ -177,9 +186,10 @@
       <button
         class="icon-button"
         id="toggleLightMode"
+        aria-label="Toggle light mode"
         onclick="toggleLightMode()"
       >
-        <i class="fa fa-moon-o" id="icon"></i>
+        <svg class="fa icon" id="icon" aria-hidden="true"><use href="#i-moon-o"/></svg>
       </button>
       <div id="sbar-flex">
         <!--#nav-->

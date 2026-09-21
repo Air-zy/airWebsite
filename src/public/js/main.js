@@ -1,36 +1,3 @@
-let defaultRootStyle;
-
-const spanStyles = new Map();
-document.querySelectorAll('span').forEach(span => {
-  spanStyles.set(span, {
-    c: span.style.color || '',
-    s: span.style.textShadow || '',
-    d: span.style.textDecoration || ''
-  });
-});
-
-function updateSpansLmode() {
-  const icon = document.getElementById('icon');
-  const spans = document.querySelectorAll('span');
-
-  if (icon.classList.contains('fa-moon-o')) {
-    spans.forEach(span => {
-      const originalStyles = spanStyles.get(span);
-      if (originalStyles) {
-        span.style.color = originalStyles.c;
-        span.style.textShadow = originalStyles.s;
-        span.style.textDecoration = originalStyles.d;
-      }
-    });
-  } else {
-    spans.forEach(span => {
-      span.style.color = 'black';
-      span.style.textShadow = 'none';
-      span.style.textDecoration = 'underline';
-    });
-  }
-}
-
 const icons = document.querySelectorAll('.social-media-container .social-medias .fa');
 
 icons.forEach((icon, index) => {
@@ -38,39 +5,19 @@ icons.forEach((icon, index) => {
 });
 
 
-function toggleLightMode() {
-  const icon = document.getElementById('icon');
-  const root = document.documentElement;
-
-  if (icon.classList.contains('fa-moon-o')) {
-    icon.classList.remove('fa-moon-o');
-    icon.classList.add('fa-sun-o');
-
-    root.style.setProperty('color-scheme', 'light');
-    root.style.setProperty('--bg-col', '#ffffff');
-    root.style.setProperty('--bg-rgb-full', 'rgb(255, 255, 255)');
-    root.style.setProperty('--bg-rgb-half', 'rgb(226, 226, 226, 0.3)');
-    root.style.setProperty('--text-grey', 'grey');
-    root.style.setProperty('--text-normal', '#000000');
-    root.style.setProperty('--frame-bcol', '#EFEFEF');
-    root.style.setProperty('--frame-bcol2', '#e3e3e3');
-
-  } else {
-    icon.classList.remove('fa-sun-o');
-    icon.classList.add('fa-moon-o');
-
-    root.style.setProperty('color-scheme', defaultRootStyle.colorScheme);
-    root.style.setProperty('--bg-col', defaultRootStyle.bgCol);
-    root.style.setProperty('--bg-rgb-full', defaultRootStyle.bgRgbFull);
-    root.style.setProperty('--bg-rgb-half', defaultRootStyle.bgRgbHalf);
-    root.style.setProperty('--text-grey', defaultRootStyle.textGrey);
-    root.style.setProperty('--text-normal', defaultRootStyle.textNormal);
-    root.style.setProperty('--frame-bcol', defaultRootStyle.frameBcol);
-    root.style.setProperty('--frame-bcol2', defaultRootStyle.frameBcol2);
-
-  }
-  updateSpansLmode();
+// colors live in main.css under :root[data-theme=light], this only flips the switch
+function applyTheme(light) {
+  document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+  document.querySelector('#icon use').setAttribute('href', light ? '#i-sun-o' : '#i-moon-o');
 }
+
+function toggleLightMode() {
+  const light = document.documentElement.getAttribute('data-theme') !== 'light';
+  applyTheme(light);
+  localStorage.setItem('lightMode', light);
+}
+
+applyTheme(localStorage.getItem('lightMode') === 'true');
 
 
 function menuTrigger(menuIcon) {
@@ -124,17 +71,6 @@ document.addEventListener("DOMContentLoaded", function () {
   let index = 0;
   let count = 0;
 
-  const root = document.documentElement;
-  defaultRootStyle = {
-    colorScheme: getComputedStyle(root).getPropertyValue('color-scheme'),
-    bgCol: getComputedStyle(root).getPropertyValue('--bg-col'),
-    bgRgbFull: getComputedStyle(root).getPropertyValue('--bg-rgb-full'),
-    bgRgbHalf: getComputedStyle(root).getPropertyValue('--bg-rgb-half'),
-    textGrey: getComputedStyle(root).getPropertyValue('--text-grey'),
-    textNormal: getComputedStyle(root).getPropertyValue('--text-normal'),
-    frameBcol: getComputedStyle(root).getPropertyValue('--frame-bcol')
-  };
-
   const interval = setInterval(() => {
     if (count < 2) {
       currentText =
@@ -163,20 +99,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }, 40);
 });
 
-function isInViewport(el) {
-  const rect = el.getBoundingClientRect(); // TODO optimize this
-  return (
-    rect.top >= 0 &&
-    rect.bottom - rect.height <= (window.innerHeight || document.documentElement.clientHeight)
-  );
-}
-
+// reveal once the top edge crosses the line. no lower bound on purpose: a jump that
+// lands past a section still reveals it instead of leaving it blank forever.
+// the :not(.show) means this shrinks to an empty list once everything is up
 function handleSections() {
-  const sections = document.querySelectorAll('.txt-section');
-  sections.forEach(section => {
-    if (isInViewport(section)) {
-      section.classList.add('show');
-    }
+  const pending = document.querySelectorAll('.txt-section:not(.show)');
+  if (!pending.length) return; // every scroll after the last reveal costs nothing
+  const line = document.getElementById('main-content').clientHeight * 0.9;
+  pending.forEach(section => {
+    if (section.getBoundingClientRect().top < line) section.classList.add('show');
   });
 }
 
@@ -231,11 +162,8 @@ async function makeProjectCard(proj, key) {
   const pStats = document.createElement('p');
   pStats.classList.add('proj-stats');
 
-  const icon = document.createElement('i');
-  icon.classList.add('fa', 'fa-eye');
-
   pStats.append(proj.stats.views + ' ');
-  pStats.appendChild(icon);
+  pStats.insertAdjacentHTML('beforeend', '<svg class="icon"><use href="#i-eye"/></svg>');
   card.appendChild(pStats);
 
   let textContainer
@@ -329,7 +257,6 @@ async function loadProjects() {
       }
     }).then(htmlContent => {
       document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
-      updateSpansLmode()
       handleSections()
     }).catch(error => {
       projectsLoaded = false;
@@ -355,7 +282,6 @@ async function loadIntro() {
       }
     }).then(htmlContent => {
       document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
-      updateSpansLmode()
       handleSections()
     }).catch(error => {
       introsLoaded = false;
@@ -475,62 +401,21 @@ mainContentElm.addEventListener("scroll", function () {
 
 /* ---- */
 
-function animateScroll(element, targetElm, duration) {
-  const startTime = performance.now();
-
-  function animate(time) {
-    const elapsedTime = time - startTime;
-
-    const progress = Math.min(elapsedTime / duration, 1);
-    //const ease = easeOutQuad(progress);
-
-    const rect = targetElm.getBoundingClientRect();
-    const to = rect.top - rect.height / 2 + 140;
-
-    const start = element.scrollTop;
-    const change = to //- start;
-
-    element.scrollTop = start + change * 0.1;
-
-    if (progress < 1 && Math.abs(to) > 2) {
-      requestAnimationFrame(animate);
-      //} else {
-
-    }
-  }
-
-  requestAnimationFrame(animate);
-}
-
-function easeOutQuad(t) {
-  return 1 - (1 - t) * (1 - t);
-}
-
-async function scrollTo(targetElm) {
-  animateScroll(mainContentElm, targetElm, 1000);
-}
-
 // the navigation
 async function toResources() {
   if (!projectsLoaded) {
     await loadProjects();
   }
-  const targetElm = document.getElementById('projects');
-  scrollTo(targetElm)
-
-  const overlay = document.getElementById("side-bar");
-  overlay.classList.remove("open");
+  document.getElementById('projects').scrollIntoView({ block: 'center' });
+  document.getElementById("side-bar").classList.remove("open");
 }
 
 async function toAirzy() {
   if (!introsLoaded) {
     await loadIntro();
   }
-  const targetElm = document.getElementById('intro-section');
-  scrollTo(targetElm)
-
-  const overlay = document.getElementById("side-bar");
-  overlay.classList.remove("open");
+  document.getElementById('intro-section').scrollIntoView({ block: 'center' });
+  document.getElementById("side-bar").classList.remove("open");
 }
 
 async function toContact() {
@@ -544,14 +429,13 @@ async function toContact() {
     const greyValue = 128 * (1 - progress);
     contactFrame.style.backgroundColor = `rgb(${greyValue}, ${greyValue}, ${greyValue})`;
     if (progress < 1) requestAnimationFrame(lerpColor);
+    else contactFrame.style.backgroundColor = '';
   }
 
   requestAnimationFrame(lerpColor);
 
-  scrollTo(contactFrame)
-
-  const overlay = document.getElementById("side-bar");
-  overlay.classList.remove("open");
+  contactFrame.scrollIntoView({ block: 'center' });
+  document.getElementById("side-bar").classList.remove("open");
 }
 
 function openChat() {

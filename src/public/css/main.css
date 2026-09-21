@@ -87,6 +87,24 @@ body {
   --text-grey: grey;
   --text-normal: white;
 }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-col: #ffffff;
+  --bg-rgb-full: rgba(255, 255, 255, 1);
+  --bg-rgb-half: rgba(226, 226, 226, 0.3);
+  --frame-bcol: #efefef;
+  --frame-bcol2: #e3e3e3;
+  --text-grey: grey;
+  --text-normal: #000000;
+}
+/* about/intro tint phrases with an inline color, unreadable on white.
+   important is needed to beat the inline style */
+:root[data-theme="light"] .txt-section span[style*="color"],
+:root[data-theme="light"] #adapt {
+  color: #000 !important;
+  text-shadow: none !important;
+  text-decoration: underline;
+}
 #toggleLightMode,
 .nav-item,
 .small-p,
@@ -168,11 +186,14 @@ nav .inlineb {
   overflow-x: auto;
 }
 .nav-item {
+  border: none;
+  font: inherit;
   padding-right: 40px;
   padding-left: 40px;
   transition: padding-left 0.4s, padding-right 0.4s, color;
 }
 .underline {
+  display: block;
   transform: translateX(-50%);
   width: 0;
   height: 1px;
@@ -231,6 +252,7 @@ main {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
+  scroll-behavior: smooth;
 }
 article {
   min-height: 1400px;
@@ -466,9 +488,20 @@ h3 {
   width: auto;
   white-space: nowrap;
 }
-.inner-bottom i {
+.inner-bottom .icon {
   padding: 0;
   padding-right: 0.5em;
+}
+/* the sprite replaces font awesome. 1em and currentColor mean every existing
+   font-size and color rule keeps working untouched */
+.fa {
+  display: inline-block;
+}
+.icon {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+  vertical-align: -0.125em;
 }
 .fa.fa-comments-o {
   font-size: 1.3em;
@@ -514,5 +547,14 @@ h3 {
   .menu-icon {
     max-width: 80px;
     width: 80px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main {
+    scroll-behavior: auto;
+  }
+  .txt-section {
+    transition: none;
   }
 }

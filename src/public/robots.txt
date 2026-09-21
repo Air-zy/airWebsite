@@ -2,8 +2,11 @@ User-agent: *
 Disallow: /api/
 Disallow: /auth/
 Disallow: /contact/
-Disallow: /cdn.glitch.global/e7d904dc-3a74-4413-9bc4-72f0e1d9fa62/certificate.png
+
+# both return json, and /r mints a session on every hit
+Disallow: /info
+Disallow: /r
 
 Allow: /
 
-Sitemap: https://airzy.glitch.me/site-map.xml
+Sitemap: https://airzy.ca/site-map.xml

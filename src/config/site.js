@@ -1,6 +1,8 @@
 // the only copy of this stuff. cli.js reads the data, minify.js pastes the html into index.html at boot
 // change a link or a skill here and nowhere else
 
+const fs = require('fs');
+
 const socials = [
   { label: 'GitHub',    icon: 'fa-github',           url: 'https://github.com/Air-zy' },
   { label: 'Linked In', icon: 'fa-linkedin-square',  url: 'https://www.linkedin.com/in/airzyalt-altacc-7994762b3/' },
@@ -30,9 +32,14 @@ const skills = {
   Other: ['SQL', 'Hugging Face', 'Roblox Game Development'],
 };
 
+// button not div, so the three scroll items take focus and fire on enter/space.
+// span not div because a button only takes phrasing content
+// symbol ids are the fa name minus the prefix, see icons.svg
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name.replace('fa-', '')}"/></svg>`;
+
 const navItem = n => n.href
-  ? `<a class="nav-item" href="${n.href}">${n.label} <div class="underline"></div></a>`
-  : `<div class="nav-item" onclick="${n.click}"> ${n.label} <div class="underline"></div> </div>`;
+  ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
+  : `<button class="nav-item" onclick="${n.click}">${n.label} <span class="underline"></span></button>`;
 
 // {phrase|color} is a phrase the page tints. the cli just drops the braces
 const colorize = l => l.replace(/\{([^|}]+)\|([^}]+)\}/g, '<span style="color: $2">$1</span>');
@@ -54,14 +61,17 @@ module.exports = {
   // the icons are inline with no margin, so the space between them is the gap. keep the join(' ')
   html: {
     socialIcons: socials
-      .map(s => `<a href="${s.url}" class="fa ${s.icon}" target="_blank"></a>`).join(' '),
+      .map(s => `<a href="${s.url}" class="fa" target="_blank" aria-label="${s.label}">${icon(s.icon)}</a>`).join(' '),
 
     socialLinks: socials
-      .map(s => `<a href="${s.url}" target="_blank"><i class="fa ${s.icon}"></i>${s.label}</a>`).join(' '),
+      .map(s => `<a href="${s.url}" target="_blank">${icon(s.icon)}${s.label}</a>`).join(' '),
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
     nav: nav.map(navItem).join(' '),
+
+    // inlined so the icons cost no request, replaces 108kb of cdn font awesome
+    icons: fs.readFileSync(__dirname + '/icons.svg', 'utf8').trim(),
 
     about: about.map(l => `<p>${colorize(l)}</p>`).join(''),
 
@@ -73,7 +83,6 @@ module.exports = {
 // node src/config/site.js
 if (require.main === module) {
   const a = require('assert');
-  const fs = require('fs');
   const html = fs.readFileSync(__dirname + '/../public/index.html', 'utf8');
 
   // every token the page asks for has to exist here, and every shape has to be used
@@ -88,9 +97,16 @@ if (require.main === module) {
   a.ok(module.exports.html.skills.includes('<li>Luau</li>'));
   a.ok(module.exports.html.skills.includes('<details>'));
   for (const n of nav) a.ok(module.exports.html.nav.includes(n.label));
+  a.ok(module.exports.html.nav.includes('<button class="nav-item"'), 'the click items have to be buttons');
+  a.ok(!module.exports.html.nav.includes('<div class="nav-item"'), 'a div is not keyboard reachable');
+  for (const s of socials) a.ok(module.exports.html.socialIcons.includes(`aria-label="${s.label}"`));
   a.ok(module.exports.html.copyright.includes(String(new Date().getFullYear())));
   a.ok(!module.exports.about.join(' ').match(/[{}|]/), 'braces leaked into the cli text');
   a.ok(module.exports.html.about.includes('color: #ffc300'));
+  for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon.replace('fa-', '')}"`), `sprite lost ${s.icon}`);
+  for (const m of html.matchAll(/#i-([a-z0-9-]+)/g)) a.ok(module.exports.html.icons.includes(`id="${m[0].slice(1)}"`), `sprite lost ${m[1]}`);
+  a.ok(module.exports.html.icons.includes('display:none'), 'hidden does nothing on an svg, without display none the sprite renders 300x150');
+  a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
   a.ok(html.includes('id="adapt"'), 'main.js animates this one, it stays in the page');
 
   console.log('site ok');
