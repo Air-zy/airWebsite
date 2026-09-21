@@ -1,24 +1,48 @@
 const path = require('path');
 const router = require('express').Router();
 
-const { isTerminal, card, uptime, quipOfTheDay, C } = require('./middleware/terminal.js');
+const { isTerminal, isAgent, text, card, quipOfTheDay, C } = require('./middleware/terminal.js');
 const { getProjects } = require('./ip_utils.js');
 const { getStatus } = require('../heartSystem/heart.js');
 const { getLastOnline } = require('../modules/myStatus/myStatus.js');
+const serverInfo = require('./middleware/serverInfo.js');
 const site = require('../config/site.js');
 
-// the page list is already declared once, in pagesRouter. read it back instead of keeping a second copy
+// pagesRouter already holds the page list, read it back instead of keeping a second copy
 const PAGES = require('./pagesRouter.js').stack.map(l => l.route?.path).filter(Boolean);
 
 const bullet = (k, v) => `  ${C.bold}${k.padEnd(14)}${C.off}${v}`;
-const heading = t => `${C.cyan}${t}${C.off}\n`;
+const heading = t => `${C.accent}${t}${C.off}\n`;
 
 // project text lines carry [label]("url") markup, flatten it for a terminal
 const unlink = s => s.replace(/\[([^\]]+)\]\("([^"]+)"\)/g, '$1 ($2)');
 
+const ago = iso => {
+  const m = Math.floor((Date.now() - Date.parse(iso)) / 60000);
+  const [n, unit] = m < 60 ? [m, 'min'] : m < 1440 ? [Math.floor(m / 60), 'hour'] : [Math.floor(m / 1440), 'day'];
+  return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
+};
+
+// github allows 60 anonymous calls an hour, so the answer is held for ten minutes
+let commit = null, commitAt = 0;
+async function lastCommit() {
+  if (commit && Date.now() - commitAt < 600000) return commit;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${site.repo}/commits?per_page=1`,
+      { headers: { 'User-Agent': 'airzy.ca' } });
+    const [c] = await res.json();
+    commit = `${c.commit.message.split('\n')[0]}  ${C.dim}${site.repo.split('/')[1]}, ${ago(c.commit.author.date)}${C.off}`;
+  } catch (e) {
+    console.error('[cli] github:', e.message);
+  }
+  commitAt = Date.now();
+  return commit;
+}
+
 const CMDS = {
   help: () => heading('commands') + Object.keys(CMDS).map(c => `  ${c}`).join('\n')
-    + `\n\n  ${C.dim}curl airzy.ca/cli/<command>${C.off}`,
+    + `\n\n  ${C.dim}curl airzy.ca/cli/<command>${C.off}`
+    + `\n  ${C.dim}curl airzy.ca  the animation, pick one with ?a=rain${C.off}`,
 
   about: () => heading('about')
     + ['  airzy turqueza, software developer', '', ...site.about.map(l => '  ' + l)].join('\n'),
@@ -50,8 +74,9 @@ const CMDS = {
     const last = await getLastOnline();
     const heart = getStatus();
     return heading('status') + [
-      bullet('last online', last ? `${last.minsAgo} mins ago` : 'unknown'),
-      bullet('uptime', uptime()),
+      bullet('last online', last ? ago(last.lastOn) : 'unknown'),
+      bullet('last commit', await lastCommit() || 'unknown'),
+      bullet('uptime', serverInfo.uptime()),
       bullet('heartbeat', `${heart.success}/${heart.total} ok${heart.lastError ? `, last error: ${heart.lastError}` : ''}`),
     ].join('\n');
   },
@@ -78,13 +103,16 @@ async function run(name, req) {
   return cmd(req);
 }
 
-router.get('/', (req, res) => {
-  if (isTerminal(req)) return res.type('text/plain; charset=utf-8').send(`\n${CMDS.motd(req)}\n\n`);
+router.get('/', async (req, res) => {
+  if (isTerminal(req) || isAgent(req)) return text(req, res, `${await CMDS.status()}\n\n${CMDS.help()}`);
   res.sendFile('/cli.html', { root: path.join(__dirname, '../dist') }); // browsers get a terminal to type in
 });
 
-router.get('/:cmd', async (req, res) =>
-  res.type('text/plain; charset=utf-8').send(`\n${await run(req.params.cmd, req)}\n\n`));
+// cliart.html seeds from this, so it always shows what is really shipped
+router.get('/art.png', (req, res) =>
+  res.sendFile('cliart.png', { root: path.join(__dirname, '../config') }));
+
+router.get('/:cmd', async (req, res) => text(req, res, await run(req.params.cmd, req)));
 
 module.exports = router;
 
@@ -98,6 +126,11 @@ if (require.main === module) {
   a.ok(CMDS.pages().includes('airzy.ca/c4'));
   a.match(unlink('see [my repo]("https://x.y")'), /my repo \(https:\/\/x\.y\)/);
   a.ok(CMDS.neofetch(req).includes('airzy turqueza'));
+
+  const iso = mins => new Date(Date.now() - mins * 60000).toISOString();
+  a.strictEqual(ago(iso(5)), '5 mins ago');
+  a.strictEqual(ago(iso(60)), '1 hour ago');
+  a.strictEqual(ago(iso(3000)), '2 days ago');
 
   run('nonsense', req).then(out => {
     a.match(out, /not a command/);

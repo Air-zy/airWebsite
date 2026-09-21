@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cliart editor</title>
+    <meta name="description" content="draw or import the 40x44 sprite the curl animation uses." />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        padding: 1rem;
+        min-height: 100vh;
+        box-sizing: border-box;
+        background: #0c0c0c;
+        color: #d0d0d0;
+        font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      h1 { font-size: 1rem; font-weight: 600; margin: 0 0 .2rem; color: #5ee6a8; }
+      .hint { color: #808080; margin: 0 0 1rem; }
+      .hint b { color: #d0d0d0; font-weight: 600; }
+
+      .wrap { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+      .bar { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; align-items: center; }
+
+      button, label.file {
+        border: 1px solid #2a2a2a; background: #161616; color: #d0d0d0;
+        padding: .3rem .6rem; border-radius: 3px; cursor: pointer; font: inherit;
+      }
+      button:hover, label.file:hover { border-color: #3d3d3d; }
+      button[aria-pressed="true"] { background: #5ee6a8; border-color: #5ee6a8; color: #0c0c0c; }
+      button:focus-visible, label.file:focus-within { outline: 2px solid #5ee6a8; outline-offset: 1px; }
+      input[type=color] { width: 2.2rem; height: 1.9rem; padding: 0; border: 1px solid #2a2a2a; background: #161616; cursor: pointer; }
+      input[type=file] { position: absolute; opacity: 0; width: 0; height: 0; }
+      label.chk { display: inline-flex; align-items: center; gap: .3rem; color: #808080; cursor: pointer; }
+      label.chk input { accent-color: #5ee6a8; }
+      select { border: 1px solid #2a2a2a; background: #161616; color: #d0d0d0; padding: .3rem .4rem; border-radius: 3px; font: inherit; cursor: pointer; }
+
+      /* alpha under 128 is not drawn, the checkerboard is what that looks like */
+      #pad {
+        image-rendering: pixelated; touch-action: none; cursor: crosshair;
+        width: min(480px, 88vw); aspect-ratio: 40 / 44; display: block;
+        background-color: #141414;
+        background-image:
+          linear-gradient(45deg, #1b1b1b 25%, transparent 25%, transparent 75%, #1b1b1b 75%),
+          linear-gradient(45deg, #1b1b1b 25%, transparent 25%, transparent 75%, #1b1b1b 75%);
+        background-size: 16px 16px; background-position: 0 0, 8px 8px;
+        border: 1px solid #2a2a2a;
+      }
+      #pad.drop { border-color: #5ee6a8; }
+
+      .side { min-width: 190px; }
+      .side h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: #808080; margin: 0 0 .4rem; font-weight: 600; }
+      #real { image-rendering: pixelated; width: 160px; aspect-ratio: 40 / 44; background: #000; border: 1px solid #2a2a2a; display: block; }
+      .swatches { display: flex; flex-wrap: wrap; gap: 3px; margin-top: .5rem; }
+      .swatches button { width: 18px; height: 18px; padding: 0; border-radius: 2px; }
+      #status { color: #808080; margin-top: .75rem; min-height: 1.5em; }
+      #status.bad { color: #e8a0a0; }
+    </style>
+  </head>
+  <body>
+    <h1>cliart editor</h1>
+    <p class="hint">the sprite behind <b>curl airzy.ca/cli</b>. drop an image to import. saves 40x44 rgba for <b>src/config/cliart.png</b>.</p>
+
+    <div class="wrap">
+      <div>
+        <div class="bar">
+          <button id="t-pen" aria-pressed="true">pen</button>
+          <button id="t-erase" aria-pressed="false">erase</button>
+          <button id="t-pick" aria-pressed="false">pick</button>
+          <button id="t-fill" aria-pressed="false">fill</button>
+          <input type="color" id="colour" value="#e4e6d8" aria-label="colour" />
+          <button id="undo">undo</button>
+          <button id="clear">clear</button>
+          <label class="file">import<input type="file" id="file" accept="image/*" /></label>
+          <select id="reduce" aria-label="reduce colours">
+            <option value="">reduce to...</option>
+            <option value="4">4 colours</option>
+            <option value="8">8 colours</option>
+            <option value="12">12 colours</option>
+            <option value="16">16 colours</option>
+            <option value="24">24 colours</option>
+          </select>
+          <label class="chk"><input type="checkbox" id="dither" /> dither</label>
+          <button id="save">save png</button>
+        </div>
+        <canvas id="pad" width="40" height="44"></canvas>
+      </div>
+
+      <div class="side">
+        <h2>actual size</h2>
+        <canvas id="real" width="40" height="44"></canvas>
+        <h2 style="margin-top:1rem">colours</h2>
+        <div class="swatches" id="swatches"></div>
+        <p id="status"></p>
+      </div>
+    </div>
+
+    <script>
+      const W = 40, H = 44;
+      const pad = document.getElementById('pad');
+      const ctx = pad.getContext('2d', { willReadFrequently: true });
+      const real = document.getElementById('real').getContext('2d');
+      const colour = document.getElementById('colour');
+      const status = document.getElementById('status');
+      const undoStack = [];
+      let tool = 'pen';
+
+      const say = (msg, bad) => { status.textContent = msg; status.classList.toggle('bad', !!bad); };
+      const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+      const rgb2hex = (r, g, b) => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+
+      function mirror() {
+        real.clearRect(0, 0, W, H);
+        real.drawImage(pad, 0, 0);
+        const d = ctx.getImageData(0, 0, W, H).data;
+        const seen = new Map();
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 128) continue;
+          const k = rgb2hex(d[i], d[i + 1], d[i + 2]);
+          seen.set(k, (seen.get(k) || 0) + 1);
+        }
+        const box = document.getElementById('swatches');
+        box.textContent = '';
+        [...seen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24).forEach(([k, n]) => {
+          const b = document.createElement('button');
+          b.style.background = k;
+          b.title = k + ' (' + n + 'px)';
+          b.onclick = () => { colour.value = k; };
+          box.append(b);
+        });
+      }
+
+      function push() {
+        undoStack.push(ctx.getImageData(0, 0, W, H));
+        if (undoStack.length > 40) undoStack.shift();
+      }
+
+      const at = e => {
+        const r = pad.getBoundingClientRect();
+        return [
+          Math.floor((e.clientX - r.left) / r.width * W),
+          Math.floor((e.clientY - r.top) / r.height * H),
+        ];
+      };
+
+      function paint(x, y) {
+        if (x < 0 || y < 0 || x >= W || y >= H) return;
+        if (tool === 'erase') { ctx.clearRect(x, y, 1, 1); return; }
+        if (tool === 'pick') {
+          const p = ctx.getImageData(x, y, 1, 1).data;
+          if (p[3] >= 128) colour.value = rgb2hex(p[0], p[1], p[2]);
+          return;
+        }
+        if (tool === 'fill') { flood(x, y); return; }
+        ctx.fillStyle = colour.value;
+        ctx.fillRect(x, y, 1, 1);
+      }
+
+      // 40x44 is small enough that the plain queue is instant
+      function flood(sx, sy) {
+        const img = ctx.getImageData(0, 0, W, H), d = img.data;
+        const at4 = (x, y) => (y * W + x) * 4;
+        const start = at4(sx, sy);
+        const target = [d[start], d[start + 1], d[start + 2], d[start + 3]];
+        const [r, g, b] = hex2rgb(colour.value);
+        if (target[3] >= 128 && target[0] === r && target[1] === g && target[2] === b) return;
+        const same = i => (d[i + 3] < 128 && target[3] < 128) ||
+          (d[i + 3] >= 128 && target[3] >= 128 && d[i] === target[0] && d[i + 1] === target[1] && d[i + 2] === target[2]);
+        const queue = [[sx, sy]];
+        while (queue.length) {
+          const [x, y] = queue.pop();
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          const i = at4(x, y);
+          if (!same(i)) continue;
+          d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+          queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+
+      let drawing = false;
+      pad.addEventListener('pointerdown', e => {
+        push();
+        drawing = tool !== 'pick' && tool !== 'fill';
+        pad.setPointerCapture(e.pointerId);
+        paint(...at(e));
+        mirror();
+      });
+      pad.addEventListener('pointermove', e => { if (drawing) { paint(...at(e)); mirror(); } });
+      addEventListener('pointerup', () => { drawing = false; });
+
+      for (const name of ['pen', 'erase', 'pick', 'fill']) {
+        document.getElementById('t-' + name).onclick = () => {
+          tool = name;
+          for (const o of ['pen', 'erase', 'pick', 'fill'])
+            document.getElementById('t-' + o).setAttribute('aria-pressed', String(o === name));
+        };
+      }
+
+      document.getElementById('undo').onclick = () => {
+        const prev = undoStack.pop();
+        if (!prev) return say('nothing to undo');
+        ctx.putImageData(prev, 0, 0); mirror(); say('');
+      };
+      document.getElementById('clear').onclick = () => {
+        push(); ctx.clearRect(0, 0, W, H); mirror(); say('');
+      };
+
+      // right size goes in untouched, anything else is fitted whole, no smoothing
+      function load(src, quiet) {
+        const img = new Image();
+        img.onload = () => {
+          push();
+          ctx.clearRect(0, 0, W, H);
+          ctx.imageSmoothingEnabled = false;
+          if (img.width === W && img.height === H) {
+            ctx.drawImage(img, 0, 0);
+            say('');
+          } else {
+            const s = Math.min(W / img.width, H / img.height);
+            const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+            ctx.drawImage(img, Math.floor((W - w) / 2), Math.floor((H - h) / 2), w, h);
+            say(img.width + 'x' + img.height + ' scaled to ' + w + 'x' + h);
+          }
+          mirror();
+        };
+        img.onerror = () => { if (!quiet) say('not a readable image', true); };
+        img.src = src;
+      }
+
+      const readFile = f => {
+        if (!f || !f.type.startsWith('image/')) return say('not an image', true);
+        const r = new FileReader();
+        r.onload = () => load(r.result);
+        r.readAsDataURL(f);
+      };
+
+      document.getElementById('file').onchange = e => readFile(e.target.files[0]);
+      for (const ev of ['dragenter', 'dragover']) {
+        pad.addEventListener(ev, e => { e.preventDefault(); pad.classList.add('drop'); });
+      }
+      for (const ev of ['dragleave', 'drop']) {
+        pad.addEventListener(ev, e => { e.preventDefault(); pad.classList.remove('drop'); });
+      }
+      pad.addEventListener('drop', e => readFile(e.dataTransfer.files[0]));
+
+      // median cut over the distinct colours, each carrying its pixel count, so splits are
+      // never spent subdividing one flat colour. beats keeping the most used by about 4x
+      // ponytail: no dithering, it reads as noise at 40x44
+      function reduce(n) {
+        const img = ctx.getImageData(0, 0, W, H), d = img.data;
+        const tally = new Map();
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 128) continue;
+          const k = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+          tally.set(k, (tally.get(k) || 0) + 1);
+        }
+        if (!tally.size) return say('nothing to reduce');
+        if (tally.size <= n) return say('already ' + tally.size + ' colours');
+
+        let boxes = [[...tally].map(([k, c]) => [(k >> 16) & 255, (k >> 8) & 255, k & 255, c])];
+        while (boxes.length < n) {
+          let pick = -1, widest = -1, axis = 0;
+          boxes.forEach((b, i) => {
+            if (b.length < 2) return;
+            for (let ch = 0; ch < 3; ch++) {
+              let lo = 255, hi = 0;
+              for (const p of b) { if (p[ch] < lo) lo = p[ch]; if (p[ch] > hi) hi = p[ch]; }
+              if (hi - lo > widest) { widest = hi - lo; pick = i; axis = ch; }
+            }
+          });
+          if (pick < 0 || widest <= 0) break;
+          const b = boxes[pick];
+          b.sort((u, v) => u[axis] - v[axis]);
+          const half = b.reduce((s, p) => s + p[3], 0) / 2;
+          let run = 0, cut = 1;
+          for (let i = 0; i < b.length - 1; i++) { run += b[i][3]; if (run >= half) { cut = i + 1; break; } }
+          boxes.splice(pick, 1, b.slice(0, cut), b.slice(cut));
+        }
+        const pal = boxes.filter(b => b.length).map(b => {
+          let w = 0; const sum = [0, 0, 0];
+          for (const p of b) { sum[0] += p[0] * p[3]; sum[1] += p[1] * p[3]; sum[2] += p[2] * p[3]; w += p[3]; }
+          return sum.map(v => Math.round(v / w));
+        });
+
+        // eyes weight green heaviest, so flat rgb distance picks the wrong match
+        const far = (p, c) => 0.3 * (p[0] - c[0]) ** 2 + 0.59 * (p[1] - c[1]) ** 2 + 0.11 * (p[2] - c[2]) ** 2;
+        const dither = document.getElementById('dither').checked;
+
+        // floyd steinberg carries each pixel's rounding error into the neighbours it has not
+        // reached yet, so a flat area breaks into a mix that averages out to the right colour
+        const buf = new Float32Array(W * H * 3);
+        for (let i = 0, j = 0; i < d.length; i += 4, j += 3) { buf[j] = d[i]; buf[j + 1] = d[i + 1]; buf[j + 2] = d[i + 2]; }
+        const bleed = (x, y, err, k) => {
+          if (x < 0 || x >= W || y >= H) return;
+          if (d[(y * W + x) * 4 + 3] < 128) return;
+          const j = (y * W + x) * 3;
+          buf[j] += err[0] * k; buf[j + 1] += err[1] * k; buf[j + 2] += err[2] * k;
+        };
+
+        push();
+        const used = new Set();
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4, j = (y * W + x) * 3;
+          if (d[i + 3] < 128) continue;
+          const p = [
+            Math.max(0, Math.min(255, buf[j])),
+            Math.max(0, Math.min(255, buf[j + 1])),
+            Math.max(0, Math.min(255, buf[j + 2])),
+          ];
+          let best = pal[0], score = far(p, pal[0]);
+          for (const c of pal) { const v = far(p, c); if (v < score) { score = v; best = c; } }
+          d[i] = best[0]; d[i + 1] = best[1]; d[i + 2] = best[2];
+          used.add(best.join());
+          if (!dither) continue;
+          const err = [p[0] - best[0], p[1] - best[1], p[2] - best[2]];
+          bleed(x + 1, y, err, 7 / 16);
+          bleed(x - 1, y + 1, err, 3 / 16);
+          bleed(x, y + 1, err, 5 / 16);
+          bleed(x + 1, y + 1, err, 1 / 16);
+        }
+        ctx.putImageData(img, 0, 0);
+        mirror();
+        say(tally.size + ' colours down to ' + used.size + (dither ? ', dithered' : ''));
+      }
+
+      document.getElementById('reduce').onchange = e => {
+        if (e.target.value) reduce(+e.target.value);
+        e.target.value = '';
+      };
+
+      document.getElementById('save').onclick = () => {
+        pad.toBlob(b => {
+          const url = URL.createObjectURL(b);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'cliart.png';
+          a.click();
+          URL.revokeObjectURL(url);
+          say('saved');
+        }, 'image/png');
+      };
+
+      load('/cli/art.png', true);
+      mirror();
+    </script>
+  </body>
+</html>

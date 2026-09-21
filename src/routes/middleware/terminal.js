@@ -1,19 +1,21 @@
 const serverInfo = require('./serverInfo.js');
 const { getIP } = require('../ip_utils.js');
+const { animate, hex } = require('../cliAnim.js');
+const site = require('../../config/site.js');
 
-// curl, wget and friends. powershells curl is Invoke-WebRequest and sends a Mozilla UA, so it misses on purpose
-const TERMINAL_UA = /^(curl|wget|httpie|xh|fetch|lwp-request|libwww-perl|python-requests|go-http-client)/i;
+// powershells curl is Invoke-WebRequest and sends a Mozilla UA, so it misses on purpose
+const TERMINAL_UA = /^(curl|wget|httpie|xh|fetch|lwp-request|libwww-perl)/i;
 
-const C = { cyan: '\x1b[36m', dim: '\x1b[2m', bold: '\x1b[1m', pink: '\x1b[95m', off: '\x1b[0m' };
+// anthropic, openai and perplexity publish the first group, the second is any http library left on its default
+const AGENT_UA = /(claude|gptbot|chatgpt-user|oai-searchbot|anthropic|perplexity|cursor|codex|copilot)|^(node|undici|axios|got|okhttp|deno|bun|python-requests|go-http-client)/i;
 
-const BANNER = [
-  "        _                   ",
-  "  __ _ (_) _ __  ____ _   _ ",
-  " / _` || || '__||_  /| | | |",
-  "| (_| || || |    / / | |_| |",
-  " \\__,_||_||_|   /___| \\__, |",
-  "                       |___/ ",
-].join('\n');
+// an agent reads escape codes back as text
+const plain = s => s.replace(/\x1b\[[0-9;]*m/g, '');
+
+const C = {
+  cyan: '\x1b[36m', dim: '\x1b[2m', bold: '\x1b[1m', pink: '\x1b[95m', off: '\x1b[0m',
+  accent: `\x1b[38;2;${hex(site.accent).join(';')}m`,
+};
 
 const QUIPS = [
   'hehe you curled me',
@@ -36,45 +38,47 @@ const CLI_HINT = `  the rest of the site runs in here too
     ${C.cyan}curl airzy.ca/cli${C.off}
 `;
 
-const pad = n => String(n).padStart(2, '0');
-function uptime() {
-  const s = Math.floor(process.uptime());
-  return `${Math.floor(s / 3600)}h ${pad(Math.floor(s / 60) % 60)}m ${pad(s % 60)}s`;
-}
-
-// a shell asked for this, not a browser. Accept text/html is the opt out
+// Accept text/html is the opt out
 function isTerminal(req) {
   return TERMINAL_UA.test(req.headers['user-agent'] || '')
     && !(req.headers.accept || '').includes('text/html');
 }
 
-// hint is empty when the caller is already inside /cli, nothing to point at from there
+// no accept check, an agent asks for html and still cannot use it
+const isAgent = req => AGENT_UA.test(req.headers['user-agent'] || '');
+
+const text = (req, res, body) => {
+  const out = `\n${body}\n\n`;
+  res.type('text/plain; charset=utf-8').send(isAgent(req) ? plain(out) : out);
+};
+
+// callers already inside /cli pass an empty hint
 function card(req, quip = randomQuip(), hint = CLI_HINT) {
   return `
-${C.cyan}${BANNER}${C.off}
   ${C.pink}${quip}${C.off}
 
   airzy turqueza, monolith personal site on node and express
 
   ${C.bold}you${C.off}      ${getIP(req) || '???'}
-  ${C.bold}uptime${C.off}   ${uptime()}
+  ${C.bold}uptime${C.off}   ${serverInfo.uptime()}
   ${C.bold}served${C.off}   ${serverInfo.requestsReceived} requests
 
 ${hint}
-  ${C.dim}source: github.com/Air-zy/airWebsite${C.off}
+  ${C.dim}source: github.com/${site.repo}${C.off}
 
 `;
 }
 
-// / and /home only, every other route stays machine readable
 const middleware = (req, res, next) => {
   if (req.path !== '/' && req.path !== '/home') return next();
-  if (!isTerminal(req)) return next();
 
-  res.type('text/plain; charset=utf-8').send(card(req));
+  if (isTerminal(req)) return animate(req, res);
+  // only the blank lines, trim would take the indent with them
+  if (isAgent(req)) return text(req, res, card(req).replace(/^\n+|\n+$/g, ''));
+  next();
 };
 
-module.exports = { isTerminal, card, uptime, quipOfTheDay, C, middleware };
+module.exports = { isTerminal, isAgent, text, card, quipOfTheDay, C, middleware };
 
 // ip_utils drags in firebase, so this needs the env file: node --env-file=.env src/routes/middleware/terminal.js
 if (require.main === module) {
@@ -82,8 +86,8 @@ if (require.main === module) {
   const hit = (ua, accept, path = '/') => {
     let passed = false;
     middleware(
-      { path, headers: { 'user-agent': ua, accept } },
-      { type() { return this; }, send() {} },
+      { path, query: {}, headers: { 'user-agent': ua, accept } },
+      { type() { return this; }, set() { return this; }, write() {}, send() {}, end() {}, on() {} },
       () => (passed = true)
     );
     return !passed;
@@ -95,6 +99,12 @@ if (require.main === module) {
   a.ok(!hit('Mozilla/5.0 (Windows NT 10.0) Chrome', '*/*')); // browser with a weird accept
   a.ok(!hit('curl/8.4.0', '*/*', '/api/logs'));              // only the homepage
   a.ok(!hit(undefined, undefined));
+
+  a.ok(hit('Claude-User/1.0; +Anthropic-AI', 'text/html'));
+  a.ok(hit('node', '*/*'));
+  a.ok(hit('GPTBot/1.2', 'text/html'));
+  a.ok(!hit('Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0 Safari/537.36', 'text/html'));  // a real browser
+  a.strictEqual(plain(`${C.accent}hi${C.off}`), 'hi');
 
   // the days quip holds still, the homepage one does not
   a.strictEqual(quipOfTheDay(), quipOfTheDay());
