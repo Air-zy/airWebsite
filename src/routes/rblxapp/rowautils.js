@@ -15,8 +15,7 @@ async function getThumb(userid) {
     });
     if (!rbxApiRes.ok) return null;
 
-    // this returns a long running operation. it comes back done in practice, but if it
-    // ever does not there is no response object and the old code threw on it.
+    // long running operation, no response object until its done
     const data = await rbxApiRes.json();
     const imageUri = data && data.response && data.response.imageUri;
     if (!imageUri) return null;

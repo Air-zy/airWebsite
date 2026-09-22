@@ -6,7 +6,7 @@
   <title>Edit Projects</title>
 
   <!-- same fonts and theme as the homepage so the preview is honest -->
-  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/fonts.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
   <link rel="stylesheet" href="css/main.css" />
 
@@ -344,8 +344,7 @@
       statusEl = document.getElementById('status');
       await loadCardStyles();
 
-      // page is open to anyone, play with it all you like.
-      // saving is the only gated part and the server enforces that, this is just the affordance.
+      // open to anyone, the server gates saving
       let me = null;
       try {
         const res = await fetch('/auth/me');

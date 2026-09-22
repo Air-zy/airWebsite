@@ -21,7 +21,7 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none; /* Ensures this container doesn't interfere with interactions */
-  z-index: 10; /* Adjust as needed to ensure it's above other content */
+  z-index: 10;
 }
 
 #token {
@@ -139,7 +139,7 @@ body {
 #Controll label {
   background: none;
 
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white; /* Sets the font color to white */
 
@@ -156,7 +156,7 @@ body {
   box-shadow: none; /* Ensure no inset shadows are applied */
   border: none;
 
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
 
@@ -173,7 +173,7 @@ body {
   box-shadow: none;
   border: none;
   
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
   
@@ -253,10 +253,10 @@ body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 14px; /* Adjust font size as needed */
-  font-family: "Montserrat";
+  font-size: 14px;
+  font-family: Minecraft, sans-serif;
   font-weight: bold;
-  color: #000000; /* Adjust text color as needed */
+  color: #000000;
   user-select: none;
 }
 

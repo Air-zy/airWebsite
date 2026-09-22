@@ -4,13 +4,13 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Leaderboards Image</title>
-  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+  <link rel="stylesheet" href="/css/fonts.css" />
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     body {
       margin: 0; padding: 0;
       background: #111; color: #eee;
-      font-family: "Montserrat", sans-serif;
+      font-family: Minecraft, sans-serif;
       display: flex; justify-content: center; align-items: center;
       height: 100vh;
     }
@@ -53,9 +53,7 @@
       console.log(`[Leaderboards] ${msg}`, ...args);
     }
 
-    // one batched request. firing ~90 parallel single lookups tripped the sites own
-    // rate limiter (30 per 30s) and most of them came back empty, which is why the
-    // board used to show raw user ids.
+    // one batched request, ~90 single lookups trip the sites own rate limiter
     async function getNames(ids) {
       try {
         const res = await fetch('/api/roblox-users', {

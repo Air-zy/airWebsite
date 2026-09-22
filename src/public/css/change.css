@@ -58,7 +58,7 @@ body {
   background: none;
   background-color: #292929;
   
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
   
@@ -86,7 +86,7 @@ body {
   box-shadow: none;
   border: none;
 
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
 
@@ -103,7 +103,7 @@ body {
   box-shadow: none;
   border: none;
 
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
 
@@ -120,7 +120,7 @@ body {
   box-shadow: none;
   border: none;
 
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
 
@@ -143,7 +143,7 @@ body {
   background: none;
   background-color: #292929;
   
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
   
@@ -156,7 +156,7 @@ body {
 .deleteButton {
     min-width: 50px;
     margin-left: 10px;
-    font-family: "Montserrat";
+    font-family: Minecraft, sans-serif;
     background: none;
     color: white;
     border: none;

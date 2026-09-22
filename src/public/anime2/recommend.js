@@ -6,8 +6,7 @@ function uToArray(emb) {
   return keys.map(k => emb.u[k] ?? 0);
 }
 
-// Optional: apply an importance weighting across dimensions (simulates Σ)
-// If you actually have per-dimension sigma array, pass it in opts.sigmas
+// optional per dimension weighting (simulates Σ) via opts.sigmas
 function applyDimWeights(vec, opts = {}) {
   const d = vec.length;
   const out = new Array(d);

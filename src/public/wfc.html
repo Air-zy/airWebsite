@@ -95,8 +95,7 @@
       drawSampleGrid();
     });
 
-    // ---------- Pattern Extraction and Compatibility ----------
-    // Extract all overlapping patterns (tiles) of given size from the sample grid.
+    // every overlapping tileSize patch of the sample
     function extractPatterns(tileSize) {
       const patterns = {};
       // For every possible top-left cell of a tile:
@@ -126,9 +125,7 @@
       return patternArray;
     }
 
-    // Compute which patterns can neighbor each other.
-    // For each pattern, we list (for each direction) the indices of patterns that are compatible.
-    // Directions: up, right, down, left.
+    // per pattern and direction (up, right, down, left), the patterns allowed next to it
     function computeCompatibility(patterns, tileSize) {
       const compatibility = [];
       for (let i = 0; i < patterns.length; i++) {
@@ -180,9 +177,7 @@
       return compatibility;
     }
 
-    // ---------- Wave Function Collapse Algorithm ----------
-    // This simplified version sets up an output grid where each cell holds a list of possible pattern indices.
-    // It then repeatedly collapses the cell with the lowest number of options and propagates constraints.
+    // collapse the cell with the fewest options, propagate, repeat
     function runWFC(tileSize, outWidth, outHeight, patterns, compatibility) {
       const numPatterns = patterns.length;
       // Initialize the output grid.
@@ -223,11 +218,7 @@
         return options[options.length - 1];
       }
 
-      // Propagate constraints from a recently collapsed cell.
-      // For a neighbor in a given direction, we require that its candidate pattern x
-      // be such that, from x’s perspective, the already-collapsed neighbor (in the opposite position)
-      // is allowed. For example, if the neighbor is above (direction "up" from it),
-      // then from x’s perspective (with the collapsed cell below), x must allow that cell below.
+      // a neighbor keeps pattern x only if x allows the collapsed cell from the opposite side
       const queue = [];
       function propagate() {
         while (queue.length > 0) {

@@ -1,7 +1,6 @@
 const zlib = require('zlib');
 const { getFirestore, getApp } = require('./firebaseUtils');
 
-// moved here cuz ts the only one using it
 // todo maybe use gzipSync insteaad of aall of this lmao
 function gunzipAsync(buffer) {
   return new Promise((resolve, reject) => {
@@ -155,8 +154,6 @@ async function commitAnime(animeMap) {
 
   if (animeRef) {
     const animeObj = Object.fromEntries(animeMap);
-    //const jsonData = JSON.stringify(animeObj);
-    //const compressedData = bzip2.compress(jsonData);
     const compressedData = zlib.gzipSync(JSON.stringify(animeObj));
     const base64CompressedData = compressedData.toString('base64');
 
@@ -189,8 +186,6 @@ async function firedbRobloxGet() {
   return snap.data();
 }
 
-// took no argument before and wrote a bare `rblxdata` that was never defined,
-// so every push threw ReferenceError into the catch and nothing was ever saved
 async function firedbRobloxSave(rblxdata) {
   if (!robloxRef) {
     robloxRef = firedb.doc("rblx");

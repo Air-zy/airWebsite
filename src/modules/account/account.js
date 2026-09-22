@@ -23,7 +23,7 @@ class Account {
 
     //
 
-    // doc id is the source of truth for uid, the field used to be written as null
+    // doc id is the uid, older docs have the field as null
     static fromData(data, id) {
         const acc = new Account(data.name, data.email);
         acc.uid = Number(id);

@@ -51,7 +51,6 @@ app.set('trust proxy', 1);
 
 app.use(require('./routes/middleware/ratelimit.js').clientLimiter);
 app.use(require('./routes/middleware/reqLogger.js'));
-//app.use(express.json({ limit: '4mb' })); if the anime map too big bruh
 app.use(express.json());
 
 const compression = require('compression');
@@ -94,5 +93,3 @@ app.use((err, req, res, next) => {
 const server = app.listen(PORT, () => {
   console.log(`[Server] running on port ${PORT}`);
 });
-
-//require('./firebase/firebasedb2.js');

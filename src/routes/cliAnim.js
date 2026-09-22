@@ -123,8 +123,7 @@ const spans = line => line.split(/(\{[^|}]+\|[^}]+\})/).filter(Boolean).map(part
 
 const visible = line => spans(line).reduce((n, s) => n + s[0].length, 0);
 
-// pane row -> line, the rows left out are the spacing. the you/uptime/served
-// stats live in /cli now
+// pane row -> line, the rows left out are the spacing
 const LINES = [
   [7,  `{airzy.ca|${ACCENT}}`],
   [9,  'i write code and build games for fun.'],

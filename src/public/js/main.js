@@ -20,26 +20,18 @@ function toggleLightMode() {
 applyTheme(localStorage.getItem('lightMode') === 'true');
 
 
-function menuTrigger(menuIcon) {
-  menuIcon.classList.toggle("active");
+const sideBar = document.getElementById('side-bar');
+const menuIcon = document.querySelector('.menu-icon');
 
-  const overlay = document.getElementById("side-bar");
-  overlay.classList.toggle("open");
-
-  localStorage.setItem("sidebarOpen", overlay.classList.contains("open"));
+// every open and close goes through here so the icon and aria never drift from the sidebar
+function setSidebar(open) {
+  sideBar.classList.toggle('open', open);
+  menuIcon.classList.toggle('active', open);
+  menuIcon.setAttribute('aria-expanded', open);
 }
 
-function updateSidebarState() {
-  const overlay = document.getElementById("side-bar");
-  if (localStorage.getItem("sidebarOpen") === "true") {
-    overlay.classList.add("open");
-    const menuIcon = document.querySelector(".menu-icon"); // replace with the actual selector
-    if (menuIcon) {
-      menuIcon.classList.add("active");
-    }
-  } else {
-    overlay.classList.remove("open");
-  }
+function menuTrigger() {
+  setSidebar(!sideBar.classList.contains('open'));
 }
 
 function lerpString(initial, final, t) {
@@ -57,42 +49,35 @@ function lerpString(initial, final, t) {
   return result;
 }
 
-/*toggleLightMode()*/
-updateSidebarState();
-
 document.addEventListener("DOMContentLoaded", function () {
   const name = document.getElementById("airzy");
 
-  const targetText = "Airzy";
-  const characters = "αβγδεζηθικλμνξοπρστυφχψωπ";
-  let currentText = " ".repeat(5);
-  name.innerText = currentText;
+  // the letter sits behind the box from the start, so nothing reflows as it resolves
+  const cells = [..."Airzy"].map((ch) => {
+    const cell = document.createElement("span");
+    cell.className = "cell block";
+    cell.textContent = ch;
+    name.appendChild(cell);
+    return cell;
+  });
 
+  const FLASHES = 3;
   let index = 0;
-  let count = 0;
+  let flashes = 0;
 
   const interval = setInterval(() => {
-    if (count < 2) {
-      currentText =
-        currentText.substring(0, index) +
-        characters.charAt(Math.floor(Math.random() * characters.length)) +
-        currentText.substring(index + 1);
-      name.innerText = currentText;
-      count++;
-    } else {
-      currentText =
-        currentText.substring(0, index) +
-        targetText.charAt(index) +
-        currentText.substring(index + 1);
-      name.innerText = currentText;
-      index++;
-      count = 0;
-    }
+    cells[index].classList.toggle("block");
 
-    if (index >= targetText.length) {
+    if (++flashes < FLASHES) return;
+
+    cells[index].classList.remove("block");
+    flashes = 0;
+    index++;
+
+    if (index >= cells.length) {
       setTimeout(() => {
         name.classList.add("glow");
-        handleSections()
+        handleSections();
       }, 400);
       clearInterval(interval);
     }
@@ -234,10 +219,8 @@ async function reloadProjects() {
     }, index * 100));
 
   } catch (error) {
-    let errorMessage = 'Failed to fetch projects: ' + String(error);
-    const container = document.getElementById('projects');
-    container.innerHTML = errorMessage;
-    alert(errorMessage);
+    // textContent, a json parse error quotes the html it choked on and innerHTML would try to render it
+    document.getElementById('projects').textContent = 'Failed to fetch projects: ' + String(error);
   }
 }
 
@@ -323,7 +306,6 @@ mainContentElm.addEventListener("scroll", function () {
   }
 
   if ((scrollHeight - scrollTop) < 2000 && canLoadContent) {
-    //fetch('intro.html')
     if (!projectsLoaded) {
       console.log("LOAD")
       loadProjects()
@@ -384,19 +366,16 @@ mainContentElm.addEventListener("scroll", function () {
         const mainEmailP = document.getElementById("main-email")
         mainEmailP.textContent = "failed to validate human"
         console.log("user validate:", error);
-        //alert(error)
       });
 
     fetch('/api/status/lastOnline').then(response => response.json())
       .then(data => {
         const mainLastOnline = document.getElementById("main-last-on");
         mainLastOnline.innerText = `last online: ${data.minsAgo} mins ago`;
-        //console.log(data)
       })
   }
 
   handleSections()
-  //console.log(`main scrollTop: ${scrollTop}px`);
 });
 
 /* ---- */
@@ -407,7 +386,7 @@ async function toResources() {
     await loadProjects();
   }
   document.getElementById('projects').scrollIntoView({ block: 'center' });
-  document.getElementById("side-bar").classList.remove("open");
+  setSidebar(false);
 }
 
 async function toAirzy() {
@@ -415,7 +394,7 @@ async function toAirzy() {
     await loadIntro();
   }
   document.getElementById('intro-section').scrollIntoView({ block: 'center' });
-  document.getElementById("side-bar").classList.remove("open");
+  setSidebar(false);
 }
 
 async function toContact() {
@@ -435,7 +414,7 @@ async function toContact() {
   requestAnimationFrame(lerpColor);
 
   contactFrame.scrollIntoView({ block: 'center' });
-  document.getElementById("side-bar").classList.remove("open");
+  setSidebar(false);
 }
 
 function openChat() {

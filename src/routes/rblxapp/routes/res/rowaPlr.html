@@ -322,7 +322,7 @@
       </main>
     </div>
   </div>
-  <p class="small-p">© 2024 Airzy Turqueza.</p>
+  <p class="small-p">© 2024 Airzy</p>
   <script>
     (async function () {
       const segments = location.pathname.split('/').filter(Boolean);
@@ -707,26 +707,6 @@
           ctx.textAlign = 'center';
           ctx.fillText('Visualization error', canvas.clientWidth / 2, canvas.clientHeight / 2);
         }
-
-        /* Slots are not zstd compressed so must be descompressed...
-        slots.innerHTML = '';
-        (plrData.slots || []).forEach((s, i) => {
-          const name = esc(s[0] || `Slot ${i + 1}`);
-          const sSeed = esc(s[1] ?? '—');
-          const first = fmtDate(s[3]?.first);
-          const sElo = esc(s[5] ?? '—'), sW = s[6] ?? 0, sL = s[7] ?? 0;
-          slots.innerHTML += `
-        <div class="slot">
-          <h3>${name}</h3>
-          <div class="row">
-            <div class="kv"><div class="sm">SEED</div><div class="value">${sSeed}</div></div>
-            <div class="kv"><div class="sm">FIRST</div><div class="value">${first}</div></div>
-            <div class="kv"><div class="sm">ELO</div><div class="value">${sElo}</div></div>
-            <div class="kv"><div class="sm">WON</div><div class="value">${sW}</div></div>
-            <div class="kv"><div class="sm">LOST</div><div class="value">${sL}</div></div>
-          </div>
-        </div>`;
-        });*/
 
         // plrStats
         (function renderPlrStats() {

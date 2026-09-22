@@ -123,7 +123,6 @@ async function formRecomendations(id) {
   try {
     const response = await myCustomGet(mainAPIURL + "/anime/" + id + "/recommendations");
     response.data.slice(0, 4).forEach((recom) => { // only first 4
-    //response.data.forEach((recom) => {
       recomList.push({ mal_id: recom.entry.mal_id, votes: recom.votes, name: recom.entry.title });
     });
   } catch (err) {
@@ -164,7 +163,6 @@ function drawGraph() {
 
   // init random pos
   nodes.forEach(function(node) {
-    //const seed = node.id;
     const seed = stringToSeed(node.color) + node.id%2;
     node.x = seededRandom(seed) * width; 
     node.y = seededRandom(seed + 1) * height; 
@@ -321,8 +319,6 @@ function visualize() {
   
   try {
     const animeMapString = JSON.stringify(Array.from(animeMap.entries()));
-    //localStorage.setItem('animeMap', animeMapString); // save to local storage
-    //console.log(animeMap)
     
     if (animeMapString === lastAnimeMapString) {
       lastAnimeMapString = animeMapString;
@@ -340,7 +336,6 @@ function visualize() {
   links = [];
   
   animeMap.forEach((pair, mal_id) => {
-  //[...animeMap].slice(0, 20000).forEach(([mal_id, pair]) => {
     const anime = pair.anime;
 
     const recomCount = pair.recoms.length;
@@ -412,7 +407,6 @@ async function addAnime(anime) {
       (anime.year >= 2020 && anime.members >= 100000)
     ) {
     } else {
-      //console.warn(`ignore [${getAnimeName(anime)}]`)
       return; // aired 2020 or earlier and good member count
     }
   }
@@ -428,8 +422,6 @@ async function addAnime(anime) {
   
   await sleep(speedMS);
   const recoms = await formRecomendations(anime.mal_id)
-  
-  //console.log([...anime.genres, ...anime.themes].map(({ name }) => ({ name })))
   
   const newAnime = {
     "mal_id": anime.mal_id,
@@ -447,8 +439,6 @@ async function addAnime(anime) {
 let selfGenElm = document.getElementById("sgen")
 async function animesNow(mpage) {
   const params = {
-    //filter: 'favorite',
-    //rating: 'r',
     sfw: false,
     limit: 25,
     page: mpage,
@@ -556,10 +546,6 @@ async function animesTopPg13(mpage) {
     await animesTopPg13(mpage); // retry
   }
 }
-
-/*
-const recoms = await formRecomendations(57334)
-*/
 
 let started = false
 async function start() {
@@ -737,7 +723,6 @@ function getConnectedAnimes(malIds) {
           let pair2 = bidirectionalAnimeMap.get(recommendation.mal_id)
           if (pair2 && pair2.recoms) {
             recomCount2 = Math.min(pair2.recoms.length, 16)*(10-pair2.anime.score)*animeScoreStrength // the higher the math.min will make it so it punishes popularly recomended/big animes
-            //console.log(pair2.anime.year, getAnimeName(pair2.anime))
             if (pair2.anime.year && pair2.anime.year <= punishYearsLessThan && pair2.anime.popularity > 400) {
               recomCount2 *= 2 // punish older animes
             }
@@ -754,9 +739,6 @@ function getConnectedAnimes(malIds) {
           let genreDiff = 0;
           if (pair2) {
             pair2.anime.genres.forEach(genre => {
-              //if (allGenres[genre.name] > genreMult) {
-                //genreMult = allGenres[genre.name]
-              //}
               if (allGenres[genre.name] == 1) { // off
                 genreDiff--;
               } else {
@@ -775,8 +757,6 @@ function getConnectedAnimes(malIds) {
           }
           queue.push({
             mal_id: recommendation.mal_id,
-            //steps: steps + 0.1 // normal
-            //steps: steps + 0.5 + 1/(1+linkValue) // for more popular ones
             steps: 0.5 + (steps + myRecomVoteUnit/(1+linkValue) + recomCount2/100)/(2+genreDiff) // get the underated
           });
         }
@@ -862,7 +842,6 @@ function listSelectedAnimes() {
       scoreSpan.classList.add('small-id');
       listItemElement.appendChild(scoreSpan);
       listItemElement.append(`${engAnimTitle}`);
-      //if (counted < 13) {
         fetch(`api/anime?id=${pair.mal_id}`, { method: "GET" })
         .then(response => {
           if (!response.ok) {
@@ -871,7 +850,6 @@ function listSelectedAnimes() {
           return response.text()
         })
         .then(async  (data) => {
-          //const metaTags = {};
           const regex = /<meta\s+[^>]*?content="([^"]*)"[^>]*?>/g;
           let match;
           let descResult;
@@ -881,8 +859,6 @@ function listSelectedAnimes() {
 
             if (nameMatch) {
               const nameValue = nameMatch[1];
-              //metaTags[nameValue] = contentValue;
-              //console.log(nameMatch, nameValue)
               
               if (nameValue === 'twitter:image:src') {
                 const imgElement = document.createElement('img');
@@ -895,7 +871,6 @@ function listSelectedAnimes() {
                 
                 listItemElement.appendChild(imgElement);
               } else if (nameValue === 'description') {
-                //console.log(contentValue)
                 descResult = contentValue.split("community and database. ")[1] || "";
               }
             }
@@ -933,12 +908,10 @@ function listSelectedAnimes() {
             listItemElement.appendChild(descParagraph);
           }
 
-          //console.log(metaTags); // Process the meta tag map here
         })
         .catch(error => {
           console.error('Error fetching data:', error);
         });
-      //}
 
       animeContainer.addEventListener('click', () => {
         window.open(`https://myanimelist.net/anime/`+anime.mal_id, '_blank');
@@ -1035,7 +1008,6 @@ function printAnimeMapSize(obj) {
 }
 async function main() {
   try {
-    //const animeMapString = localStorage.getItem('animeMap');
     const response = await fetch('/api/get-anime', {
       method: 'POST',
       headers: {
@@ -1054,7 +1026,6 @@ async function main() {
 
     const decompressedData = pako.ungzip(binaryData, { to: 'string' });
     const animeObj = JSON.parse(decompressedData);
-    //const newanimeMap = new Map();
 
     Object.entries(animeObj).forEach(([key, { anime, recoms }]) => {
       const newAnime = {
@@ -1070,7 +1041,6 @@ async function main() {
       animeMap.set(anime.mal_id, { anime: newAnime, recoms });
     });
     
-    //animeMap = newanimeMap
     console.log('[Success] mainAnimeMap', animeMap);
     printAnimeMapSize(animeMap)
   } catch (err) {
@@ -1163,41 +1133,6 @@ function htmlConfig(button) {
   const configContainer = document.getElementById("config-container");
   if (configContainer.style.display === "none" || !configContainer.style.display) {
     
-    /*animeMap.forEach((value, key) => {
-      if (value.anime) {
-        value.anime.genres.forEach(genre => {
-          if (!allGenres[genre.name]) {
-            allGenres[genre.name] = 1;//Math.random() + 1;
-          }
-        });
-      }
-    });
-    
-    const configContainer = document.getElementById("config-container");
-    configContainer.innerHTML = ""; // Clear existing content
-
-    Object.keys(allGenres).forEach((genre) => {
-      const genreToggle = document.createElement("button");
-      if (allGenres[genre] == 1) {
-        genreToggle.textContent = `⚪ ${genre}`;
-      } else {
-        genreToggle.textContent = `🟢 ${genre}`;
-      }
-      genreToggle.dataset.genre = genre;
-
-      genreToggle.addEventListener("click", () => {
-        if (allGenres[genre] == 1) {
-          allGenres[genre] = 3; // Set to 4 when "on"
-        } else {
-          allGenres[genre] = 1; // Set to 1 when "off"
-        }
-        console.log(`${genre} is now ${allGenres[genre]}`);
-        listSelectedAnimes();
-      });
-
-      // Append the toggle to the config container
-      configContainer.appendChild(genreToggle);
-    });*/
     getConnectedAnimes([]);
     
     configContainer.style.display = "flex";

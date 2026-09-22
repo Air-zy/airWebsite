@@ -50,11 +50,6 @@ function loadData(Obj, sortIndex) {
     headerCell.textContent = key;
     headerCell.style = 'padding: 10px; border: 1px dotted #ddd;resize:horizontal; overflow:auto;';
 
-    /*headerCell.addEventListener('click', () => {
-      //console.log(index)
-      loadData(Obj, index)
-    });*/
-
     headerRow.appendChild(headerCell);
   });
 
@@ -91,7 +86,6 @@ function loadData(Obj, sortIndex) {
         if (bitget(val2, 3)) {
           cell.textContent = cell.textContent + 'project-view, '
         }
-        //cell.textContent = cell.textContent + val2.toString(2) + '|' + val2
       } else {
         cell.textContent = value[key2];
       }

@@ -303,20 +303,12 @@ function visualizeGrid(noAnims) {
       }
     }
   }
-  /*let baseUrl = window.location.origin + window.location.pathname;
-  let newQuery = cols + "," + rows
-  for (let i = 0; i < moveStack.top+1; i++) {
-    let item = moveStack.stack[i];
-    newQuery += "," + item;
-  }
-  history.pushState(null, '', baseUrl + '?' + newQuery);*/
 }
 
 function unDropToken() {
   if (miniMaxIsProccesing == true) {
     return;
   }
-  //for (let i = 0; i < 2; i++) {
     if (moveStack.stack[moveStack.top] || moveStack.stack[moveStack.top] == 0) {
       redoStack.push(moveStack.stack[moveStack.top]);
     }
@@ -324,7 +316,6 @@ function unDropToken() {
     lastDrop = moveStack.stack[moveStack.top];
     positionToken(visualToken, lastDrop);
     visualizeGrid(true);
-  //}
 }
 
 function reDropToken() {
@@ -458,8 +449,6 @@ function dropToken(col) {
   }
   redoStack.reset()
   rawDrop(col);
-  //console.log("heuristic:", heuristic());
-  //console.log("zobristKey: ", getZobrist())
   
   lastDrop = col;
   positionToken(visualToken, selectedCol);
@@ -597,7 +586,6 @@ function connectInChange(event) {
   }
   console.log("New Connect In:", event.target.value);
   setConnectIn(clamp(parseInt(event.target.value), 2, 20))
-  //createGrid();
   event.target.value = connectIn;
 }
 function thinktimeChange(event) {
@@ -686,7 +674,6 @@ document.addEventListener("DOMContentLoaded", function () {
   bigX.style.top = "50%";
   bigX.style.left = "50%";
   bigX.style.transform = "translate(-50%, -50%)"; // center text
-  //bigX.style.fontSize = tokenOffseter * 2 + "px"; // same size as tokenOffseter
   bigX.style.color = "white";
   bigX.style.zIndex = "12"; // ensure it appears above the circle outline
   token.appendChild(bigX);
@@ -752,7 +739,6 @@ document.addEventListener("DOMContentLoaded", function () {
       event.target.tagName != "INPUT" &&
       gameState == 0
     ) {
-      //console.log(event.target.tagName);
       dropToken(selectedCol);
     }
   });

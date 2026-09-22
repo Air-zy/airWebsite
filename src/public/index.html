@@ -44,10 +44,8 @@
 
     <title>Airzy Turqueza</title>
     <link rel="canonical" href="https://airzy.ca/home" />
-    <link
-      href="https://fonts.googleapis.com/css?family=Montserrat"
-      rel="stylesheet"
-    />
+    <link rel="preload" href="/fonts/minecraft-subset.woff" as="font" type="font/woff" crossorigin />
+    <link rel="stylesheet" href="/css/fonts.css" />
 
     <link
       rel="icon"
@@ -63,7 +61,7 @@
         <div class="inlineb">
           <!--#nav-->
         </div>
-        <button class="menu-icon" aria-label="Menu" onclick="menuTrigger(this)">
+        <button class="menu-icon" aria-label="Menu" aria-controls="side-bar" aria-expanded="false" onclick="menuTrigger()">
           <span class="bun1"></span>
           <span class="bun2"></span>
           <span class="bun3"></span>
@@ -72,8 +70,9 @@
     </header>
     <main id="main-content">
       <div id="s1">
-        <h1>Hi, I am <span id="airzy"></span> Turqueza</h1>
-        <h3>Software Developer</h3>
+        <h1><span id="airzy"></span> Turqueza</h1>
+        <h3>hii i'm airzy a software developer</h3>
+        <span class="bubble" aria-hidden="true">🤓</span>
       </div>
       <article>
         <section id="s2" class="txt-section">
@@ -184,7 +183,6 @@
     </main>
     <aside id="side-bar">
       <button
-        class="icon-button"
         id="toggleLightMode"
         aria-label="Toggle light mode"
         onclick="toggleLightMode()"

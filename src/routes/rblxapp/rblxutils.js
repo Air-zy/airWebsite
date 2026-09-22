@@ -7,9 +7,7 @@ const roUNameIDcache = {};
 // spends most of the 1k/min. cap the fallback so a bad roproxy day cannot starve it.
 const OC_FALLBACK_CAP = 200;
 
-// open cloud instead of users.roblox.com. single lookups are what this does anyway,
-// and being authenticated means a 1k/min key quota instead of an ip throttle that
-// was 429ing about two thirds of a leaderboard render.
+// open cloud instead of users.roblox.com, a 1k/min key quota instead of an ip throttle
 async function idtoname(userId) {
     const cached = roUNameIDcache[userId];
     if (cached) return cached;
@@ -31,9 +29,7 @@ async function idtoname(userId) {
 
 async function fetchUsersByIds(ids, opts = {}) {
     if (!Array.isArray(ids)) throw new TypeError("ids must be an array");
-    // these used to be 5 retries at a 4s base, doubling. that is 4+8+16+32+64, so a
-    // throttled roproxy stalled a page load for two minutes before giving up.
-    // open cloud does the same job in a couple of seconds, so fail over quickly instead.
+    // few short retries, open cloud takes over in seconds when roproxy throttles
     const {
         url = "https://users.roproxy.com/v1/users",
         chunkSize = 200,
@@ -113,8 +109,6 @@ async function fetchUsersByIds(ids, opts = {}) {
             if (i < chunks.length - 1) await wait(delayBetweenChunks);
         }
     } catch (err) {
-        // used to be an empty catch. roproxy is shared and throttles hard, so a total
-        // failure silently returned a map of nulls and the page just showed raw ids.
         console.error('[names] roproxy batch failed:', err.message);
     }
 

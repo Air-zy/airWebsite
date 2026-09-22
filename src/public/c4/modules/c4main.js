@@ -31,13 +31,11 @@ class TranspositionTable {
 
   // to get the value for a given Uint32 key
   get(key, depth) {
-    //return undefined; // if i wanna disable uncomment
     const entry = this.map.get(key)
     if (entry) {
       if (entry.depth <= depth) {
         return undefined;
       }
-      //console.log(entry);
       return [entry.score, entry.bestMove];
     }
     return undefined;
@@ -134,7 +132,6 @@ function makeWeightingGrid() {
       return Math.max((gridTotal - parseInt((rowValue*2 + colValue*2)**0.5))*2,1);
     });
   });
-  //console.warn(weightingGridInvert);
 }
 
 function resetGame() {
@@ -179,7 +176,6 @@ function resetGame() {
       return Math.max((gridTotal - parseInt((rowValue*2 + colValue*2)**0.5))*2,1);
     });
   });
-  //console.warn(weightingGridInvert);
   zobristGridRed = new Array(cols);
   zobristGridYellow = new Array(cols);
   for (let i = 0; i < cols; i++) {

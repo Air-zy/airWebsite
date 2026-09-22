@@ -1,0 +1,31 @@
+/* the full font is 68kb, so common chars come from a 10kb subset and the full one only
+   downloads when a page shows something outside it.
+   made with: pyftsubset minecraft.otf --unicodes="U+0000-00FF,U+2000-206F,U+2190-22FF,U+2500-27BF" --flavor=woff --output-file=minecraft-subset.woff
+   avy: the two unicode-ranges are hand kept exact complements, change both together */
+@font-face {
+  font-family: Minecraft;
+  src: url(/fonts/minecraft-subset.woff) format("woff");
+  unicode-range: U+0000-00FF, U+2000-206F, U+2190-22FF, U+2500-27BF;
+  font-display: swap;
+}
+@font-face {
+  font-family: Minecraft;
+  src: url(/fonts/minecraft.otf) format("opentype");
+  unicode-range: U+0100-1FFF, U+2070-218F, U+2300-24FF, U+27C0-10FFFF;
+  font-display: swap;
+}
+
+/* one font pixel, the font is a 12px grid */
+:root {
+  --mc-px: calc(1em / 12);
+  --color-heading-shadow: #303030;
+}
+:root[data-theme="light"] {
+  --color-heading-shadow: #b8b8b8;
+}
+/* no fake bold on headings */
+body {
+  text-shadow: var(--mc-px) var(--mc-px) 0 var(--color-heading-shadow);
+  font-synthesis: none;
+  letter-spacing: 0.6px;
+}

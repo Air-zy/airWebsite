@@ -7,12 +7,7 @@ nav {
   width: 100%;
   top: 0;
   min-height: 100px;
-  background: linear-gradient(
-    to top,
-    var(--bg-rgb-half) 0,
-    var(--bg-rgb-full) 100%
-  );
-  flex-wrap: nowrap;
+  background: linear-gradient(to top, var(--bar-bg) 0, var(--bg-col) 100%);
   justify-content: center;
   backdrop-filter: blur(10px);
   z-index: 3;
@@ -61,7 +56,7 @@ nav {
 #s1 {
   z-index: -1;
   top: 100px;
-  margin: 4%;
+  margin: 4% 10%;
   pointer-events: none;
 }
 #s2,
@@ -79,10 +74,13 @@ body {
 }
 :root {
   color-scheme: dark;
-  --bg-col: #030303;
-  --bg-rgb-full: rgba(4, 4, 4, 1);
-  --bg-rgb-half: rgba(4, 4, 4, 0.3);
-  --frame-bcol: #101010;
+  --bg-col: #0a0a0a;
+  --bar-bg: color-mix(in srgb, var(--bg-col) 30%, transparent);
+  --frame-bcol: #161616;
+  /* avy: strength is hand matched to frame-bcol over bg-col, css cannot derive it */
+  --dither-blend: screen;
+  --dither-strength: 0.02;
+  --dither-invert: 0;
   --frame-bcol2: #1b1b1b;
   --text-grey: grey;
   --text-normal: white;
@@ -90,9 +88,11 @@ body {
 :root[data-theme="light"] {
   color-scheme: light;
   --bg-col: #ffffff;
-  --bg-rgb-full: rgba(255, 255, 255, 1);
-  --bg-rgb-half: rgba(226, 226, 226, 0.3);
+  --bar-bg: rgba(226, 226, 226, 0.3);
   --frame-bcol: #efefef;
+  --dither-blend: multiply;
+  --dither-strength: 0.03;
+  --dither-invert: 1;
   --frame-bcol2: #e3e3e3;
   --text-grey: grey;
   --text-normal: #000000;
@@ -117,19 +117,17 @@ h3 {
 body {
   margin: 0;
   background-color: var(--bg-col);
-  font-family: Montserrat;
-  font-size: 16px;
+  font-family: Minecraft, sans-serif;
+  font-size: 18px;
 }
 #side-bar,
 nav .inlineb {
-  flex-wrap: nowrap;
   display: flex;
 }
 .menu-icon {
   min-width: 50px;
   min-height: 50px;
   max-width: 50px;
-  outline: 0;
   border: none;
   padding: 10px 10px 10px 20px;
 }
@@ -143,17 +141,12 @@ nav .inlineb {
 }
 #toggleLightMode,
 article button {
-  outline: 0;
   border: none;
   cursor: pointer;
 }
 .menu-icon:hover span {
   background-color: var(--text-normal);
   box-shadow: 0 0 20px #fff;
-}
-.bun1,
-.bun3 {
-  transition: transform 0.4s;
 }
 .menu-icon.active .bun2 {
   width: 2px;
@@ -173,7 +166,6 @@ article button {
     width: 24px;
   }
   50% {
-    right: 0;
     width: 12px;
   }
 }
@@ -214,34 +206,37 @@ nav .inlineb {
   padding-right: 50px;
   padding-left: 50px;
 }
+/* hidden too, not just offscreen, or tab walks through every link in it while its closed.
+   visibility flips at the start of an open and the end of a close so the slide still shows */
 #side-bar {
   flex-direction: column;
-  justify-content: flex-start;
   align-items: center;
-  transform: translateX(200%);
+  transform: translateX(100%);
+  visibility: hidden;
   right: 0;
   height: 100%;
   width: 400px;
   max-width: 80%;
-  background-color: var(--bg-rgb-half);
+  background-color: var(--bar-bg);
   backdrop-filter: blur(30px);
   z-index: 1;
   padding-top: 100px;
-  transition: transform 0.3s;
+  transition: transform 0.3s, visibility 0.3s;
 }
 #side-bar.open {
   transform: translateX(0);
+  visibility: visible;
 }
 .small-p {
   font-size: 0.75rem;
   line-height: 1rem;
 }
+/* 90% wide plus 5% padding each side fills the sidebar exactly */
 #sbar-flex {
-  flex-wrap: nowrap;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-evenly;
-  padding: 100px;
+  padding: 100px 5%;
   height: 30%;
   width: 90%;
 }
@@ -258,12 +253,10 @@ article {
   min-height: 1400px;
 }
 article button {
-  -webkit-appearance: none;
   appearance: none;
 }
 h1 {
   font-size: 60px;
-  font-weight: 900;
   margin: 0;
 }
 h3 {
@@ -272,14 +265,59 @@ h3 {
 }
 #airzy {
   min-width: 4ch;
-  color: gold;
+  --name-col: gold;
+  color: var(--name-col);
   transition: text-shadow 1s;
 }
+#airzy .cell {
+  display: inline-block;
+}
+/* letter hidden behind its own background. a transparent glyph still casts
+   text-shadow, so box-shadow does the drop shadow instead */
+#airzy .cell.block {
+  color: transparent;
+  background: var(--name-col);
+  text-shadow: none;
+  box-shadow: var(--mc-px) var(--mc-px) 0 var(--color-heading-shadow);
+}
 #airzy.glow {
-  text-shadow: 0 0 100px gold;
+  text-shadow: var(--mc-px) var(--mc-px) 0 var(--color-heading-shadow), 0 0 100px gold;
 }
 #s1 h3 {
   white-space: nowrap;
+}
+/* chat bubble off the end of the name, grows out of its tail once the name glows.
+   own font on purpose, the emoji is not in the minecraft subset and would pull in the full 68kb font */
+#s1 .bubble {
+  position: absolute;
+  left: calc(100% + 0.35em);
+  top: -1.1em;
+  padding: 0.3em 0.45em;
+  font: 28px/1.2 sans-serif;
+  text-shadow: none;
+  background: color-mix(in srgb, var(--text-normal) 14%, var(--bg-col));
+  border-radius: 0.9em;
+  transform: scale(0);
+  transform-origin: -0.25em 100%;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s;
+}
+#s1:has(.glow) .bubble {
+  transform: none;
+}
+/* ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css. he cuts the curve with a
+   patch in the page color, a mask does it here since the name glow sits behind and would show the patch */
+#s1 .bubble::after {
+  content: "";
+  position: absolute;
+  left: -0.25em;
+  bottom: 0;
+  width: 0.7em;
+  height: 0.9em;
+  background: inherit;
+  border-bottom-right-radius: 0.57em 0.5em;
+  mask:
+    linear-gradient(#000 0 0) right / calc(100% - 0.25em) 100% no-repeat,
+    radial-gradient(circle 0.36em at -0.11em 0, #0000 calc(100% - 1px), #000) bottom / 100% 0.36em no-repeat;
 }
 #s2 {
   margin-top: 200px;
@@ -295,14 +333,33 @@ h3 {
   align-items: center;
   margin-top: 100px;
   padding: 40px;
-  background: linear-gradient(
-    to bottom right,
-    var(--frame-bcol),
-    var(--bg-col)
-  );
+  background: var(--bg-col);
+  position: relative;
+  isolation: isolate;
   opacity: 0;
   transform: translateY(100px);
   transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+/* tile stays at its native 24px or the dots stop being square, regenerate the png
+   to change it. contrast() is what thresholds it to 1 bit, without it its a fade */
+.txt-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url(/img/bayer.png),
+    linear-gradient(to bottom right, #fff, #000);
+  background-size: 24px 24px, 100% 100%;
+  /* the section rarely lands on a whole device pixel, smooth resampling softens the dots */
+  image-rendering: pixelated;
+  filter: contrast(10000%) invert(var(--dither-invert));
+  mix-blend-mode: var(--dither-blend);
+  opacity: var(--dither-strength);
+}
+/* background:0 0 on these two cannot reach a pseudo element, so it opts out here */
+#s2::before,
+.social-media-container::before {
+  content: none;
 }
 .txt-section p {
   max-width: 600px;
@@ -390,8 +447,6 @@ h3 {
   animation: 0.5s ease-in-out forwards popUp;
 }
 #toggleLightMode {
-  -webkit-appearance: none;
-  appearance: none;
   appearance: none;
   background: 0 0;
   margin-top: 40px;
@@ -431,7 +486,7 @@ h3 {
   padding: 20px;
 }
 .chat-button {
-  font-family: Montserrat;
+  font-family: Minecraft, sans-serif;
   background: 0;
   outline: 0;
   border: 0;
@@ -523,6 +578,9 @@ h3 {
   }
 }
 @media (max-width: 600px) {
+  #s1 .bubble {
+    font-size: 20px;
+  }
   h1 {
     font-size: 40px;
   }
@@ -550,11 +608,19 @@ h3 {
   }
 }
 
+/* measured, below 360 the bubble runs off the right edge */
+@media (max-width: 359px) {
+  #s1 .bubble {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   main {
     scroll-behavior: auto;
   }
-  .txt-section {
+  .txt-section,
+  #s1 .bubble {
     transition: none;
   }
 }

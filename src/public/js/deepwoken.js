@@ -190,23 +190,6 @@ function unlockTalents(unfiltered_talents) {
 
     for (let talentName in talents) {
       talentScores[talentName] = 1;
-      /* just testing
-      const desc = talents[talentName].desc.toLowerCase();
-
-      const descWords = desc.split(/\s+/);
-      const promptWords = buildPrompt.toLowerCase().split(/\s+/);
-
-      // Initialize similarity score accumulator
-      let similarityScore = 0;
-
-      // compare each word in the prompt with each word in the description
-      promptWords.forEach((promptWord) => {
-        descWords.forEach((descWord) => {
-          similarityScore += calculateSimilarity(promptWord, descWord);
-        });
-      });
-      
-      talentScores[talentName] += similarityScore*100;*/
     }
 
     return talentScores;
@@ -240,7 +223,6 @@ function unlockTalents(unfiltered_talents) {
   function generateCombinations(index,remainingPoints,currentCombination) { // index is the current attribute/stat attempted
     // Prune if remaining points are negative
     if (remainingPoints < 0) return;
-    //console.log(index,lastAttribute,remainingPoints)
     
     if (index === lastAttribute) {
       if (remainingPoints === 0) {
@@ -438,8 +420,6 @@ async function main() {
 
     const footer = document.createElement("div");
 
-    //console.log(entry)
-
     if (reqsText) {
       footer.classList.add("entry-footer");
       const reqsElement = document.createElement("p");
@@ -482,7 +462,6 @@ async function main() {
     mainElement.appendChild(container);
   });
 
-  //unlockTalents(talents);
 }
 
 main();

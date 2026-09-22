@@ -53,8 +53,6 @@ async function ipLookup(ipString) {
     city = city2 + " ~";
   }
   
-  // Extracting ISP
-  //const ISPRegex = /<td>ISP<\/td>\s*<td class="break-all">(.*?)<\/td>/;
   const ISPRegex = /<td>\s*ISP\s*\/\s*Org\s*<\/td>\s*<td class="break-all">\s*(.*?)\s*<\/td>/s;
   const ISPMatch2 = htmlSnippet2.match(ISPRegex);
   const ISP = ISPMatch2 ? ISPMatch2[1] : null;

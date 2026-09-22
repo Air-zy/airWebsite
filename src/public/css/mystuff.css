@@ -26,7 +26,7 @@ html, body {
   
   white-space: pre-wrap;
   color: #ffffff;
-  font-family: 'Montserrat';
+  font-family: Minecraft, sans-serif;
   padding: 40px;
   
   display: flex;
@@ -48,12 +48,12 @@ html, body {
 
 .link {
   padding: 0px;
-  font-size: 18px; /* Adjust the size of the link text */
-  margin-right: 10px; /* Optional: space between link and description */
+  font-size: 18px;
+  margin-right: 10px;
 }
 
 .desc {
   padding: 0px;
-  font-size: 14px; /* Adjust the size of the description text */
-  color: #aaaaaa; /* Adjust color if needed */
+  font-size: 14px;
+  color: #aaaaaa;
 }

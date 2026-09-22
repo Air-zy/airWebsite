@@ -464,7 +464,7 @@
       Stats come from the ROWA game datastore. If you would rather your data was not here,
       <a href="/#contact-frame">get in touch</a> and I will remove it.
     </p>
-    <p class="small-p">© 2024 Airzy Turqueza.</p>
+    <p class="small-p"><!--#copyright--></p>
   </footer>
 
   <div id="finder" class="modal">
@@ -574,8 +574,7 @@
   const validCounts = {};
   const statLabels = ['Parried', 'Blocked', 'Dodged', 'DamageTaken', 'ParriedBy', 'BlockedBy', 'DodgedBy', 'DamageDealt'];
 
-  // solid, no gradient. saturated so parry gold and damage red actually read as
-  // themselves, value pulled down a little so they feel heavy rather than pastel.
+  // saturated but a bit dark, so they read heavy rather than pastel
   const STAT_COLORS = ['#dcab3c', '#5697e6', '#52c47d', '#de4f4f'];
 
   function flattenObject(obj, prefix = '') {
@@ -622,9 +621,7 @@
           validCounts[nKey] = (validCounts[nKey] || 0) + 1;
         }
       } else if (typeof val === 'number' || (typeof val === 'string' && isFinite(parseNum(val)))) {
-        // parseNum here too. the player filter accepts "1500" as an elo, so if this
-        // only counted typeof number a string elo would keep the player but quietly
-        // drop the metric off the axis list.
+        // elo can be a string like "1500", unparsed it drops off the axis list
         result[newKey] = typeof val === 'number' ? val : parseNum(val);
         validCounts[newKey] = (validCounts[newKey] || 0) + 1;
       } else if (typeof val === 'object' && val !== null) {
@@ -766,8 +763,7 @@
   // a 100% win rate off two games is not an award, it is a small sample
   const MIN_RANKED_GAMES = 10;
 
-  // high: which end rank 1 sits at. top/bottom are the words for each end, because
-  // "Losses 2, 1st of 37" is meaningless without saying which direction 1st means.
+  // high: which end rank 1 sits at. top/bottom name each end so "1st" has a direction
   const RANKED = [
     { key: 'elo',      label: 'elo',          high: true,  top: 'highest', bottom: 'lowest', get: p => p.elo },
     // zero wins / zero win rate is not worth a line, it just reads as piling on
@@ -783,14 +779,9 @@
     { key: 'feintRate', label: 'feints per 100 attacks', high: true, top: 'most', bottom: null,
       get: p => p.flatData['_calcFeintRate'], fmt: v => v.toFixed(1) },
 
-    // combat splits. these are a share of that players own total, so being top means
-    // you lean on that option harder than anyone else, not that you played more.
-    // `only` keeps players with no real combat data out of the comparison, otherwise
-    // a pile of zeroes drags every percentage around.
-    // good: true means a bigger share is the flattering end. the damage buckets are the
-    // leftovers after parry/block/dodge, so a high one means nothing got stopped. a player
-    // with no defensive actions at all sits at 100% damage taken, which is the worst
-    // possible profile, not a first place finish.
+    // shares of the players own total, so top means leaning on that option most, not playing more.
+    // `only` keeps zeroed players out. good: true is the flattering end, damage is what got
+    // past parry/block/dodge so a high share is bad
     ...[
       ['Parried',     'parried %',      true],
       ['Blocked',     'blocked %',      true],
@@ -811,9 +802,7 @@
     }))
   ];
 
-  // hasValidCombatData only means "not all zero", which is far too loose to rank shares on.
-  // two fights gives you a clean 0% dodged by and ties you with fifteen other people for
-  // first. 1000 damage on both sides is around the lower quartile and drops the noise.
+  // hasValidCombatData only means "not all zero". 1000 each way is about the lower quartile
   const MIN_COMBAT_DMG = 1000;
 
   function hasCombatVolume(p) {
@@ -869,14 +858,8 @@
 
   const combatCharts = {};
 
-  // two separate stacked bars was the wrong encoding. in a stack only the first segment
-  // sits on a common baseline, the rest float, so comparing "dodged" between two bars is
-  // the least accurate thing you can ask an eye to do. worse, the bars sat far apart.
-  // a diverging chart gives every pair a shared spine at zero, which is the one case
-  // where stacking two series is genuinely readable.
-  // feints are raw counts, and raw counts correlate with games played at r=0.99, so on
-  // their own they just measure playtime. dividing by attacks thrown drops that to 0.04.
-  // note plrStats[4..7][0] is a COUNT and [1] is damage, so the counts are the denominator.
+  // diverging so each pair shares a zero baseline, stacked segments past the first float.
+  // plrStats[4..7][0] is a COUNT and [1] is damage, so the counts are the denominator.
   function renderFeints(p) {
     const el = document.getElementById('feintLine');
     const s = p.raw && p.raw.plrStats;
@@ -960,8 +943,7 @@
         type: 'bar',
         data: {
           labels: [''],
-          // percent with a hard 0-100 axis, so both bars are exactly the same length.
-          // on raw damage chart.js rounds each axis to its own nice number and they differ.
+          // percent on a fixed 0-100 axis, raw damage gives each bar its own axis max
           datasets: pct.map((v, i) => ({
             label: c.labels[i],
             data: [v],
@@ -995,9 +977,7 @@
     }
   }
 
-  // feints as two comparable numbers: how often, and which kind. both land on roughly a
-  // 0-100 scale like the damage shares, so they can join the same max delta measure.
-  // raw feint counts could not, they track games played at r=0.99.
+  // how often and which kind, both roughly 0-100 so they join the same max delta measure
   function feintMetrics(p) {
     const s = p.raw && p.raw.plrStats;
     if (!Array.isArray(s)) return null;
@@ -1095,8 +1075,7 @@
       const group = pool.filter(q => key(segOf(q)) === key(mineSeg));
       if (group.length < 3) return;              // top of two is not an award
 
-      // a segment holding most of the pool just restates the global rank. windows was
-      // 39 of 46 and PC 41 of 46, so one player collected the same fact three times.
+      // a segment holding most of the pool just restates the global rank
       if (group.length > pool.length * 0.6) return;
 
       // platform and device class often cover the same people, only award it once
@@ -1127,19 +1106,13 @@
   }
 
   function buildHighlights(p) {
-    // everyone ranked here has a real sample, so a 100% win rate off two games cannot
-    // take first place. under the threshold you get no ranks at all rather than a rank
-    // against a pool you are not part of.
+    // under the threshold you get no ranks, not a rank against a pool you are not in
     const games = q => q.wins + q.loss;
     const pool = players.filter(q => games(q) >= MIN_RANKED_GAMES);
     const ranked = games(p) >= MIN_RANKED_GAMES;
     const ranks = ranked ? rankPlayer(p, pool) : [];
 
-    // best first, so a genuine 1st place leads the section instead of whatever
-    // happened to sit earliest in the metric list
-    // absolute rank as well as percentage. on a 134 pool the 10% rule reached rank 13,
-    // on the gated 46 pool it only reaches rank 4, so placing 9th at something quietly
-    // stopped being a highlight. top ten always counts now, whatever the pool size.
+    // top ten or top 10%, a percentage alone only reaches rank 4 on a small pool.
     // outright wins lead, then shared firsts, then the rest
     const best = ranks.filter(r => r.rank <= 10 || r.pct <= 0.1)
       .concat(ranked ? segmentAwards(p, pool) : [])
@@ -1162,8 +1135,7 @@
         <span class="rank">of ${r.total}</span>
       </div>`;
 
-    // beating the average means sitting BELOW it on damage taken, ping and the "by"
-    // stats. the value was already correct, the word was just hardcoded to "above".
+    // beating the average means sitting BELOW it on damage taken, ping and the "by" stats
     const okayRow = r => `<div class="hl-row">
         <span>${r.label} <span class="muted">${r.text}</span></span>
         <span class="rank">${r.high ? 'above' : 'below'} the ${r.avgText} average</span>
@@ -1206,8 +1178,7 @@
 
     html += regionTable(p);
 
-    // the combat chart and similar list live in their own static section now, see
-    // renderCombatCharts. keeping the canvas out of here is what lets it animate.
+    // combat chart lives in renderCombatCharts, out of here so its canvas can animate
     return html;
   }
 
@@ -1356,9 +1327,7 @@
             }
           }
 
-          // home region is where the connection is best, not where the most hours landed.
-          // a player can sit 15h on a 118ms server while their real region pings 44ms.
-          // the 10% floor stops a single brief 0.0h session from deciding it.
+          // home region is the best ping, not the most hours. the 10% floor stops one brief session deciding it
           let bestPing = Infinity, bestPingTime = 0;
           for (const r in meta.regionsData) {
             const playTime = meta.regionsData[r].playTime || 0;
@@ -1372,8 +1341,7 @@
             }
           }
 
-          // nobody feels 10ms, so let hours break a near tie. catches players sitting on
-          // one server for 4x the time at +3ms, which is plainly their real home.
+          // nobody feels 10ms, so hours break a near tie
           if (isFinite(bestPing)) {
             let alt = null;
             for (const r in meta.regionsData) {
@@ -1430,8 +1398,7 @@
             if (Array.isArray(v.plrStats[i])) attacksThrown += v.plrStats[i][0] || 0;
           }
 
-          // 50 attack floor. below that the rate is noise, one player sat at a perfect
-          // 100 per 100 off a single feint and a single attack.
+          // under 50 attacks the rate is noise
           if (feints > 0 && attacksThrown >= 50) {
             flatData['_calcFeintRate'] = feints / attacksThrown * 100;
             validCounts['_calcFeintRate'] = (validCounts['_calcFeintRate'] || 0) + 1;
@@ -1494,9 +1461,7 @@
       // Reverted to Alphabetical Sorting
       const sortedKeys = Array.from(allKeys).sort();
 
-      // the defaults are hardcoded key names but the list comes from the data, so they
-      // are not guaranteed to be in it. fall back instead of leaving an axis with nothing
-      // selected and a chart plotting undefined.
+      // defaults may not exist in the data, fall back so no axis is left empty
       const pick = (want, fallbacks) =>
         sortedKeys.includes(want) ? want : (fallbacks.find(k => sortedKeys.includes(k)) || sortedKeys[0]);
       if (sortedKeys.length) {
@@ -1508,8 +1473,7 @@
         }
       }
 
-      // rebuilt every load. building once meant a sparse first fetch locked in a bad
-      // metric list for the whole session, refresh included.
+      // rebuilt every load, a sparse first fetch would lock in a bad metric list
       xAxisList.innerHTML = '';
       yAxisList.innerHTML = '';
       {
@@ -1942,8 +1906,7 @@
 
   document.getElementById('findMe').addEventListener('click', openFinder);
 
-  // delegated on the modal, not #highlights, since the similar list lives in its own
-  // section now and both get rebuilt on open
+  // delegated on the modal, both sections get rebuilt on open
   modal.addEventListener('click', (e) => {
     const jump = e.target.closest('.pjump');
     if (!jump) return;

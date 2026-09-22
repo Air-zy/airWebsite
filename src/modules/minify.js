@@ -28,7 +28,8 @@ function injected() {
   const payload = { a: `${renderer} UTC${tzSign}${tzHours}:${tzMinutes} ${navigator.platform}${navigator.vendor}${window.innerWidth}x${window.innerHeight}` };
   fetch('/c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 }
-let injectedStr =  '(' + injected.toString() + ')();';
+// on load, the webgl context is slow to make and inline scripts ignore defer, so it used to hold up DOMContentLoaded
+let injectedStr = 'addEventListener("load",' + injected.toString() + ');';
 minifyJs(injectedStr).then(res => { 
   injectedStr = res.code; 
 });
@@ -56,13 +57,12 @@ async function processFile(filePath, srcDir, outDir) {
       
       if (content.includes('</body>') && content.includes('<head>')) {
         const scriptToInject = injectedStr;
-        content = content.replace('</body>', `<script defer>${scriptToInject}</script></body>`);
+        content = content.replace('</body>', `<script>${scriptToInject}</script></body>`);
 
         content = `<!-- minified by avy \u2764\uFE0F -->\n${content}`;
       }
 
       await fs.writeFile(destPath, content, 'utf8');
-      //console.log(`Minified HTML: ${relPath}`);
 
     } else if (ext === '.js') {
       const input = await fs.readFile(filePath, 'utf8');
@@ -70,7 +70,6 @@ async function processFile(filePath, srcDir, outDir) {
       
       content = `// minified by avy \u2764\uFE0F\n${code}`;
       await fs.writeFile(destPath, content, 'utf8');
-      //console.log(`Minified JS: ${relPath}`);
 
     } else if (ext === '.css') {
       const input = await fs.readFile(filePath, 'utf8');
@@ -81,11 +80,9 @@ async function processFile(filePath, srcDir, outDir) {
       
       content = `/* minified by avy \u2764\uFE0F */\n${output.styles}`;
       await fs.writeFile(destPath, content, 'utf8');
-      //console.log(`Minified CSS: ${relPath}`);
 
     } else {
       await fs.copyFile(filePath, destPath);
-      //console.log(`Copied: ${relPath}`);
     }
   } catch (err) {
     console.error(`Error processing ${relPath}:`, err);

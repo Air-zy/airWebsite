@@ -1,9 +1,7 @@
 :root {
   color-scheme: dark;
-  --bg-col: #030303;
-  --bg-rgb-full: rgba(4, 4, 4, 1);
-  --bg-rgb-half: rgba(4, 4, 4, 0.3);
-  --frame-bcol: #101010;
+  --bg-col: #0a0a0a;
+  --frame-bcol: #161616;
   --frame-bcol2: #1b1b1b;
   --text-grey: grey;
   --text-normal: white;
@@ -12,7 +10,7 @@
 body {
   margin: 0;
   background-color: var(--bg-col);
-  font-family: Montserrat;
+  font-family: Minecraft, sans-serif;
   font-size: 16px;
 }
 

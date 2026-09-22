@@ -40,8 +40,6 @@ module.exports = async (req, res) => {
 
         return res.redirect(302, robloxUrl);
     } catch (err) {
-        //console.error(err);
-        //return res.status(502).send("Failed to verify server");
         return res.redirect(302, robloxUrl);
     }
 };

@@ -77,7 +77,7 @@ body {
 
   padding-left: 10px;
   text-align: left;
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 16px;
 }
 
@@ -111,7 +111,7 @@ body {
   border: none;
   background: none;
   text-align: center;
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
   cursor: pointer;
@@ -166,7 +166,7 @@ body {
   transform: translate(10%, -50%);
 
   color: black;
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
 
   outline: none;
@@ -211,7 +211,7 @@ body {
   height: 20px;
 
   text-align: center;
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
 
@@ -235,7 +235,7 @@ body {
 }
 
 .categoryTitle.rotate-90::after {
-  transform: rotate(90deg); /* rotate the icon 90 degrees */
+  transform: rotate(90deg);
   text-shadow: 0 0 10px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 255, 255, 1),
     0 0 60px rgba(255, 255, 255, 1);
 }
@@ -291,7 +291,7 @@ body {
 
   text-align: left;
   
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
 
   font-size: 14px;
   font-weight: 900;
@@ -326,7 +326,7 @@ body {
 
   text-align: center;
   
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
 
   font-size: 14px;
   font-weight: 900;
@@ -349,7 +349,7 @@ body {
 }
 
 .date-header {
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: #6f6580;
   
@@ -364,11 +364,11 @@ body {
 .date-header::after {
   content: "";
   flex: 1;
-  border-top: 1px solid #483b64; /* dashed line style */
-  margin: 0 10px; /* space between the line and text */
+  border-top: 1px solid #483b64;
+  margin: 0 10px;
 }
 .highlight {
-  padding: 0 4px; /* space around the date text */
+  padding: 0 4px;
   white-space: nowrap; /* prev line break */
 }
 
@@ -406,7 +406,7 @@ body {
   border-radius: 4px;
   padding-left: 10px;
   text-align: left;
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14x;
   color: black;
   
@@ -419,7 +419,7 @@ body {
   
   padding-left: 10px;
   text-align: left;
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: black;
   
@@ -537,7 +537,7 @@ body {
 }
 
 #editPanelTitle {
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 16px;
   color: white;
   text-align: center;
@@ -613,7 +613,7 @@ body {
   min-height: 80%;
   padding: 20px;
   
-  font-family: "Montserrat";
+  font-family: Minecraft, sans-serif;
   font-size: 14px;
   color: white;
 

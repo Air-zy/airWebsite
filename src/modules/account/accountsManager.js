@@ -7,8 +7,6 @@ function normalizeUsername(name) {
 }
 
 function validateUsername(name) {
-  // letters (upper/lower), digits, underscore, hyphen
-  // >= 3, <= 30
   const OK = /^[A-Za-z0-9_-]{3,30}$/;
   if (!OK.test(name)) throw new Error('username-invalid');
 }

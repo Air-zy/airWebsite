@@ -234,9 +234,6 @@ async function loadCoords() {
         })
         .sort((a, b) => b.popularity - a.popularity);
 
-    //console.log(nodesSorted)
-    //console.log(preEdges.length)
-
     let focusedNode = null;
     let focusedNodes = null;
     function draw() {
@@ -616,8 +613,6 @@ async function load() {
 
         console.log(nodesMap)
 
-        //console.log(eigenVecMap)
-
         nodesArr = Array.from(nodesMap.values()).map(function (n) {
             if (n.year && n.year > topYear) topYear = n.year;
             var id = String(n.id || '');
@@ -760,9 +755,6 @@ const byMyHeuristic = (a, b) => {
     if (aZero && !bZero) return 1;
     if (!aZero && bZero) return -1;
 
-    //const eigenA = eigenVecMap.get(a.id) ?? 0;
-    //const eigenB = eigenVecMap.get(b.id) ?? 0;
-
     const ratingA = (nodeA.mean || 0);
     const ratingB = (nodeB.mean || 0);
 
@@ -825,11 +817,6 @@ function buildAdjacency(edgesMap) {
         if (numvotes < 0) {
             weight = 1
         }
-
-        //let raw = numvotes || 0;
-        //if (raw < 0) raw /= 100;
-        //const sign = Math.sign(raw);
-        //const weight = sign * Math.pow(Math.abs(raw), 0.5);
 
         ensure(a);
         ensure(b);
@@ -907,7 +894,6 @@ function PageRankSumm(adj, sources) {
     console.log("page rank sum")
 
     const nodes = Array.from(adj.keys());
-    //const N = nodes.length;
 
     let r = new Map();
     let rNew = new Map();
@@ -1013,7 +999,6 @@ function Summ(adj, sources) {
 
     while (heap.size()) {
         var u = heap.pop();
-        //var arr = distancesMap.get(u.id);
 
         var neighbors = adj.get(u.id);
         if (sourcesSet.has(u.id)) {
@@ -1021,12 +1006,6 @@ function Summ(adj, sources) {
         }
 
         neighbors.forEach(function (nb) {
-            
-            /*const nbNode = nodesMap.get(nb.to);
-            const uNode = nodesMap.get(u.id);
-            const uAvg = uNode.mean || 0
-            const nbAvg = nbNode.mean || 0
-            const avg = 1 - uAvg/100//(uAvg/100 * nbAvg/100)*/
             
             const nbPopular = eigenVecMap.get(nb.to)
             const weight = 1 + nb.w + nbPopular //nb.w//nb.w * nbPopular
@@ -1053,7 +1032,6 @@ function Summ(adj, sources) {
         const nnode = nodesMap.get(node);
         sum *= 1 + (topYear - nnode.year) * 0.02
         sum /= nnode.mean/80
-        //console.log(sum)
 
         if (Number.isFinite(sum) == false) {
             return;
@@ -1106,7 +1084,6 @@ function DijkstrasSumm(adj, sources) {
 
     while (heap.size()) {
         var u = heap.pop();
-        //console.log(u)
         var arr = distancesMap.get(u.id);
 
         if (!arr || u.dist !== arr[u.src]) continue;
@@ -1115,23 +1092,9 @@ function DijkstrasSumm(adj, sources) {
         neighbors.forEach(function (nb) {
             let nbWeight = nb.w
 
-            /*
-            // modern animes stronger!
-            const nbNode = nodesMap.get(nb.to);
-            const uNode = nodesMap.get(u.id);
-            const uYear = uNode.year || 0
-            const nbYear = nbNode.year || 0
-            
-            if (nbYear > uYear) { // promote more recent anime
-                //console.log(nbNode.title, uNode.title)
-                nbWeight *= 0.8
-            }*/
-
             const uPopular = eigenVecMap.get(u.id)
             const nbPopular = eigenVecMap.get(nb.to)
-            //console.log(uPopular, nbPopular)
             if (nbPopular < uPopular) {
-                //console.log(uPopular - nbPopular)
                 nbWeight *= 0.5
             }
 
@@ -1173,14 +1136,11 @@ function runRecommendations() {
         return;
     }
 
-    //var distances = DijkstrasSumm(adj, sources);
-    //var distance = PageRankSumm(adj, sources)
     var distances = Summ(adj, sources);
     let candidates = [];
     distances.forEach(function (dist, nodeId) {
         if (selectedSet.has(nodeId)) return; // already in selected...
 
-        //if (!isFinite(dist)) return;
         var node = nodesMap.get(nodeId);
         var label = node.title || node.name || '';;
         candidates.push({ id: nodeId, title: label, distance: dist });
@@ -1247,7 +1207,6 @@ function renderRecommendations(list) {
         var scoreStr = isFinite(scaledScore) ? scaledScore.toFixed(3) : '0.000';
         var right = document.createElement('div');
         right.className = 'badge';
-        //right.textContent = scoreStr + " (" + node.year + ")<br>★ " + node.avg;
         right.append(
             document.createTextNode(scoreStr + " (" + node.year + ")"),
             document.createElement("br"),

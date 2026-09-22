@@ -78,7 +78,7 @@ module.exports = {
     about: about.map(l => `<p>${colorize(l)}</p>`).join(''),
 
     // built once at boot, a server left running over new years eve keeps the old year until it restarts
-    copyright: `© ${new Date().getFullYear()} Airzy Turqueza.`,
+    copyright: `© ${new Date().getFullYear()} Airzy`,
   },
 };
 

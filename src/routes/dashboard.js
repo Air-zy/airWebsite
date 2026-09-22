@@ -17,7 +17,6 @@ module.exports = (req, res) => {
     if (session == null) {
         return res.status(400).json({ error: 'session not found'})
     }
-    //console.log(session);
 
     const pass = req.body.pass;
     if (pass == null) {
@@ -26,12 +25,6 @@ module.exports = (req, res) => {
 
     const decryptedPass = session.decryptMessage(pass)
 
-
-        /*const adress = getAddress(session.id)
-    if (session == null) {
-        return res.status(400).json({ error: 'session address not found'})
-    }
-    console.log(adress)*/
 
     if (decryptedPass == airWebToken) {
         return res.json({

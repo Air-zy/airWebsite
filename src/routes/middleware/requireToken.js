@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 
-// shared bearer token check, replaces the hand rolled !== compares
-// transform is for callers that decrypt the header instead of comparing it raw (nfetch)
+// shared bearer token check, transform is for callers that decrypt the header first (nfetch)
 module.exports = (expected, transform = v => v) => (req, res, next) => {
   if (!expected) {
     console.warn('[requireToken] no expected token configured for', req.originalUrl);

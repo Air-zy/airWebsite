@@ -146,7 +146,6 @@ function renderGraph() {
         .attr("y", -18)
         .attr("text-anchor", "middle");
 
-    // create or update the simulation
     // configure forces once
     if (!simulation.force("link")) {
         simulation

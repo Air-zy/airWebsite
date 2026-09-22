@@ -83,9 +83,7 @@ function analyze(multiYear) {
         const day = dayStats[d];
         const byHour = {};
 
-        // a weekday hour only gets one sample per week of history, so a thin cell
-        // reads as a hard 0 or 1 on two or three observations. shrink it toward the
-        // hour of day marginal, which has seven times the data behind it
+        // a weekday hour gets one sample a week, so shrink it toward the hour of day marginal (7x the data)
         for (let h = 0; h < 24; h++) {
             const stat = day.hourCounts[h];
             byHour[h] = (stat.online + SHRINK * byHourOfDay[h]) / (stat.total + SHRINK);

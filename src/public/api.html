@@ -90,7 +90,7 @@
     async function fetchLogs() {
       try {
         const res = await fetch('/api/logs');
-        // owner only now, send everyone else to log in
+        // owner only, send everyone else to log in
         if (res.status === 401) {
           location.href = '/auth/?next=/trafic';
           return;
