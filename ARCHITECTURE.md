@@ -62,7 +62,7 @@ flowchart LR
   NULL --> RA
   USER --> RA{"requireAuth<br/>requireAdmin"}
   RA -->|no user| E401["401 not-authenticated"]
-  RA -->|uid is not 1| E403["403 forbidden"]
+  RA -->|uid is not ADMIN_UID| E403["403 forbidden"]
   RA -->|ok| ROUTE([route handler])
 ```
 
@@ -149,17 +149,16 @@ flowchart TD
   APP --> GATE["install minify gate"]
 
   GATE --> PAR{{"these run concurrently"}}
-  PAR --> MIN["minify src/public into src/dist"]
   PAR --> HEART["startCycler, heartbeat"]
   PAR --> ADDR["loadAddresses, firestore"]
-  PAR --> PG["utilDB health check + ensureTables"]
+  PAR --> PG["utilDB ensureTables"]
 
   GATE --> MW["middleware stack + router mounts"]
   MW --> LISTEN["app.listen"]
-  LISTEN --> UP([serving])
-
+  LISTEN -->|port taken| DIE["throws, a second copy dies<br/>before it can touch src/dist"]
+  LISTEN --> MIN["minify src/public into src/dist"]
   MIN --> OPEN["gate opens, requests flow"]
-  OPEN --> UP
+  OPEN --> UP([serving])
 
   SS{"sessionSecret set?"} -.-> MW
   APP --> SS
@@ -201,23 +200,27 @@ flowchart TD
     P3["POST /auth/reset/request"]
     P4["POST /auth/reset/confirm"]
     P5["GET /auth/account/:uid"]
+    P6["GET /api/notes"]
   end
 
   subgraph SESS["needs a session cookie"]
     S1["GET /auth/me"]
     S2["POST /auth/password"]
     S3["POST /auth/logout"]
+    S4["POST /api/notes"]
   end
 
-  subgraph ADMIN["owner only, uid 1"]
+  subgraph ADMIN["owner only, ADMIN_UID in auth.js"]
     A1["GET /api/logs"]
+    A2["POST /api/notes/:id/pin"]
+    A3["DELETE /api/notes/:id"]
+    A4["POST /api/projects/update"]
   end
 
   subgraph TOKEN["shared bearer token, machine to machine"]
     T1["POST /webhook, /webhook2"]
     T2["POST /nfetch"]
     T3["POST /gam3push"]
-    T4["POST /api/projects/update"]
     T5["POST /api/gam3DB"]
     T6["GET /api/cluster-units"]
   end

@@ -34,19 +34,10 @@ function menuTrigger() {
   setSidebar(!sideBar.classList.contains('open'));
 }
 
+// the first t share of final, then the rest of initial
 function lerpString(initial, final, t) {
-  t = Math.max(0, Math.min(1, t));
-  const numCharsFromFinal = Math.floor(t * final.length);
-  let result = '';
-  for (let i = 0; i < Math.max(initial.length, final.length); i++) {
-    if (i < numCharsFromFinal) {
-      result += final[i] || '';
-    } else {
-      result += initial[i] || '';
-    }
-  }
-
-  return result;
+  const n = Math.floor(Math.max(0, Math.min(1, t)) * final.length);
+  return final.slice(0, n) + initial.slice(n);
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -84,11 +75,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }, 40);
 });
 
-// reveal once the top edge crosses the line. no lower bound on purpose: a jump that
-// lands past a section still reveals it instead of leaving it blank forever.
-// the :not(.show) means this shrinks to an empty list once everything is up
+// reveal once the top edge crosses the line, no lower bound so a jump past a section still reveals it.
+// shown and hidden sections drop out of the query, a hidden one measures top 0 and would count as seen
 function handleSections() {
-  const pending = document.querySelectorAll('.txt-section:not(.show)');
+  const pending = document.querySelectorAll('.txt-section:not(.show):not([hidden])');
   if (!pending.length) return; // every scroll after the last reveal costs nothing
   const line = document.getElementById('main-content').clientHeight * 0.9;
   pending.forEach(section => {
@@ -96,24 +86,15 @@ function handleSections() {
   });
 }
 
-async function requestViewsUpdate(key) {
-  try {
-    fetch('/api/projects/edit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: "view",
-        value: key
-      })
-    })
-  } catch (err) {
-    console.log("[ERROR] project view send", err);
-  }
+function requestViewsUpdate(key) {
+  fetch('/api/projects/edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'view', value: key }),
+  }).catch(err => console.log('[ERROR] project view send', err));
 }
 
-async function makeProjectCard(proj, key) {
+function makeProjectCard(proj, key) {
   const cardContainer = document.createElement('div');
   cardContainer.classList.add('project-container');
 
@@ -121,21 +102,13 @@ async function makeProjectCard(proj, key) {
   card.href = proj.url;
   card.target = '_blank';
   card.classList.add('project-card');
-  card.addEventListener('click', (event) => {
-    requestViewsUpdate(key)
-  })
+  card.addEventListener('click', () => requestViewsUpdate(key));
 
   if (proj.img) {
     const img = document.createElement('img');
     img.src = proj.img;
     img.alt = proj.alt;
-    if (window.innerWidth <= 600) {
-      img.width = 100;
-      img.height = 100;
-    } else {
-      img.width = 200;
-      img.height = 200;
-    }
+    img.height = img.width = window.innerWidth <= 600 ? 100 : 200;
     card.appendChild(img);
   }
 
@@ -151,26 +124,11 @@ async function makeProjectCard(proj, key) {
   pStats.insertAdjacentHTML('beforeend', '<svg class="icon"><use href="#i-eye"/></svg>');
   card.appendChild(pStats);
 
-  let textContainer
-  if (window.innerWidth <= 600) {
-    textContainer = document.createElement('details');
-  } else {
-    textContainer = document.createElement('div');
-  }
-
+  const textContainer = document.createElement(window.innerWidth <= 600 ? 'details' : 'div');
   proj.text.forEach(line => {
     const p = document.createElement('p');
-
-    // regex for [link text]("url")
-    const regex = /\[([^\]]+)\]\("([^"]+)"\)/g;
-    let modifiedLine = line;
-
-    // replace with nchor
-    modifiedLine = modifiedLine.replace(regex, (match, linkText, url) => {
-      return `<a href="${url}" target="_blank">${linkText}</a>`;
-    });
-
-    p.innerHTML = modifiedLine;
+    // [link text]("url") turns into a link
+    p.innerHTML = line.replace(/\[([^\]]+)\]\("([^"]+)"\)/g, '<a href="$2" target="_blank">$1</a>');
     textContainer.appendChild(p);
   });
 
@@ -191,98 +149,47 @@ async function makeProjectCard(proj, key) {
 }
 
 async function reloadProjects() {
+  const container = document.getElementById('projects');
   try {
-    const projectsFetch = await fetch('/api/projects');
-    if (!projectsFetch.ok) {
-      throw new Error('Failed to fetch data');
-    }
-
-    const projects = await projectsFetch.json();
-    const projectsMap = new Map(Object.entries(projects));
-
-    function rankProj(proj) {
-      return proj[1].stats.views / proj[1].rank;
-    }
-
-    const sortedProjects = new Map([...projectsMap.entries()].sort((a, b) => {
-      return rankProj(b) - rankProj(a);
-    }));
-
-    const container = document.getElementById('projects');
-    container.innerHTML = '';
-
-    let index = 0;
-    sortedProjects.forEach((proj, key) => setTimeout(async () => {
-      const cardContainer = await makeProjectCard(proj, key);
-      console.log(cardContainer)
-      container.appendChild(cardContainer);
-    }, index * 100));
-
+    const res = await fetch('/api/projects');
+    if (!res.ok) throw new Error('Failed to fetch data');
+    const rank = ([, proj]) => proj.stats.views / proj.rank;
+    container.replaceChildren(...Object.entries(await res.json())
+      .sort((a, b) => rank(b) - rank(a))
+      .map(([key, proj]) => makeProjectCard(proj, key)));
   } catch (error) {
     // textContent, a json parse error quotes the html it choked on and innerHTML would try to render it
-    document.getElementById('projects').textContent = 'Failed to fetch projects: ' + String(error);
+    container.textContent = 'Failed to fetch projects: ' + String(error);
   }
 }
 
-let projectsLoaded = false;
-async function loadProjects() {
-  if (projectsLoaded) {
-    return;
-  }
-  projectsLoaded = true;
-  await fetch('projects.html')
-    .then(response => {
-      if (response.ok) {
-        return response.text();
-      } else {
-        console.log(response)
-        projectsLoaded = false
-      }
-    }).then(htmlContent => {
-      document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
-      handleSections()
-    }).catch(error => {
-      projectsLoaded = false;
-      console.error('Error:', error);
-    });
-
-  reloadProjects()
-}
-
-let introsLoaded = false
-async function loadIntro() {
-  if (introsLoaded) {
-    return;
-  }
-  introsLoaded = true;
-  await fetch('intro.html')
-    .then(response => {
-      if (response.ok) {
-        return response.text();
-      } else {
-        console.log(response)
-        introsLoaded = false
-      }
-    }).then(htmlContent => {
-      document.querySelector('#main-content article').insertAdjacentHTML('beforeend', htmlContent);
-      handleSections()
-    }).catch(error => {
-      introsLoaded = false;
-      console.error('Error:', error);
+// projects.html and intro.html get appended to the article when needed. the promise is kept so every
+// caller shares one fetch, and dropped on failure so the next call retries
+const partials = {};
+function loadPartial(file, then) {
+  return partials[file] ??= fetch(file)
+    .then(res => res.ok ? res.text() : Promise.reject(new Error(`${file} ${res.status}`)))
+    .then(html => {
+      document.querySelector('#main-content article').insertAdjacentHTML('beforeend', html);
+      handleSections();
+      then?.();
+    })
+    .catch(err => {
+      delete partials[file];
+      console.error(err);
     });
 }
+const loadProjects = () => loadPartial('projects.html', reloadProjects);
+const loadIntro = () => loadPartial('intro.html');
 
-const userBehavior = {
-  startTime: Date.now(),
-};
+const pageStart = Date.now();
 
 let attemptedUserValidate = false;
 let canLoadContent = true;
 const mainContentElm = document.getElementById("main-content");
 mainContentElm.addEventListener("scroll", function () {
-  const main = this;
-  const scrollTop = main.scrollTop; // scroll position from top
-  const scrollHeight = main.scrollHeight - main.clientHeight; // total scrollable height
+  const scrollTop = this.scrollTop;
+  const scrollHeight = this.scrollHeight - this.clientHeight;
 
   const nav = document.getElementsByTagName("nav")[0];
   const section1 = document.getElementById("s1");
@@ -306,12 +213,8 @@ mainContentElm.addEventListener("scroll", function () {
   }
 
   if ((scrollHeight - scrollTop) < 2000 && canLoadContent) {
-    if (!projectsLoaded) {
-      console.log("LOAD")
-      loadProjects()
-    } else if (!introsLoaded) {
-      loadIntro()
-    }
+    if (!partials['projects.html']) loadProjects();
+    else loadIntro();
     canLoadContent = false;
     setTimeout(() => {
       canLoadContent = true;
@@ -320,48 +223,23 @@ mainContentElm.addEventListener("scroll", function () {
 
   if ((scrollHeight - scrollTop) < 200 && attemptedUserValidate == false) {
     attemptedUserValidate = true;
-    const payload = {
-      sessionDuration: Date.now() - userBehavior.startTime,
-    };
-
     fetch('/validate-me', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionDuration: Date.now() - pageStart }),
     }).then(response => response.json())
       .then(data => {
-        const mainEmailP = document.getElementById("main-email")
-        const mainDiscP = document.getElementById("main-discord")
-        const mainLocP = document.getElementById("main-location")
-        if (data && data.valid) {
-          mainEmailP.innerHTML = `
-          <a href="mailto:${data.message}" style="text-decoration:none">
-            ${data.message}
-          </a>
-        `;
-          mainDiscP.href = data.cord;
-
-          mainDiscP.childNodes.forEach(node => {
-            if (node.nodeType === Node.TEXT_NODE) {
-              node.textContent = ` "${data.cordN}" on Discord`;
-            }
-          });
-          mainLocP.childNodes.forEach(node => {
-            if (node.nodeType === Node.TEXT_NODE) {
-              node.textContent = ` ${data.loc}`;
-            }
-          });
-        } else if (data.message) {
-          mainEmailP.innerHTML = `
-          <a href="mailto:${data.message}" style="text-decoration:none">
-            ${data.message}
-          </a>
-        `;
+        if (data.message) {
+          document.getElementById("main-email").innerHTML = `<a href="mailto:${data.message}" style="text-decoration:none">${data.message}</a>`;
         } else {
           console.log("user validate err", data)
         }
+        if (!data.valid) return;
+        // the text after each icon
+        const discord = document.getElementById("main-discord");
+        discord.href = data.cord;
+        discord.lastChild.textContent = ` "${data.cordN}" on Discord`;
+        document.getElementById("main-location").lastChild.textContent = ` ${data.loc}`;
       }).catch(error => {
         const mainEmailP = document.getElementById("main-email")
         mainEmailP.textContent = "failed to validate human"
@@ -378,48 +256,140 @@ mainContentElm.addEventListener("scroll", function () {
   handleSections()
 });
 
-/* ---- */
-
-// the navigation
 async function toResources() {
-  if (!projectsLoaded) {
-    await loadProjects();
-  }
+  await loadProjects();
   document.getElementById('projects').scrollIntoView({ block: 'center' });
   setSidebar(false);
 }
 
 async function toAirzy() {
-  if (!introsLoaded) {
-    await loadIntro();
-  }
+  await loadIntro();
   document.getElementById('intro-section').scrollIntoView({ block: 'center' });
   setSidebar(false);
 }
 
-async function toContact() {
-  const contactFrame = document.getElementById('contact-frame')
-
-  let startTime = null;
-
-  function lerpColor(timestamp) {
-    if (!startTime) startTime = timestamp;
-    const progress = Math.min((timestamp - startTime) / 1000, 1);
-    const greyValue = 128 * (1 - progress);
-    contactFrame.style.backgroundColor = `rgb(${greyValue}, ${greyValue}, ${greyValue})`;
-    if (progress < 1) requestAnimationFrame(lerpColor);
-    else contactFrame.style.backgroundColor = '';
-  }
-
-  requestAnimationFrame(lerpColor);
-
+function toContact() {
+  const contactFrame = document.getElementById('contact-frame');
+  // flashes grey and fades out so you see where it landed
+  contactFrame.animate({ backgroundColor: ['rgb(128, 128, 128)', 'transparent'] }, 1000);
   contactFrame.scrollIntoView({ block: 'center' });
   setSidebar(false);
 }
 
-function openChat() {
-  alert("il code this in later lmao")
+// the guestbook. notes are public and anyone can type html into one,
+// so their text only ever goes in through textContent
+const board = document.getElementById('board');
+const boardForm = document.getElementById('board-form');
+const boardStatus = document.getElementById('board-status');
+
+// the owner's pin and delete. the server checks ADMIN_UID on both, this only decides who sees them
+function noteButton(label, onclick) {
+  const button = document.createElement('button');
+  button.className = 'note-btn';
+  button.textContent = label;
+  button.onclick = onclick;
+  return button;
 }
+
+function makeNote({ id, name, text, mine, pinned }, admin) {
+  const note = document.createElement('figure');
+  note.className = pinned ? 'note pinned' : 'note';
+  const caption = document.createElement('figcaption');
+  caption.textContent = mine ? 'you' : name;
+  const sticky = document.createElement('p');
+  sticky.className = `sticky paper-${id % 4}`;
+  // colour and tilt come from the id so a note looks the same every visit
+  sticky.style.setProperty('--tilt', `${((id * 7) % 5 - 2) * 1.2}deg`);
+  sticky.textContent = text;
+  if (admin) {
+    caption.append(' ',
+      noteButton(pinned ? 'unpin' : 'pin', async () => {
+        if ((await fetch(`/api/notes/${id}/pin`, { method: 'POST' })).ok) loadGuestbook(); // reload for the new order
+      }),
+      noteButton('delete', async () => {
+        if ((await fetch(`/api/notes/${id}`, { method: 'DELETE' })).ok) note.remove();
+      }),
+    );
+  }
+  note.append(caption, sticky);
+  return note;
+}
+
+// posting takes an account, signed out visitors get the login link in place of the form
+function showBoardForm(signedIn) {
+  boardForm.hidden = !signedIn;
+  document.getElementById('board-login').hidden = signedIn;
+}
+
+function boardMessage(text) {
+  const p = document.createElement('p');
+  p.className = 'small-p';
+  p.textContent = text;
+  board.replaceChildren(p);
+}
+
+async function loadGuestbook() {
+  try {
+    const res = await fetch('/api/notes');
+    if (!res.ok) throw new Error(res.status);
+    const { notes, signedIn, admin } = await res.json();
+    showBoardForm(signedIn);
+    if (!notes.length) return boardMessage('nothing here yet, be the first');
+    board.replaceChildren(...notes.map(n => makeNote(n, admin)));
+  } catch {
+    boardMessage("couldn't load the guestbook, try again in a bit");
+  }
+}
+
+// hidden until Leave A Note, so a visit that never clicks never wakes the database.
+// projects and intro land above it, load them first or it moves out from under the scroll
+async function toGuestbook() {
+  const guestbook = document.getElementById('guestbook');
+  if (guestbook.hidden) {
+    guestbook.hidden = false;
+    loadGuestbook();
+  }
+  await loadProjects();
+  await loadIntro();
+  // offsetTop ignores the slide in transform, so it lands the same revealed or not. 100 clears the nav
+  mainContentElm.scrollTo({ top: guestbook.offsetTop - 100 });
+}
+
+// the login link comes back to /home#guestbook
+if (location.hash === '#guestbook') toGuestbook();
+
+boardForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const send = boardForm.querySelector('button');
+  send.disabled = true;
+  boardStatus.textContent = '';
+
+  const res = await fetch('/api/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.fromEntries(new FormData(boardForm))),
+  }).catch(() => null);
+  const data = res && await res.json().catch(() => ({}));
+  send.disabled = false;
+
+  if (res?.status === 401) return showBoardForm(false); // logged out in another tab
+  if (!res?.ok) {
+    boardStatus.textContent = res?.status === 429 ? 'slow down, try again in a few minutes' : data?.error || "couldn't sign, try again";
+    return;
+  }
+  boardForm.elements.text.value = '';
+  boardForm.elements.text.style.height = '';
+  const note = makeNote(data.note);
+  note.classList.add('pop');
+  if (!board.querySelector('.note')) board.replaceChildren(); // drops the "nothing here yet" line
+  board.insertBefore(note, board.querySelector('.note:not(.pinned)')); // newest, under the pinned ones
+});
+
+// one line until you write more, then it grows with the text. max-height in the css caps it
+boardForm.elements.text.addEventListener('input', e => {
+  e.target.style.height = 'auto';
+  e.target.style.height = `${e.target.scrollHeight}px`;
+});
 
 if (window.location.pathname === '/') {
   window.history.replaceState(null, '', '/home');

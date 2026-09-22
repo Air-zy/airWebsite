@@ -2,50 +2,34 @@
   <style>
     #projects {
       display: flex;
-      flex-direction: row;
       flex-wrap: wrap;
       justify-content: space-around;
-      scrollbar-width: thin;
-      
-      height: 700px;
+      gap: 40px;
       width: 90%;
-      
+      height: 700px;
       overflow-y: auto;
       overflow-x: hidden;
-      
-      gap: 40px;
+      scrollbar-width: thin;
     }
     .project-container {
       width: 600px;
       position: relative;
       margin: 20px;
-
       transition: transform 0.3s ease;
+    }
+    .project-container:hover {
+      transform: translateY(-10px);
     }
     .project-card {
       position: relative;
       flex-shrink: 0;
-      
-      border-top: dotted var(--text-grey) 1px;
-      
-      padding: 20px;
-
       display: flex;
       gap: 20px;
-      
-      text-decoration: none; /* remove underline */
-      color: inherit;
-      cursor: pointer;
-    }
-
-    /* removing the href effects */
-    .project-card:focus,
-    .project-card:hover {
+      padding: 20px;
+      border-top: dotted var(--text-grey) 1px;
       text-decoration: none;
       color: inherit;
-    }
-    .project-container:hover {
-      transform: translateY(-10px);
+      cursor: pointer;
     }
     .project-container img {
       border-radius: 6px;
@@ -53,75 +37,49 @@
     }
     .project-footer {
       display: flex;
-      flex-direction: row;
-      gap: 10px;
-      
       flex-wrap: wrap;
+      gap: 10px;
     }
     .project-footer p {
+      margin: 0;
+      padding: 3px 10px;
       border-radius: 12px;
-      background-color: var(--frame-bcol);
-      color: var(--text-grey);
-
-      margin: 0px;
-      
       font-size: 75%;
-      
-      padding: 10px;
-      padding-top: 3px;
-      padding-bottom: 3px;
+      color: var(--text-grey);
+      background-color: var(--frame-bcol);
     }
     .project-card div p {
-      margin: 0px;
+      margin: 0;
       padding-bottom: 10px;
-      
       font-size: calc(1rem * 0.9);
     }
-    .proj-title {
-      position: absolute;
-      top: -10px;
-      
-      font-size: 1rem;
-      white-space: nowrap;
-      
-      left: 120px;
-      transform: translateX(-50%);
-        
-      text-align: center;
-      padding-right: 4px;
-      padding-left: 4px;
-      margin: 0px;
-      
-      background-color: var(--frame-bcol);
-    }
+    /* the title and view count sit on the dotted top border */
+    .proj-title,
     .proj-stats {
       position: absolute;
-      top: -8px;
-      
-      font-size: 0.8rem;
+      margin: 0;
+      padding: 0 4px;
       white-space: nowrap;
-      
+      text-align: center;
+      background-color: var(--frame-bcol);
+    }
+    .proj-title {
+      top: -10px;
+      left: 120px;
+      transform: translateX(-50%);
+      font-size: 1rem;
+    }
+    .proj-stats {
+      top: -8px;
       right: 60px;
       transform: translateX(50%);
+      font-size: 0.8rem;
       color: var(--text-grey);
-        
-      text-align: center;
-      padding-right: 4px;
-      padding-left: 4px;
-      margin: 0px;
-      
       opacity: 0;
-      background-color: var(--frame-bcol);
       transition: opacity 0.4s ease-out;
     }
     .project-container:hover .proj-stats {
       opacity: 1;
-    }
-    .icon-button .button-text {
-      display: none;
-    }
-    .icon-button:hover .button-text {
-      display: inline;
     }
     /* the edit link is an anchor so it can be opened in a new tab,
        these match what 'article button' gives the refresh button next to it */
@@ -142,13 +100,11 @@
   <h2 style="margin-bottom: 0px">Projects</h2>
   <p class="small-p" style="margin-bottom: 30px">Projects I created and own.
     <button class="icon-button" onclick="reloadProjects()">
-      <span class="button-text"></span> <svg class="fa fa-refresh icon" aria-hidden="true"><use href="#i-refresh"/></svg>
+      <svg class="fa fa-refresh icon" aria-hidden="true"><use href="#i-refresh"/></svg>
     </button>
     <a class="icon-button" href="/projectsEdit.html" title="edit projects">
-      <span class="button-text"></span> <svg class="fa fa-pencil icon" aria-hidden="true"><use href="#i-pencil"/></svg>
+      <svg class="fa fa-pencil icon" aria-hidden="true"><use href="#i-pencil"/></svg>
     </a>
   </p>
-  <div id="projects">
-    
-  </div>
+  <div id="projects"></div>
 </section>

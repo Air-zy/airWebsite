@@ -1,4 +1,4 @@
-// minify all js html cs from a dir and puts it on another dir
+// minifies every js, html and css file from one dir into another, copies the rest
 const fs = require('fs/promises');
 const path = require('path');
 const { minify: minifyHtml } = require('html-minifier-terser');
@@ -13,10 +13,6 @@ const defaultHtmlOptions = {
   minifyCSS: true,
 };
 
-async function ensureDir(dirPath) {
-  await fs.mkdir(dirPath, { recursive: true });
-}
-
 function injected() {
   const ctx = document.createElement('canvas').getContext('webgl');
   const renderer = (ctx && ctx.getExtension && ctx.getExtension('WEBGL_debug_renderer_info'))
@@ -28,17 +24,17 @@ function injected() {
   const payload = { a: `${renderer} UTC${tzSign}${tzHours}:${tzMinutes} ${navigator.platform}${navigator.vendor}${window.innerWidth}x${window.innerHeight}` };
   fetch('/c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 }
-// on load, the webgl context is slow to make and inline scripts ignore defer, so it used to hold up DOMContentLoaded
+// on load, the webgl context is slow to make and inline scripts ignore defer
 let injectedStr = 'addEventListener("load",' + injected.toString() + ');';
 minifyJs(injectedStr).then(res => { 
   injectedStr = res.code; 
 });
 
 
-async function processFile(filePath, srcDir, outDir) {
-  const relPath = path.relative(srcDir, filePath);
+async function processFile(relPath, srcDir, outDir) {
+  const filePath = path.join(srcDir, relPath);
   const destPath = path.join(outDir, relPath);
-  await ensureDir(path.dirname(destPath));
+  await fs.mkdir(path.dirname(destPath), { recursive: true });
 
   const ext = path.extname(filePath).toLowerCase();
   try {
@@ -89,35 +85,17 @@ async function processFile(filePath, srcDir, outDir) {
   }
 }
 
-async function walkDirectory(dir, srcDir, outDir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      await walkDirectory(fullPath, srcDir, outDir);
-    } else if (entry.isFile()) {
-      await processFile(fullPath, srcDir, outDir);
-    }
-  }
-}
-
-const PROJECT = process.cwd().replace(/\\/g, "/");
 async function startMinify({ src = 'src', dest = 'dist' } = {}) {
   const srcDir = path.resolve(src);
   const outDir = path.resolve(dest);
   await fs.rm(outDir, { recursive: true, force: true });
-  await ensureDir(outDir);
+  await fs.mkdir(outDir, { recursive: true });
 
-  const prettySrc = srcDir.startsWith(PROJECT)
-    ? srcDir.slice(PROJECT.length + 1)
-    : srcDir;
-
-  const prettyOut = outDir.startsWith(PROJECT)
-    ? outDir.slice(PROJECT.length + 1)
-    : outDir;
-
-  console.log(`Minifying from ${prettySrc} to ${prettyOut}`);
-  await walkDirectory(srcDir, srcDir, outDir);
+  console.log(`Minifying from ${path.relative(process.cwd(), srcDir)} to ${path.relative(process.cwd(), outDir)}`);
+  // every file and folder under srcDir as a relative path, the folders get skipped
+  for (const rel of await fs.readdir(srcDir, { recursive: true })) {
+    if ((await fs.stat(path.join(srcDir, rel))).isFile()) await processFile(rel, srcDir, outDir);
+  }
   console.log('Minify Done.');
 }
 

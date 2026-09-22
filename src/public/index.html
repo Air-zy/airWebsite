@@ -4,15 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <meta name="title" content="Airzy Turqueza" />
     <meta
       name="description"
       content="i code and build games when bored. Software Developer, Airzy Turqueza"
     />
-    <meta name="keywords" content="Airzy Turqueza, Airzy, Turqueza" />
-    <meta name="robots" content="index, follow" />
-    <meta name="language" content="English" />
-    <meta name="revisit-after" content="30 days" />
     <meta name="author" content="AirzyAlt@gmail.com" />
 
     <meta property="og:title" content="Airzy Turqueza" />
@@ -90,6 +85,21 @@
           <span class="social-medias"><!--#socialIcons--></span>
         </section>
       </article>
+      <!-- outside the article on purpose, projects and intro get appended to the article as you scroll.
+           stays hidden until the Leave A Note button opens it -->
+      <section class="txt-section" id="guestbook" hidden>
+        <h2>Guestbook</h2>
+        <p class="small-p">notes from people who stopped by</p>
+        <form id="board-form" hidden>
+          <div class="board-row">
+            <textarea name="text" maxlength="1000" rows="1" required placeholder="say hi" aria-label="your note"></textarea>
+            <button>sign</button>
+          </div>
+          <p id="board-status" aria-live="polite"></p>
+        </form>
+        <a id="board-login" href="/auth/?next=%2Fhome%23guestbook" hidden>log in to sign it</a>
+        <div class="board" id="board"></div>
+      </section>
       <div class="main-footer">
         <div class="footer-top">
           <div>
@@ -112,7 +122,6 @@
                   style="text-decoration: none"
                   >aizryalt@gmail.com</a
                 >
-                <!-- mailto added to simplify email process -->
               </p>
               <p id="main-location">
                 <svg class="fa fa-map-marker icon" aria-hidden="true"><use href="#i-map-marker"/></svg> loading location...
@@ -172,7 +181,7 @@
         </div>
         <div class="footer-bottom">
           <div class="inner-bottom">
-            <button onclick="openChat()" class="chat-button">
+            <button onclick="toGuestbook()" class="chat-button">
               Leave A Note <svg class="fa fa-comments-o icon" aria-hidden="true"><use href="#i-comments-o"/></svg>
             </button>
             <span class="social-medias"><!--#socialLinks--></span>

@@ -10,6 +10,7 @@ const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken);
 router.use('/rowa', require('./rowa2/router.js'));
 router.use('/projects', require('./projects/router.js'));
 router.use('/status', require('./status/router.js'));
+router.use('/notes', require('./notes.js'));
 router.use('/gam3DB', require('../rblxapp/routes/gam3DB.js'));
 
 router.get('/roblox-user/:userId', require('../rblxapp/routes/userlookup.js'));

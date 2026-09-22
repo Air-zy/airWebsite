@@ -29,7 +29,7 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 | `sessionSecret` | signs session cookies. required, server wont boot without it |
 | `resendKey` | optional. without it reset links print to console instead of emailing |
 | `airWebToken` | admin and roblox endpoints |
-| `UTIL_DB` | postgres connection json for the anime store |
+| `UTIL_DB` | encrypted neon postgres url, for the anime store and the guestbook |
 
 `sessionSecret` is fatal on purpose. A signing key falling back to a default means forgeable cookies, so it crashes at boot instead.
 
@@ -111,9 +111,11 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 
 ## Notes
 
-- `/api/logs` is the raw request log, owner only (uid 1).
+- `/api/logs` is the raw request log, owner only (`ADMIN_UID` in `auth.js`).
+- The guestbook (`/api/notes`) is public to read and needs an account to sign. The owner pins and deletes from the page,
+  pinning is also the sort, the last pin sits on top.
 - `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
 - Accounts made before email was required cant use reset until you add an `email` field and an `email:<lower>` index doc in the firestore console.
 - No test framework. A few files have a self check you run directly:
-  `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js` and `routes/cli.js`,
+  `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js` and `routes/api/notes.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).

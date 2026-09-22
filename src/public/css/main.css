@@ -286,27 +286,17 @@ h3 {
 #s1 h3 {
   white-space: nowrap;
 }
-/* chat bubble off the end of the name, grows out of its tail once the name glows.
-   own font on purpose, the emoji is not in the minecraft subset and would pull in the full 68kb font */
-#s1 .bubble {
-  position: absolute;
-  left: calc(100% + 0.35em);
-  top: -1.1em;
+/* chat bubble with an ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css.
+   he cuts the tail curve with a patch in the page color, a mask does it here so it works over
+   anything, like the name glow behind it. all em so it scales with font-size */
+.bubble {
+  position: relative;
   padding: 0.3em 0.45em;
-  font: 28px/1.2 sans-serif;
   text-shadow: none;
   background: color-mix(in srgb, var(--text-normal) 14%, var(--bg-col));
   border-radius: 0.9em;
-  transform: scale(0);
-  transform-origin: -0.25em 100%;
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s;
 }
-#s1:has(.glow) .bubble {
-  transform: none;
-}
-/* ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css. he cuts the curve with a
-   patch in the page color, a mask does it here since the name glow sits behind and would show the patch */
-#s1 .bubble::after {
+.bubble::after {
   content: "";
   position: absolute;
   left: -0.25em;
@@ -318,6 +308,147 @@ h3 {
   mask:
     linear-gradient(#000 0 0) right / calc(100% - 0.25em) 100% no-repeat,
     radial-gradient(circle 0.36em at -0.11em 0, #0000 calc(100% - 1px), #000) bottom / 100% 0.36em no-repeat;
+}
+/* off the end of the name, grows out of its tail once the name glows. own font on purpose,
+   the emoji is not in the minecraft subset and would pull in the full 68kb font */
+#s1 .bubble {
+  position: absolute;
+  left: calc(100% + 0.35em);
+  top: -1.1em;
+  font: 28px/1.2 sans-serif;
+  transform: scale(0);
+  transform-origin: -0.25em 100%;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s;
+}
+#s1:has(.glow) .bubble {
+  transform: none;
+}
+
+/* the guestbook, a board of sticky notes. they wrap and center so different sizes scatter a bit */
+.board {
+  width: min(1000px, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 36px 28px;
+  padding-top: 12px;
+}
+.note {
+  max-width: 240px;
+  margin: 0;
+}
+.note figcaption {
+  margin: 0 0 10px 2px;
+  font-size: 0.7rem;
+  color: var(--text-grey);
+}
+/* sized by its text between the min and the max, like a real one you wrote small or big on */
+.sticky {
+  position: relative;
+  width: fit-content;
+  min-width: 6.5em;
+  max-width: 100%;
+  min-height: 4.5em;
+  margin: 0;
+  padding: 1.1em 1em 1.2em;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #2b2b2b;
+  text-shadow: none;
+  box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
+  rotate: var(--tilt);
+}
+.paper-0 { background: #fdf1a2; }
+.paper-1 { background: #ffc9d9; }
+.paper-2 { background: #bfe3ff; }
+.paper-3 { background: #caf2c2; }
+/* a strip of tape holds it up */
+.sticky::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 3.2em;
+  height: 1.2em;
+  translate: -50% 0;
+  rotate: -3deg;
+  background: rgb(255 255 245 / 0.45);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+}
+/* the owner pinned it, a pushpin instead of tape */
+.pinned .sticky::before {
+  top: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  rotate: none;
+  background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
+  box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
+}
+/* only a note you just signed pops, not the whole board on load */
+.note.pop {
+  animation: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) notePop;
+  transform-origin: 50% 0;
+}
+@keyframes notePop {
+  from {
+    transform: scale(0);
+  }
+}
+#board-form {
+  width: min(600px, 100%);
+  margin-bottom: 36px;
+}
+/* hidden alone loses to the display:flex on .txt-section */
+#guestbook[hidden] {
+  display: none;
+}
+/* one line to start, main.js grows the textarea as you type and max-height caps it */
+.board-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+#board-form textarea,
+#guestbook button {
+  font: inherit;
+  color: inherit;
+  background: var(--frame-bcol);
+  border: 0;
+  padding: 10px;
+}
+#board-form textarea {
+  flex: 1;
+  box-sizing: border-box;
+  max-height: 12em;
+  resize: none;
+}
+#guestbook button {
+  cursor: pointer;
+}
+#guestbook button:hover {
+  background: var(--frame-bcol2);
+}
+/* the owner's pin and delete, small next to the name */
+#guestbook .note-btn {
+  padding: 0 4px;
+  background: none;
+  color: var(--text-grey);
+}
+#guestbook .note-btn:hover {
+  color: var(--text-normal);
+}
+#board-status {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-grey);
+}
+#board-login {
+  margin-bottom: 36px;
+  color: var(--text-normal);
 }
 #s2 {
   margin-top: 200px;
@@ -436,8 +567,6 @@ h3 {
   padding: 10px;
   font-size: 20px;
   width: 50px;
-  text-align: center;
-  text-decoration: none;
   margin: 5px 2px;
   color: var(--text-normal);
 }
@@ -521,7 +650,6 @@ h3 {
 .item-list a {
   text-decoration: none;
   color: var(--text-normal);
-  white-space: nowrap;
 }
 .footer-top > * {
   padding: 40px;
@@ -540,7 +668,6 @@ h3 {
   color: var(--text-grey);
   padding: 0 20px 0 0;
   font-size: 0.9em;
-  width: auto;
   white-space: nowrap;
 }
 .inner-bottom .icon {
@@ -570,12 +697,6 @@ h3 {
 .summary-button:hover {
   transform: translateX(5px);
   text-shadow: 0 0 50px rgba(255, 255, 255, 1), 0 0 40px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 255, 255, 1)
-}
-
-@keyframes fadeIn {
-  to {
-    opacity: 1;
-  }
 }
 @media (max-width: 600px) {
   #s1 .bubble {
@@ -622,5 +743,8 @@ h3 {
   .txt-section,
   #s1 .bubble {
     transition: none;
+  }
+  .note.pop {
+    animation: none;
   }
 }
