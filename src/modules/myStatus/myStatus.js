@@ -43,64 +43,21 @@ async function getLastOnline() {
     }
 }
 
-async function getWeeklyStatus() {
-    try {
-        const statusLog = await getStatusLog();
-        const now = new Date();
-
-        // normalize to UTC hour start
-        const current = new Date(Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate(),
-            now.getUTCHours(),
-            0, 0, 0
-        ));
-
-        // get day of week (0 = Sunday, 1 = Monday, ...)
-        let day = current.getUTCDay();
-        if (day === 0) day = 7; // make Sunday = 7
-
-        // calc Monday 00:00 UTC
-        const weekStart = new Date(current);
-        weekStart.setUTCDate(current.getUTCDate() - (day - 1));
-        weekStart.setUTCHours(0, 0, 0, 0);
-
-        const HOURS_IN_WEEK = 7 * 24;
-        const log = statusLog.getHourlyStatusLog(weekStart, HOURS_IN_WEEK)
-        //console.log(log.toJSON())
-        return log.toJSON();
-    } catch (err) {
-        console.error('[Status Tracker] ERROR:', err);
-    }
-}
-
-async function getMonthlyStatus() {
-  try {
+// ends on the current hour, so the grid never trails into the future
+async function getRollingStatus(days) {
     const statusLog = await getStatusLog();
     const now = new Date();
+    const hours = days * 24;
 
-    const monthStart = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      1, 0, 0, 0, 0
-    ));
+    const currentHour = Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours()
+    );
 
-    const nextMonthStart = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth() + 1,
-      1, 0, 0, 0, 0
-    ));
-
-    const hours = (nextMonthStart - monthStart) / 3600000;
-
-    const log = statusLog.getHourlyStatusLog(monthStart, hours);
-
-    return log.toJSON();
-  } catch (err) {
-    console.error('[Status Tracker] ERROR:', err);
-    return null;
-  }
+    const start = new Date(currentHour - (hours - 1) * 3600000);
+    return statusLog.getHourlyStatusLog(start, hours).toJSON();
 }
 
-module.exports = { getStatusLog, getLastOnline, getWeeklyStatus, getMonthlyStatus };
+module.exports = { getStatusLog, getLastOnline, getRollingStatus };

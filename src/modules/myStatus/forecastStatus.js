@@ -1,5 +1,8 @@
 const HourlyStatusLog = require("./HourlyStatusLog");
 
+// pseudo counts pulling a sparse weekday hour back to the hour of day average
+const SHRINK = 5;
+
 function utcHourStart(date) {
     const d = new Date(date);
     return new Date(Date.UTC(
@@ -80,9 +83,12 @@ function analyze(multiYear) {
         const day = dayStats[d];
         const byHour = {};
 
+        // a weekday hour only gets one sample per week of history, so a thin cell
+        // reads as a hard 0 or 1 on two or three observations. shrink it toward the
+        // hour of day marginal, which has seven times the data behind it
         for (let h = 0; h < 24; h++) {
             const stat = day.hourCounts[h];
-            byHour[h] = stat.total ? stat.online / stat.total : 0;
+            byHour[h] = (stat.online + SHRINK * byHourOfDay[h]) / (stat.total + SHRINK);
         }
 
         byDayOfWeek[d] = {

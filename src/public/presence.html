@@ -6,148 +6,204 @@
   <title>Online Hours</title>
   <style>
     :root{
-      --bg:#200b0b;
-      --text:#ffffff;
-      --muted:#bbbbbb;
-      --line:rgba(148, 184, 153, 0.18);
-      --on:#56a347;
-      --off:#363636;
-      --head:#333333;
+      color-scheme:dark;
+      --bg:#000000;
+      --surface:#0d0d0d;
+      --line:#282828;
+      --text:#e8e8e8;
+      --muted:#8b8b8b;
+      --empty:#161616;
+      --l1:#033a16;
+      --l2:#196c2e;
+      --l3:#2ea043;
+      --l4:#56d364;
+      --gap:3px;
+      --labelcol:88px;
+      --cell:14px;
     }
 
     *{box-sizing:border-box}
 
     body{
       margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:#000;
+      padding:32px 16px;
+      background:var(--bg);
       color:var(--text);
+      font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Noto Sans,Helvetica,Arial,sans-serif;
     }
 
-    .wrap{
-      max-width:1200px;
-      margin:0 auto;
-      padding:16px;
-    }
+    .wrap{max-width:1000px;margin:0 auto}
 
     .card{
-      background:rgba(0, 0, 0, 0.92);
+      background:var(--surface);
       border:1px solid var(--line);
-      border-radius:4px;
-      padding:14px;
+      border-radius:6px;
+      padding:16px;
     }
 
     .top{
       display:flex;
       justify-content:space-between;
-      gap:12px;
       align-items:center;
+      gap:16px;
       flex-wrap:wrap;
-      margin-bottom:12px;
+      margin-bottom:16px;
     }
 
-    .row{
+    h1{
+      font-size:16px;
+      font-weight:400;
+      margin:0;
+    }
+
+    h1 strong{font-weight:600}
+
+    .tabs{
       display:flex;
-      gap:8px;
-      flex-wrap:wrap;
+      border:1px solid var(--line);
+      border-radius:6px;
+      overflow:hidden;
     }
 
-    button{
-      border:1px solid var(--line);
-      background:#0f172a;
-      color:var(--text);
-      padding:8px 12px;
-      border-radius:999px;
+    .tabs button{
+      border:0;
+      background:transparent;
+      color:var(--muted);
+      font:inherit;
+      font-size:12px;
+      padding:5px 12px;
       cursor:pointer;
     }
 
-    button.active{
-      background:#58d158;
-      border-color:#41cc54;
-    }
+    .tabs button + button{border-left:1px solid var(--line)}
+    .tabs button:hover:not(:disabled){background:#1c1c1c;color:var(--text)}
+    .tabs button[aria-pressed="true"]{background:var(--l2);color:#fff}
+    .tabs button:disabled{cursor:not-allowed;opacity:.6}
 
-    button:disabled{
-      opacity:.65;
-      cursor:not-allowed;
-    }
+    /* holds the tallest view so switching tabs does not resize the card */
+    .scroll{overflow-x:auto;padding-bottom:4px;min-height:210px}
 
-    #meta{
-      color:var(--muted);
-      font-size:12px;
-      margin-bottom:12px;
-      min-height:18px;
-    }
+    /* hour grid, one row per day or per weekday */
+    .grid{min-width:660px}
 
-    .scroll{
-      overflow-x:auto;
-    }
-
-    #grid{
+    .hours,.row{
       display:grid;
-      gap:3px;
-      min-width:980px;
-    }
-
-    .hourHeader{
-      display:grid;
-      grid-template-columns:84px repeat(24, minmax(10px, 1fr));
-      gap:3px;
-      align-items:center;
-      margin-bottom:4px;
-    }
-
-    .hourHeader .spacer{
-      min-height:1px;
-    }
-
-    .hour{
-      font-size:11px;
-      color:var(--muted);
-      text-align:center;
-      white-space:nowrap;
-      padding:4px 0;
-      /*background:rgba(31,41,55,.5);*/
-      border-radius:4px;
-    }
-
-    .day{
-      display:grid;
-      grid-template-columns:84px repeat(24, minmax(10px, 1fr));
-      gap:3px;
+      grid-template-columns:var(--labelcol) repeat(25,minmax(0,1fr));
+      gap:var(--gap);
       align-items:center;
     }
 
-    .label{
+    .row + .row{margin-top:var(--gap)}
+
+    .hours{
+      margin-bottom:6px;
+      font-size:10px;
+      color:var(--muted);
+    }
+
+    .hours span{grid-column:span 3}
+
+    .date{
       font-size:11px;
       color:var(--muted);
+      text-align:right;
+      padding-right:2px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
 
-    .cell{
-      aspect-ratio:1/1;
-      border-radius:3px;
-      background:var(--off);
+    /* day calendar, columns are weeks and rows are weekdays */
+    .cal{display:flex;gap:6px;align-items:start}
+
+    /* pushed down past the month labels so the rows line up with the weeks */
+    .caldays{
+      display:grid;
+      grid-template-rows:repeat(7,var(--cell));
+      gap:var(--gap);
+      align-items:center;
+      margin-top:18px;
+      font-size:9px;
+      line-height:1;
+      color:var(--muted);
+      text-align:right;
     }
 
-    .cell.on{
-      background:var(--on);
+    /* labels sit on the column their month opens in and overflow to the right */
+    .months{
+      display:grid;
+      gap:var(--gap);
+      height:14px;
+      margin-bottom:4px;
+      font-size:10px;
+      color:var(--muted);
+      white-space:nowrap;
     }
 
-    @media (max-width: 900px){
-      .hourHeader,
-      .day{
-        grid-template-columns:64px repeat(24, minmax(8px, 1fr));
-        gap:2px;
-      }
-      .label,
-      .hour{
-        font-size:10px;
-      }
-      #grid{
-        min-width:860px;
-      }
+    .weeks{
+      display:grid;
+      grid-auto-flow:column;
+      grid-template-rows:repeat(7,var(--cell));
+      grid-auto-columns:var(--cell);
+      gap:var(--gap);
+    }
+
+    .cell,.sum,.legend i{
+      aspect-ratio:1;
+      border-radius:2px;
+      background:var(--empty);
+      outline:1px solid rgba(255,255,255,.04);
+      outline-offset:-1px;
+    }
+
+    .sum{border-radius:3px}
+
+    .l1{background:var(--l1)}
+    .l2{background:var(--l2)}
+    .l3{background:var(--l3)}
+    .l4{background:var(--l4)}
+
+    /* never tracked, not an offline hour. hatched because an untracked cell and a
+       zero cell are otherwise the same flat square */
+    .none{
+      background:repeating-linear-gradient(45deg,transparent 0 2px,rgba(255,255,255,.08) 2px 4px);
+      outline-color:rgba(255,255,255,.10);
+    }
+
+    .foot{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:14px;
+      font-size:11px;
+      color:var(--muted);
+    }
+
+    .legend{display:flex;align-items:center;gap:4px}
+    .legend i{width:10px;height:10px;flex:none}
+
+    #tip{
+      position:fixed;
+      z-index:10;
+      pointer-events:none;
+      opacity:0;
+      transition:opacity .1s;
+      background:#1a1a1a;
+      border:1px solid var(--line);
+      border-radius:6px;
+      padding:4px 8px;
+      font-size:11px;
+      white-space:nowrap;
+      transform:translate(-50%,-100%);
+    }
+
+    #tip.show{opacity:1}
+
+    @media (max-width:700px){
+      body{padding:16px 8px}
+      :root{--labelcol:64px;--gap:2px;--cell:11px}
     }
   </style>
 </head>
@@ -155,186 +211,350 @@
   <div class="wrap">
     <div class="card">
       <div class="top">
-        <div id="meta"></div>
-        <div></div>
-        <div class="row">
-          <button id="weeklyBtn" class="active">Weekly</button>
-          <button id="monthlyBtn">Monthly</button>
+        <h1 id="headline" aria-live="polite">Loading...</h1>
+        <div class="tabs" id="tabs">
+          <button data-view="weekly" aria-pressed="true">Week</button>
+          <button data-view="yearly" aria-pressed="false">Year</button>
+          <button data-view="typical" aria-pressed="false">Typical</button>
         </div>
       </div>
 
-      <div class="scroll">
-        <div id="grid"></div>
+      <div class="scroll"><div id="board" role="img"></div></div>
+
+      <div class="foot">
+        <span id="range"></span>
+        <span class="legend" id="legend"></span>
       </div>
     </div>
   </div>
 
+  <div id="tip" role="tooltip"></div>
+
   <script>
-    const meta = document.getElementById('meta');
-    const grid = document.getElementById('grid');
-    const weeklyBtn = document.getElementById('weeklyBtn');
-    const monthlyBtn = document.getElementById('monthlyBtn');
+    const board = document.getElementById('board');
+    const headline = document.getElementById('headline');
+    const range = document.getElementById('range');
+    const legendBox = document.getElementById('legend');
+    const tabs = document.getElementById('tabs');
+    const tip = document.getElementById('tip');
 
-    const cache = {
-      weekly: null,
-      monthly: null
-    };
-
-    let currentKey = 'weekly';
+    const cache = {};
     let loading = false;
 
-    const hourFormatter = new Intl.DateTimeFormat(undefined, {
-      hour: 'numeric',
-      hour12: true
-    });
+    const fmtHour = new Intl.DateTimeFormat(undefined, { hour: 'numeric', hour12: true });
+    const fmtDay = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const fmtRange = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+    const fmtLong = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+    const fmtShort = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+    const fmtMonth = new Intl.DateTimeFormat(undefined, { month: 'short' });
 
-    const dateFormatter = new Intl.DateTimeFormat(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
+    const hourLabel = h => fmtHour.format(new Date(2000, 0, 1, h)).toLowerCase().replace(/\s/g, '');
+
+    // jan 7 2024 was a sunday, so d lines up with getDay()
+    const weekday = (d, fmt) => fmt.format(new Date(2024, 0, 7 + d));
+
+    // step 0 is an empty cell, which has no class of its own
+    const green = n => n ? 'l' + n : '';
+
+    function dayKey(d) { return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); }
+
+    // 0 leaves the cell empty, 1 to 4 are the green steps
+    function level(part, whole) {
+      return part ? Math.min(4, Math.ceil(part / whole * 4)) : 0;
+    }
+
+    // levels are quartiles of the days that had any hours, the way github scales to
+    // your own history. a fixed 0 to 24 scale puts nearly every day on the same step
+    function scale(values) {
+      const lit = values.filter(v => v > 0).sort((a, b) => a - b);
+      if (!lit.length) return () => 0;
+
+      const at = f => lit[Math.min(lit.length - 1, Math.floor(lit.length * f))];
+      const cuts = [at(0.25), at(0.5), at(0.75)];
+
+      return v => v <= 0 ? 0 : v < cuts[0] ? 1 : v < cuts[1] ? 2 : v < cuts[2] ? 3 : 4;
+    }
 
     function decodeBits(b64, total) {
       const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const bits = [];
-      for (const b of bytes) {
-        for (let i = 0; i < 8 && bits.length < total; i++) {
-          bits.push((b >> i) & 1);
-        }
-      }
-      while (bits.length < total) bits.push(0);
+      const bits = new Uint8Array(total);
+      for (let i = 0; i < total; i++) bits[i] = (bytes[i >> 3] >> (i & 7)) & 1;
       return bits;
     }
 
-    function localDayKey(d) {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
-
-    function localHourIndex(d) {
-      return d.getHours();
-    }
-
-    function hourLabel(hour) {
-      const base = new Date(2000, 0, 1, hour, 0, 0, 0);
-      return hourFormatter.format(base).toLowerCase();
-    }
-
-    async function loadPayload(key) {
-      if (cache[key]) return cache[key];
-
-      const res = await fetch(`/api/status/${key}`, {
-        headers: { 'accept': 'application/json' }
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to load ${key}: ${res.status} ${res.statusText}`);
-      }
-
-      const json = await res.json();
-      cache[key] = json;
-      return json;
-    }
-
-    function setButtonsActive() {
-      weeklyBtn.classList.toggle('active', currentKey === 'weekly');
-      monthlyBtn.classList.toggle('active', currentKey === 'monthly');
-      weeklyBtn.disabled = loading;
-      monthlyBtn.disabled = loading;
-    }
-
-    function buildHeader() {
-      const header = document.createElement('div');
-      header.className = 'hourHeader';
-
-      const spacer = document.createElement('div');
-      spacer.className = 'spacer';
-      header.appendChild(spacer);
-
-      for (let h = 0; h < 24; h++) {
-        const cell = document.createElement('div');
-        cell.className = 'hour';
-        cell.textContent = hourLabel(h);
-        cell.title = `Hour ${h}`;
-        header.appendChild(cell);
-      }
-
-      return header;
-    }
-
-    function renderGrid(payload) {
+    // local days over a utc window, so the edge rows are partial.
+    // hours the payload does not cover stay null and render as holes
+    function toDays(payload) {
       const bits = decodeBits(payload.data, payload.totalHours);
       const start = new Date(payload.startDate);
-      const end = new Date(start.getTime() + (payload.totalHours - 1) * 3600000);
-
-      const dayMap = new Map();
+      const days = new Map();
 
       for (let i = 0; i < payload.totalHours; i++) {
-        const ts = start.getTime() + i * 3600000;
-        const d = new Date(ts);
-        const key = localDayKey(d);
-        if (!dayMap.has(key)) {
-          dayMap.set(key, {
+        const d = new Date(start.getTime() + i * 3600000);
+        const key = dayKey(d);
+
+        if (!days.has(key)) {
+          days.set(key, {
             date: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
-            hours: new Array(24).fill(0)
+            hours: new Array(24).fill(null),
           });
         }
-        dayMap.get(key).hours[localHourIndex(d)] = bits[i];
+
+        // on the fall back day two utc hours share one local slot, so merge rather
+        // than overwrite. a 24 cell row cannot hold 25 hours either way
+        days.get(key).hours[d.getHours()] |= bits[i];
       }
 
-      grid.innerHTML = '';
-      grid.appendChild(buildHeader());
-
-      for (const { date, hours } of dayMap.values()) {
-        const row = document.createElement('div');
-        row.className = 'day';
-
-        const label = document.createElement('div');
-        label.className = 'label';
-        label.textContent = dateFormatter.format(date);
-        label.title = date.toLocaleDateString([], { dateStyle: 'full' });
-        row.appendChild(label);
-
-        for (let h = 0; h < 24; h++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell' + (hours[h] ? ' on' : '');
-          cell.title = `${label.textContent} ${hourLabel(h)}`;
-          row.appendChild(cell);
-        }
-
-        grid.appendChild(row);
-      }
-
-      meta.textContent = `${start.toLocaleString()} → ${end.toLocaleString()} · ${payload.totalHours} hours · local time`;
+      return [...days.values()];
     }
 
-    async function render() {
+    // analyze keys everything by utc weekday and hour. walk the current week to find
+    // which utc slot each local slot maps to, so the board stays in local time
+    function toWeek(analysis) {
+      const now = new Date();
+      const sunday = [now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()];
+      const week = [];
+
+      for (let d = 0; d < 7; d++) {
+        const cells = [];
+        for (let h = 0; h < 24; h++) {
+          const t = new Date(sunday[0], sunday[1], sunday[2] + d, h);
+          cells.push(analysis.byDayOfWeek[t.getUTCDay()].byHourOfDay[t.getUTCHours()]);
+        }
+        week.push(cells);
+      }
+
+      return week;
+    }
+
+    function el(tag, cls, parent) {
+      const node = document.createElement(tag);
+      node.className = cls;
+      parent.appendChild(node);
+      return node;
+    }
+
+    // swatch and caption pairs saying what a cell means in the view on screen
+    function legend(parts) {
+      legendBox.innerHTML = '';
+      for (const [cls, text] of parts) {
+        if (cls !== null) el('i', cls, legendBox);
+        if (text) legendBox.append(text);
+      }
+    }
+
+    const RAMP = [['', null], ['l1', null], ['l2', null], ['l3', null], ['l4', null]];
+
+    // rows: [{ label, sum: {cls, tip}, cells: [{cls, tip}] }]
+    function hourGrid(rows) {
+      const grid = el('div', 'grid', board);
+      const head = el('div', 'hours', grid);
+      el('div', '', head);
+      el('div', '', head);
+      for (let h = 0; h < 24; h += 3) el('span', '', head).textContent = hourLabel(h);
+
+      for (const row of rows) {
+        const line = el('div', 'row', grid);
+        el('div', 'date', line).textContent = row.label;
+        el('div', 'sum ' + row.sum.cls, line).dataset.tip = row.sum.tip;
+        for (const c of row.cells) el('div', 'cell ' + c.cls, line).dataset.tip = c.tip;
+      }
+    }
+
+    function drawWeekly(payload) {
+      const rows = toDays(payload).map(day => {
+        const label = fmtDay.format(day.date);
+        const known = day.hours.filter(v => v !== null).length;
+        const lit = day.hours.filter(v => v === 1).length;
+
+        return {
+          label,
+          // always scored against a whole day, so today fills in as it goes and the
+          // sliver the window starts on does not read as a full green day
+          sum: { cls: green(level(lit, 24)), tip: lit + ' of ' + known + ' hours online · ' + label },
+          cells: day.hours.map((v, h) => ({
+            // one bit per hour, so an online hour is always the same green
+            cls: v === null ? 'none' : v ? 'l3' : '',
+            tip: (v === null ? 'No data' : v ? 'Online' : 'Offline') + ' · ' + hourLabel(h) + ' ' + label,
+          })),
+        };
+      });
+
+      hourGrid(rows);
+      legend([['none', 'no data'], ['', 'offline'], ['l3', 'online']]);
+      summary(payload, 'Hour by hour for the last seven days');
+    }
+
+    function drawYear(payload) {
+      const days = toDays(payload);
+      const lit = days.map(d => d.hours.filter(v => v === 1).length);
+      const step = scale(lit);
+
+      // the log stores untracked hours as offline, so a run of dead days at the start
+      // of the window is the tracker not running yet, not a year of being away
+      const tracked = lit.findIndex(n => n > 0);
+
+      const cal = el('div', 'cal', board);
+      const gutter = el('div', 'caldays', cal);
+
+      for (let d = 0; d < 7; d++) {
+        el('div', '', gutter).textContent = d % 2 ? weekday(d, fmtShort) : '';
+      }
+
+      const right = el('div', '', cal);
+      const months = el('div', 'months', right);
+      const weeks = el('div', 'weeks', right);
+
+      // blanks so the oldest day lands on its own weekday row
+      const lead = days[0].date.getDay();
+      for (let i = 0; i < lead; i++) el('div', '', weeks);
+
+      const cols = Math.ceil((lead + days.length) / 7);
+      months.style.gridTemplateColumns = 'repeat(' + cols + ', var(--cell))';
+
+      const marks = [];
+      let seen = -1;
+
+      days.forEach((day, i) => {
+        const dead = tracked < 0 || i < tracked;
+        const known = day.hours.filter(v => v !== null).length;
+
+        el('div', 'cell ' + (dead ? 'none' : green(step(lit[i]))), weeks).dataset.tip =
+          (dead ? 'No data' : lit[i] + ' of ' + known + ' hours online') +
+          ' · ' + fmtDay.format(day.date);
+
+        if (day.date.getMonth() === seen) return;
+        seen = day.date.getMonth();
+        marks.push({ col: Math.floor((lead + i) / 7), date: day.date });
+      });
+
+      // a month narrower than three columns has no room for its own name and would
+      // print on top of the next one, which is what the part month at the start does
+      marks.forEach((m, i) => {
+        const next = marks[i + 1];
+        if ((next ? next.col : cols) - m.col < 3) return;
+
+        const label = el('div', '', months);
+        label.style.gridColumn = m.col + 1;
+        label.textContent = fmtMonth.format(m.date);
+      });
+
+      legend([['none', 'no data'], [null, 'less'], ...RAMP, [null, 'more']]);
+      summary(payload, 'Hours online each day for the last year');
+    }
+
+    function drawTypical(analysis) {
+      const rows = toWeek(analysis).map((cells, d) => {
+        const name = weekday(d, fmtLong);
+        const avg = cells.reduce((a, b) => a + b, 0) / 24;
+
+        return {
+          label: name,
+          sum: { cls: green(level(avg, 1)), tip: Math.round(avg * 100) + '% of ' + name + ' online' },
+          cells: cells.map((p, h) => ({
+            cls: green(level(p, 1)),
+            tip: Math.round(p * 100) + '% online · ' + hourLabel(h) + ' ' + name,
+          })),
+        };
+      });
+
+      hourGrid(rows);
+      legend([[null, '0%'], ...RAMP, [null, '100%']]);
+
+      headline.innerHTML = 'A typical week, from <strong>' + analysis.totalHours + '</strong> hours online';
+      range.textContent = 'chance of being online' +
+        (analysis.firstOnline ? ', since ' + fmtRange.format(new Date(analysis.firstOnline)) : '') +
+        ' · local time';
+      board.setAttribute('aria-label', 'How likely you are online, by weekday and hour');
+    }
+
+    function summary(payload, describe) {
+      const start = new Date(payload.startDate);
+      const end = new Date(start.getTime() + (payload.totalHours - 1) * 3600000);
+      const total = decodeBits(payload.data, payload.totalHours).reduce((a, b) => a + b, 0);
+
+      headline.innerHTML = '<strong>' + total + '</strong> hours online in the last ' +
+        payload.totalHours / 24 + ' days';
+      range.textContent = fmtRange.format(start) + ' – ' + fmtRange.format(end) + ' · local time';
+      board.setAttribute('aria-label', describe + ', ' + total + ' hours online in total');
+    }
+
+    const VIEWS = {
+      weekly: { url: '/api/status/weekly', draw: drawWeekly },
+      yearly: { url: '/api/status/yearly', draw: drawYear },
+      typical: { url: '/api/status/analyze', draw: drawTypical },
+    };
+
+    async function show(key) {
+      if (loading) return;
       loading = true;
-      setButtonsActive();
-      meta.textContent = 'Loading...';
-      grid.innerHTML = '';
+
+      for (const b of tabs.children) {
+        b.setAttribute('aria-pressed', b.dataset.view === key);
+        b.disabled = true;
+      }
+
+      board.innerHTML = '';
+      hideTip();
+
+      // a cached view redraws in the same frame, so only say loading when it will show
+      if (!cache[key]) {
+        headline.textContent = 'Loading...';
+        range.textContent = '';
+        legendBox.innerHTML = '';
+      }
 
       try {
-        const payload = await loadPayload(currentKey);
-        renderGrid(payload);
+        if (!cache[key]) {
+          const res = await fetch(VIEWS[key].url, { headers: { accept: 'application/json' } });
+          if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+          cache[key] = await res.json();
+        }
+        VIEWS[key].draw(cache[key]);
       } catch (err) {
-        meta.textContent = `Error: ${err.message}`;
+        board.innerHTML = '';
+        range.textContent = '';
+        legendBox.innerHTML = '';
+        headline.textContent = 'Could not load presence: ' + err.message;
       } finally {
         loading = false;
-        setButtonsActive();
+        for (const b of tabs.children) b.disabled = false;
       }
     }
 
-    weeklyBtn.onclick = () => {
-      currentKey = 'weekly';
-      render();
+    tabs.onclick = e => {
+      if (e.target.dataset.view) show(e.target.dataset.view);
     };
 
-    monthlyBtn.onclick = () => {
-      currentKey = 'monthly';
-      render();
-    };
+    function hideTip() { tip.classList.remove('show'); }
 
-    render();
+    // click as well as hover, otherwise a touch screen can never read a cell
+    function showTip(e) {
+      const text = e.target.dataset.tip;
+      if (!text) return;
+
+      tip.textContent = text;
+
+      const box = e.target.getBoundingClientRect();
+      const half = tip.offsetWidth / 2;
+      const x = Math.min(Math.max(box.left + box.width / 2, half + 4), innerWidth - half - 4);
+
+      tip.style.left = x + 'px';
+      tip.style.top = box.top - 6 + 'px';
+      tip.classList.add('show');
+    }
+
+    board.addEventListener('mouseover', showTip);
+    board.addEventListener('click', showTip);
+
+    // mouseleave, not mouseout, so moving between cells does not flicker it
+    board.addEventListener('mouseleave', hideTip);
+    document.addEventListener('click', e => {
+      if (!board.contains(e.target)) hideTip();
+    });
+    window.addEventListener('scroll', hideTip, { passive: true });
+
+    show('weekly');
   </script>
 </body>
 </html>
