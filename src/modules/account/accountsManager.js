@@ -1,14 +1,24 @@
+const { RegExpMatcher, englishDataset, englishRecommendedTransformers } = require('obscenity');
 const { firedbSecure } = require('../../firebase/firebasedb.js');
 const Account = require('./account.js');
 const COUNTER_DOC_ID = 'counter';
+
+const profanity = new RegExpMatcher({ ...englishDataset.build(), ...englishRecommendedTransformers });
 
 function normalizeUsername(name) {
   return name.trim().normalize('NFC').toLowerCase();
 }
 
+// same rules as the webgame repo, plus two that only matter here
 function validateUsername(name) {
-  const OK = /^[A-Za-z0-9_-]{3,30}$/;
-  if (!OK.test(name)) throw new Error('username-invalid');
+  if (name.length < 3 || name.length > 32) throw new Error('username-invalid');
+  // any script. marks capped at 3 per letter like notes.js, a zalgo name would spill over the guestbook
+  if (!/^(?:[\p{L}\p{N}_]\p{M}{0,3})+$/u.test(name)) throw new Error('username-invalid');
+  // login reads an all digit identifier as a uid, so this name could never log in
+  if (/^\d+$/.test(name)) throw new Error('username-invalid');
+  // underscores out first or f_u_c_k slips past the matcher
+  if (profanity.hasMatch(name.replace(/_/g, ''))) throw new Error('username-inappropriate');
+  if (name.length >= 6 && new Set(name).size / name.length < 0.3) throw new Error('username-repetitive');
 }
 
 
@@ -132,3 +142,28 @@ module.exports = {
   getAccountByEmail,
   setAccountPassword
 };
+
+// node --env-file=.env src/modules/account/accountsManager.js
+if (require.main === module) {
+  const a = require('assert');
+  const why = n => { try { validateUsername(normalizeUsername(n)); return 'ok'; } catch (e) { return e.message; } };
+
+  for (const n of ['airzy', 'Cool_Guy', '123abc', 'josé', 'नमस्ते', 'สวัสดี', '名前です', 'abcdefghij'.repeat(3) + 'ab', 'grass_hopper'])
+    a.strictEqual(why(n), 'ok', n);
+
+  a.strictEqual(why('ab'), 'username-invalid');
+  a.strictEqual(why('abcdefghij'.repeat(3) + 'abc'), 'username-invalid');
+  a.strictEqual(why('cool-guy'), 'username-invalid');
+  a.strictEqual(why('a b'), 'username-invalid');
+  a.strictEqual(why('😀😀😀'), 'username-invalid');
+  a.strictEqual(why('12345'), 'username-invalid', 'would be read as a uid on login');
+  a.strictEqual(why('abc' + '̶'.repeat(4)), 'username-invalid', 'zalgo');
+  a.strictEqual(why('́abc'), 'username-invalid', 'leading mark');
+  a.strictEqual(why('abc' + '̶'.repeat(3)), 'ok', '3 marks is fine');
+  a.strictEqual(why('sh1t'), 'username-inappropriate');
+  a.strictEqual(why('f_u_c_k'), 'username-inappropriate');
+  a.strictEqual(why('aaaaaaab'), 'username-repetitive');
+
+  console.log('usernames ok');
+  process.exit(0);
+}

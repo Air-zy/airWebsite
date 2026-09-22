@@ -2,7 +2,7 @@ const { register } = require('../../modules/account/accountsManager.js');
 const { setAuthCookie } = require('../middleware/auth.js');
 
 const TAKEN = ['username-taken', 'email-taken'];
-const BAD = ['username-invalid', 'email-invalid', 'password-too-short', 'password-too-long', 'password-required'];
+const BAD = ['username-invalid', 'username-inappropriate', 'username-repetitive', 'email-invalid', 'password-too-short', 'password-too-long', 'password-required'];
 
 module.exports = async (req, res) => {
     const { name, email, password } = req.body || {};

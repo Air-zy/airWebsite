@@ -25,6 +25,7 @@
     "form-data": ">=2.5.4",
     "html-minifier-terser": "^7.2.0",
     "node-fetch": "3.3.2",
+    "obscenity": "^0.4.6",
     "postgres": "^3.4.7",
     "terser": "^5.42.0",
     "ws": "^8.13.0",
