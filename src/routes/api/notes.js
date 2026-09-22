@@ -21,10 +21,13 @@ const postLimiter = rateLimit({
 function clean(body) {
   const text = body?.text ?? '';
   if (typeof text !== 'string') return { error: 'bad note' };
-  // more than one blank line in a row would let a single note stretch the whole wall
-  const t = text.trim().replace(/\n{3,}/g, '\n\n');
+  // only blank lines come off the front, the first line's indent is part of ascii art.
+  // blank lines squeeze to one, and zalgo keeps 3 marks per letter so it cannot spill onto other notes
+  const t = text.replace(/^\s*\n/, '').trimEnd().replace(/\n{3,}/g, '\n\n').replace(/(\p{M}{3})\p{M}+/gu, '$1');
   if (!t) return { error: 'write something first' };
   if (t.length > 1000) return { error: 'keep it under 1000 characters' };
+  // a line limit, not just a length one, or 500 one letter lines make a note taller than the wall
+  if (t.split('\n').length > 24) return { error: 'keep it to 24 lines' };
   return { text: t };
 }
 
@@ -70,7 +73,12 @@ module.exports = router;
 // node --env-file=.env src/routes/api/notes.js
 if (require.main === module) {
   const a = require('assert');
-  a.deepStrictEqual(clean({ text: ' hi ' }), { text: 'hi' });
+  a.deepStrictEqual(clean({ text: ' hi ' }), { text: ' hi' });
+  a.strictEqual(clean({ text: '\n  \n   /\\\n  /  \\\n' }).text, '   /\\\n  /  \\', 'art keeps its first indent');
+  a.strictEqual(clean({ text: 'a\n'.repeat(24) }).text.split('\n').length, 24);
+  a.strictEqual(clean({ text: 'a\n'.repeat(25) }).error, 'keep it to 24 lines');
+  a.strictEqual(clean({ text: 'z' + '́'.repeat(40) }).text, 'ź́́', 'zalgo capped');
+  a.strictEqual(clean({ text: '1️⃣ ệ' }).text, '1️⃣ ệ', 'keycaps and stacked accents untouched');
   a.strictEqual(clean({ text: '   ' }).error, 'write something first');
   a.strictEqual(clean({}).error, 'write something first');
   a.strictEqual(clean(undefined).error, 'write something first');

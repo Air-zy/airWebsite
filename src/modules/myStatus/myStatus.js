@@ -1,10 +1,12 @@
 const MultiYearStatusLog = require('./MultiYearStatusLog.js');
+const { analyze, backIn } = require('./forecastStatus.js');
 const statusDoc = require('../../firebase/azyFirebase.js').statusDoc
 
 
 //
 
 let cachedValue = null;
+let cachedAnalysis = null;
 let lastFetched = 0;
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
@@ -20,9 +22,16 @@ async function getStatusLog() {
 
     const log = MultiYearStatusLog.deserialize(data.log);
     cachedValue = log;
+    cachedAnalysis = null;
     lastFetched = now;
 
     return log
+}
+
+// analyze walks every stored hour, so only redo it when the log reloads
+async function getAnalysis() {
+    const log = await getStatusLog();
+    return cachedAnalysis ??= analyze(log);
 }
 
 //
@@ -37,6 +46,8 @@ async function getLastOnline() {
         return {
             lastOn: lastOnline.toISOString(),
             minsAgo: minsAgo,
+            // not seen this hour, so guess when
+            backIn: minsAgo >= 60 ? backIn(await getAnalysis()) : undefined,
         };
     } catch (err) {
         console.error('[Status Tracker] ERROR:', err);
@@ -60,4 +71,4 @@ async function getRollingStatus(days) {
     return statusLog.getHourlyStatusLog(start, hours).toJSON();
 }
 
-module.exports = { getStatusLog, getLastOnline, getRollingStatus };
+module.exports = { getStatusLog, getAnalysis, getLastOnline, getRollingStatus };

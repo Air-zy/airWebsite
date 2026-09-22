@@ -326,16 +326,17 @@ h3 {
 
 /* the guestbook, a board of sticky notes. they wrap and center so different sizes scatter a bit */
 .board {
-  width: min(1000px, 100%);
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-start;
   gap: 36px 28px;
   padding-top: 12px;
+  container-type: inline-size;
 }
 .note {
-  max-width: 240px;
+  /*max-width: 240px;*/
   margin: 0;
 }
 .note figcaption {
@@ -360,6 +361,15 @@ h3 {
   text-shadow: none;
   box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
   rotate: var(--tilt);
+}
+/* ascii art, main.js sets --cols to the widest line. a monospace letter is about 0.6em plus 2em of
+   padding, so the font shrinks until that line fits the board. that bounds it, so no 600px p cap */
+.sticky.art {
+  max-width: none;
+  font-family: monospace;
+  font-size: min(15px, 100cqi / (var(--cols) * 0.6 + 2));
+  line-height: 1.2;
+  white-space: pre;
 }
 .paper-0 { background: #fdf1a2; }
 .paper-1 { background: #ffc9d9; }

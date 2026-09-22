@@ -1,11 +1,11 @@
 /* status.test.js - node src/modules/myStatus/status.test.js
-   Rolling window in myStatus.js, forecast smoothing, and the grid maths in
+   Rolling window in myStatus.js, forecast smoothing and backIn, and the grid maths in
    presence.html. The page functions are pulled from source so they cannot drift.
    myStatus.js is not required, it needs firebase. */
 
 const fs = require('fs'), assert = require('assert');
 const MultiYearStatusLog = require('./MultiYearStatusLog.js');
-const { analyze } = require('./forecastStatus.js');
+const { analyze, backIn } = require('./forecastStatus.js');
 
 /* lift one function out of a file by brace matching, same as ugi/rec.test.js */
 function grab(file, name) {
@@ -128,11 +128,17 @@ const getStatusLog = async () => log;
 
   /* ---- utc table drawn on a local board ---- */
 
-  const table = { byDayOfWeek: {} };
-  for (let d = 0; d < 7; d++) {
-    table.byDayOfWeek[d] = { byHourOfDay: {} };
-    for (let h = 0; h < 24; h++) table.byDayOfWeek[d].byHourOfDay[h] = 0;
-  }
+  /* an analyze shaped table with every slot at p */
+  const flat = p => {
+    const t = { byDayOfWeek: {} };
+    for (let d = 0; d < 7; d++) {
+      t.byDayOfWeek[d] = { byHourOfDay: {} };
+      for (let h = 0; h < 24; h++) t.byDayOfWeek[d].byHourOfDay[h] = p;
+    }
+    return t;
+  };
+
+  const table = flat(0);
   table.byDayOfWeek[3].byHourOfDay[14] = 1; // wednesday 2pm utc
 
   const week = toWeek(table);
@@ -153,6 +159,17 @@ const getStatusLog = async () => log;
 
   assert(checked, 'the week contains a wednesday 2pm utc');
   assert.strictEqual(week.flat().filter(p => p === 1).length, 1, 'and nothing else lights up');
+
+  /* ---- when you are probably back ---- */
+
+  assert.strictEqual(backIn(flat(0.5), currentHour), 0, 'even odds now means this hour');
+  assert.strictEqual(backIn(flat(0.3), currentHour), 1, 'two 30% hours add up past even odds');
+  assert.strictEqual(backIn(flat(0), currentHour), null, 'never online gives no guess');
+
+  const sure = flat(0);
+  const t = new Date(currentHour + 3 * HOUR);
+  sure.byDayOfWeek[t.getUTCDay()].byHourOfDay[t.getUTCHours()] = 1;
+  assert.strictEqual(backIn(sure, currentHour + 20 * 60000), 3, 'lands on the sure hour, counted from the current one');
 
   console.log('ok');
 })();

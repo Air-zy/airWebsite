@@ -1,10 +1,7 @@
-const { getStatusLog } = require('../../../modules/myStatus/myStatus.js');
-const forecast  = require('../../../modules/myStatus/forecastStatus.js');
+const { getAnalysis } = require('../../../modules/myStatus/myStatus.js');
 module.exports = async (req, res) => {
   try {
-    const multi = await getStatusLog();
-    const result = forecast.analyze(multi);
-    res.status(200).json(result);
+    res.status(200).json(await getAnalysis());
   } catch (err) {
     console.warn('[Status Tracker] Error', err);
     res.status(500).send('Error analyzing status');

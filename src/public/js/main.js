@@ -66,10 +66,8 @@ document.addEventListener("DOMContentLoaded", function () {
     index++;
 
     if (index >= cells.length) {
-      setTimeout(() => {
-        name.classList.add("glow");
-        handleSections();
-      }, 400);
+      name.classList.add("glow");
+      setTimeout(handleSections, 400);
       clearInterval(interval);
     }
   }, 40);
@@ -250,6 +248,11 @@ mainContentElm.addEventListener("scroll", function () {
       .then(data => {
         const mainLastOnline = document.getElementById("main-last-on");
         mainLastOnline.innerText = `last online: ${data.minsAgo} mins ago`;
+
+        if (data.backIn == null) return;
+        const backIn = document.getElementById("main-back-in");
+        backIn.innerText = data.backIn ? `expected back in about ~${data.backIn}h` : "probably active within the hour";
+        backIn.hidden = false;
       })
   }
 
@@ -301,6 +304,12 @@ function makeNote({ id, name, text, mine, pinned }, admin) {
   // colour and tilt come from the id so a note looks the same every visit
   sticky.style.setProperty('--tilt', `${((id * 7) % 5 - 2) * 1.2}deg`);
   sticky.textContent = text;
+  // ascii art is several lines lined up with spaces. past 80 columns it is more likely prose, let that wrap
+  const cols = Math.max(...text.split('\n').map(l => l.length));
+  if (text.includes('\n') && /^ | {2}/m.test(text) && cols <= 80) {
+    sticky.classList.add('art');
+    sticky.style.setProperty('--cols', cols);
+  }
   if (admin) {
     caption.append(' ',
       noteButton(pinned ? 'unpin' : 'pin', async () => {

@@ -1,5 +1,3 @@
-const HourlyStatusLog = require("./HourlyStatusLog");
-
 // pseudo counts pulling a sparse weekday hour back to the hour of day average
 const SHRINK = 5;
 
@@ -105,6 +103,21 @@ function analyze(multiYear) {
     };
 }
 
+// hours from the current one until the odds of having come back pass half, null if not within a week.
+// ponytail: treats hours as independent, so a long absence (asleep, away) reads optimistic
+function backIn(analysis, from = Date.now()) {
+    const start = utcHourStart(from).getTime();
+    let miss = 1;
+
+    for (let k = 0; k < 168; k++) {
+        const t = new Date(start + k * 3600000);
+        miss *= 1 - analysis.byDayOfWeek[t.getUTCDay()].byHourOfDay[t.getUTCHours()];
+        if (miss <= 0.5) return k;
+    }
+    return null;
+}
+
 module.exports = {
-    analyze
+    analyze,
+    backIn
 };
