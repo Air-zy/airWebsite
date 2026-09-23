@@ -2,6 +2,7 @@
 // change a link or a skill here and nowhere else
 
 const fs = require('fs');
+const crypto = require('crypto');
 
 const socials = [
   { label: 'GitHub',    icon: 'fa-github',           url: 'https://github.com/Air-zy' },
@@ -79,6 +80,9 @@ module.exports = {
 
     // built once at boot, a server left running over new years eve keeps the old year until it restarts
     copyright: `© ${new Date().getFullYear()} Airzy`,
+
+    // ?v for main.css and main.js, only changes when one of them does
+    v: ['css/main.css', 'js/main.js'].reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8),
   },
 };
 
