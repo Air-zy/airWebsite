@@ -1,5 +1,5 @@
 // the guestbook on the home page. anyone can read it, posting takes an account so every note has an owner.
-// notes are public the moment they post. ADMIN_UID pins and deletes them from the page itself
+// notes are public the moment they post. writers can delete their own, ADMIN_UID pins and deletes any from the page itself
 const router = require('express').Router();
 const { sql } = require('../../DATABASE/utilDB.js');
 const { limiter } = require('../middleware/ratelimit.js');
@@ -58,8 +58,13 @@ router.post('/:id/pin', requireAdmin, async (req, res) => {
   res.json({ pinned: row.pinned });
 });
 
-router.delete('/:id', requireAdmin, async (req, res) => {
-  await sql`DELETE FROM notes WHERE id = ${Number(req.params.id)}`;
+// your own note, or any note if you are ADMIN_UID
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { uid } = req.user;
+  const [row] = await sql`
+    DELETE FROM notes WHERE id = ${Number(req.params.id)} AND (uid = ${uid} OR ${uid === ADMIN_UID})
+    RETURNING id`;
+  if (!row) return res.status(404).json({ error: 'no such note' });
   res.json({ ok: true });
 });
 

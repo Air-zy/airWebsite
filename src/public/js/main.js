@@ -285,7 +285,7 @@ const board = document.getElementById('board');
 const boardForm = document.getElementById('board-form');
 const boardStatus = document.getElementById('board-status');
 
-// the owner's pin and delete. the server checks ADMIN_UID on both, this only decides who sees them
+// pin is admin only, delete is admin or whoever wrote it. the server checks both, this only decides who sees them
 function noteButton(label, onclick) {
   const button = document.createElement('button');
   button.className = 'note-btn';
@@ -310,16 +310,14 @@ function makeNote({ id, name, text, mine, pinned }, admin) {
     sticky.classList.add('art');
     sticky.style.setProperty('--cols', cols);
   }
-  if (admin) {
-    caption.append(' ',
-      noteButton(pinned ? 'unpin' : 'pin', async () => {
-        if ((await fetch(`/api/notes/${id}/pin`, { method: 'POST' })).ok) loadGuestbook(); // reload for the new order
-      }),
-      noteButton('delete', async () => {
-        if ((await fetch(`/api/notes/${id}`, { method: 'DELETE' })).ok) note.remove();
-      }),
-    );
-  }
+  const buttons = [];
+  if (admin) buttons.push(noteButton(pinned ? 'unpin' : 'pin', async () => {
+    if ((await fetch(`/api/notes/${id}/pin`, { method: 'POST' })).ok) loadGuestbook(); // reload for the new order
+  }));
+  if (admin || mine) buttons.push(noteButton('delete', async () => {
+    if ((await fetch(`/api/notes/${id}`, { method: 'DELETE' })).ok) note.remove();
+  }));
+  if (buttons.length) caption.append(' ', ...buttons);
   note.append(caption, sticky);
   return note;
 }
