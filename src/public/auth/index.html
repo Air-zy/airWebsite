@@ -72,14 +72,22 @@
   </div>
 
   <script src="./auth.js"></script>
+  <script src="./dither.js"></script>
   <script>
     var loginResp = document.getElementById('login-response');
     var registerResp = document.getElementById('register-response');
 
-    // google sends you back here with ?e= when it fails, and needs next passed through to land you back
+    // google sends you back here with ?e= when it fails, and needs next passed through to land you back.
+    // _top since google refuses to load in a frame, from the guestbook popup it takes the whole tab
     var params = new URLSearchParams(location.search);
     if (params.get('e')) say(loginResp, errMsg(params.get('e')), 'err');
-    document.querySelectorAll('.google-btn').forEach(function (a) { a.search = location.search; });
+    document.querySelectorAll('.google-btn').forEach(function (a) { a.search = location.search; a.target = '_top'; });
+
+    // in the guestbook popup the home page carries on from here, anywhere else go to next
+    function done() {
+      if (parent !== window) parent.postMessage('signed-in', location.origin);
+      else location.href = safeNext();
+    }
 
     document.getElementById('login-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -91,7 +99,7 @@
           password: document.getElementById('login-password').value
         }).then(function (r) {
           if (!r.ok) return say(loginResp, errMsg(r.error), 'err');
-          location.href = safeNext();
+          done();
         });
       });
     });
@@ -106,7 +114,7 @@
           password: document.getElementById('register-password').value
         }).then(function (r) {
           if (!r.ok) return say(registerResp, errMsg(r.error), 'err');
-          location.href = safeNext(); // register logs you in
+          done(); // register logs you in
         });
       });
     });
@@ -118,7 +126,7 @@
     // decide which half of the page to show
     getJSON('/auth/me').then(function (me) {
       if (me.ok) {
-        if (params.get('next')) return location.href = safeNext();
+        if (params.get('next')) return done();
         document.getElementById('me-name').textContent = me.name;
         document.getElementById('signed-in').hidden = false;
       } else {

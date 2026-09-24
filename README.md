@@ -122,7 +122,9 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 ## Notes
 
 - `/api/logs` is the raw request log, owner only (`ADMIN_UID` in `auth.js`).
-- The guestbook (`/api/notes`) is public to read and needs an account to sign. The owner pins and deletes from the page,
+- The guestbook (`/api/notes`) is public to read and needs an account to sign. Anyone can write one, a 401 on send opens
+  `/auth/` in a popup iframe that posts `signed-in` back instead of redirecting. Google cannot be framed so it takes the tab,
+  the note waits in sessionStorage until it lands back on `/home#guestbook`. The owner pins and deletes from the page,
   pinning is also the sort, the last pin sits on top. Notes store the uid, names are looked up in one batched firestore read
   and cached in memory so renames show on old notes.
 - Older accounts still have an `email` field and `email:<address>` index docs in firestore. Nothing reads them, safe to delete.
@@ -131,3 +133,4 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js`, `routes/api/notes.js`,
   `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).
+  `node src/config/blueNoise.js` regenerates the auth page dither tile and checks it, same png every run.

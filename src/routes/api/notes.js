@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
   // names are looked up so a rename shows on old notes. uid stays on the server
   const names = await getNames(rows.map(r => r.uid));
   const notes = rows.map(({ uid, ...n }, i) => ({ ...n, name: names[i] ?? 'deleted' }));
-  res.json({ notes, signedIn: uid !== null, admin: uid === ADMIN_UID });
+  res.json({ notes, admin: uid === ADMIN_UID });
 });
 
 router.post('/', requireAuth, postLimiter, async (req, res) => {

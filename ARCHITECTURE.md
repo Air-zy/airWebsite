@@ -7,15 +7,16 @@ Diagrams only. Prose lives in the README.
 ```mermaid
 flowchart TD
   REQ([request]) --> GATE["minify gate<br/>waits only until boot build finishes"]
-  GATE --> RL["rate limit<br/>30 per 30s per ip"]
-  RL --> LOG["reqLogger<br/>writes trafic.log, 301s old hostnames"]
+  GATE --> LOG["reqLogger<br/>writes trafic.log, 301s old hostnames"]
   LOG --> JSON["express.json"]
   JSON --> GZIP["compression"]
   GZIP --> CK["cookieParser"]
   CK --> AU["attachUser<br/>reads signed cookie, sets req.user, no io"]
-  AU --> STATIC["express.static (src/dist)"]
+  AU --> FA["/auth only: frame-ancestors 'self'"]
+  FA --> STATIC["express.static (src/dist)"]
 
-  STATIC -->|no file match| MOUNTS
+  STATIC -->|no file match| RL["rate limit<br/>30 per 30s per ip"]
+  RL --> MOUNTS
   STATIC -->|file found| FILE([static asset])
 
   subgraph MOUNTS["router mounts, in order"]

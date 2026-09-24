@@ -84,6 +84,8 @@ body {
   --frame-bcol2: #1b1b1b;
   --text-grey: grey;
   --text-normal: white;
+  /* partway from grey to the text colour, so it follows the light theme too */
+  --text-soft: color-mix(in srgb, var(--text-grey), var(--text-normal) 45%);
 }
 :root[data-theme="light"] {
   color-scheme: light;
@@ -341,8 +343,8 @@ h3 {
 }
 .note figcaption {
   margin: 0 0 10px 2px;
-  font-size: 0.7rem;
-  color: var(--text-grey);
+  font-size: 0.8rem;
+  color: var(--text-soft);
 }
 /* sized by its text between the min and the max, like a real one you wrote small or big on */
 .sticky {
@@ -398,14 +400,26 @@ h3 {
   background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
   box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
 }
-/* only a note you just signed pops, not the whole board on load */
-.note.pop {
-  animation: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) notePop;
-  transform-origin: 50% 0;
+/* a note being stuck on, the board on first load and the one you just signed.
+   starts lifted and big, the overshoot presses it into the board. main.js staggers the delay */
+.note.place {
+  animation: 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards notePlace;
 }
-@keyframes notePop {
+@keyframes notePlace {
   from {
-    transform: scale(0);
+    opacity: 0;
+    translate: 0 -14px;
+    scale: 1.15;
+  }
+}
+/* blank paper while the board loads, pulsing up to its own opacity. that stays when reduced motion turns the pulse off */
+.note.blank {
+  opacity: 0.55;
+  animation: 0.9s ease-in-out infinite alternate backwards noteBlank;
+}
+@keyframes noteBlank {
+  from {
+    opacity: 0.2;
   }
 }
 #board-form {
@@ -456,9 +470,35 @@ h3 {
   font-size: 0.75rem;
   color: var(--text-grey);
 }
-#board-login {
-  margin-bottom: 36px;
-  color: var(--text-normal);
+/* the login popup. the background covers the frame until it loads,
+   avy: matches --bg-col-end in auth/auth.css, a var cannot cross into the frame */
+#login-dialog {
+  width: min(800px, 100% - 32px);
+  height: min(600px, 100% - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #111111;
+}
+#login-dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+#login-dialog iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+#login-dialog button {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  font-size: 1.5rem;
+  color: #e0e0e0;
+  background: none;
+  border: 0;
+  cursor: pointer;
 }
 #s2 {
   margin-top: 200px;
@@ -537,7 +577,8 @@ h3 {
   margin: 0;
   padding-left: 10px;
   padding-bottom: 10px;
-  font-size: calc(1rem * 0.9);
+  /* em not rem, rem is the browser 16px and not the 18px body so it came out tiny */
+  font-size: 0.9em;
   color: var(--text-grey);
 }
 .skill-container blockquote::before {
@@ -624,16 +665,21 @@ h3 {
   margin: 0;
   padding: 20px;
 }
+/* the padding makes the hover box run from the dotted line down, a bigger target than just the text */
 .chat-button {
   font-family: Minecraft, sans-serif;
+  font-size: 0.95rem;
   background: 0;
   outline: 0;
   border: 0;
-  color: var(--text-grey);
+  padding: 20px 14px;
+  color: var(--text-soft);
   margin-right: 40px;
   white-space: nowrap;
 }
-.chat-button:hover {
+/* outline is off, so keyboard focus gets the hover box instead */
+.chat-button:hover,
+.chat-button:focus-visible {
   background: var(--frame-bcol);
 }
 .footer-top {
@@ -671,7 +717,7 @@ h3 {
 .inner-bottom {
   display: flex;
   justify-content: space-between;
-  padding-top: 24px;
+  align-items: center;
 }
 .inner-bottom a {
   text-decoration: none;
@@ -754,7 +800,8 @@ h3 {
   #s1 .bubble {
     transition: none;
   }
-  .note.pop {
+  .note.place,
+  .note.blank {
     animation: none;
   }
 }

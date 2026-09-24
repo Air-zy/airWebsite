@@ -19,6 +19,7 @@ const nav = [
   { label: 'Airzy',     click: 'toAirzy()' },
   { label: 'Contact',   click: 'toContact()' },
   { label: 'Resources', click: 'toResources()' },
+  { label: 'Guestbook', click: 'toGuestbook()', sideOnly: true }, // the top bar has no room for it
 ];
 
 const about = [
@@ -71,7 +72,8 @@ module.exports = {
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
-    nav: nav.map(navItem).join(' '),
+    nav: nav.filter(n => !n.sideOnly).map(navItem).join(' '),
+    sideNav: nav.map(navItem).join(' '),
 
     // inlined so the icons cost no request, replaces 108kb of cdn font awesome
     icons: fs.readFileSync(__dirname + '/icons.svg', 'utf8').trim(),
@@ -102,7 +104,8 @@ if (require.main === module) {
   for (const s of socials) a.ok(module.exports.html.socialLinks.includes(s.label));
   a.ok(module.exports.html.skills.includes('<li>Luau</li>'));
   a.ok(module.exports.html.skills.includes('<details>'));
-  for (const n of nav) a.ok(module.exports.html.nav.includes(n.label));
+  for (const n of nav) a.ok(module.exports.html.sideNav.includes(n.label));
+  for (const n of nav) a.strictEqual(module.exports.html.nav.includes(n.label), !n.sideOnly, n.label);
   a.ok(module.exports.html.nav.includes('<button class="nav-item"'), 'the click items have to be buttons');
   a.ok(!module.exports.html.nav.includes('<div class="nav-item"'), 'a div is not keyboard reachable');
   for (const s of socials) a.ok(module.exports.html.socialIcons.includes(`aria-label="${s.label}"`));

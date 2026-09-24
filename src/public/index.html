@@ -97,9 +97,13 @@
           </div>
           <p id="board-status" aria-live="polite"></p>
         </form>
-        <a id="board-login" href="/auth/?next=%2Fhome%23guestbook" hidden>log in to sign it</a>
         <div class="board" id="board"></div>
       </section>
+      <!-- the auth page in a frame so signing in keeps your place and your note. main.js loads it on first use -->
+      <dialog id="login-dialog" closedby="any">
+        <form method="dialog"><button aria-label="close">&times;</button></form>
+        <iframe title="log in to sign the guestbook"></iframe>
+      </dialog>
       <div class="main-footer">
         <div class="footer-top">
           <div>
@@ -200,7 +204,7 @@
         <svg class="fa icon" id="icon" aria-hidden="true"><use href="#i-moon-o"/></svg>
       </button>
       <div id="sbar-flex">
-        <!--#nav-->
+        <!--#sideNav-->
       </div>
       <span class="social-medias"><!--#socialIcons--></span>
       <p class="small-p"><!--#copyright--></p>

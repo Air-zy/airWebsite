@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
-  --bg-col-start: #3e3e3e;
-  --bg-col-end: #252525;
+  --bg-col-start: #222222;
+  --bg-col-end: #111111;
   --card-bg: rgba(16,16,16,0.8);
   --text-col: #e0e0e0;
   --accent-col: #888;
@@ -39,6 +39,8 @@ body {
   flex-direction: column;
   gap: 15px;
   border-radius: 10px;
+  /* the page is nearly as dark as the card, a hairline keeps the edge. a shadow so it adds no size */
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06);
   position: relative;
   isolation: isolate;
 }
@@ -58,6 +60,17 @@ body {
   filter: contrast(10000%);
   mix-blend-mode: screen;
   opacity: 0.02;
+}
+
+/* the page dither, dither.js draws it at a quarter size so pixelated keeps the cells square.
+   fixed so it still covers the screen when the page scrolls. its strength is ALPHA in there */
+#bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 
 h3 {
@@ -124,7 +137,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* a link, it navigates off to google. same box as a button but outlined so login stays the main one */
 .google-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 9px;
   border: 1px solid #444444;
   border-radius: 6px;
@@ -133,6 +149,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   text-decoration: none;
   font-weight: bold;
   font-size: 0.85rem;
+}
+
+/* google G, here so both buttons get it without repeating the svg */
+.google-btn::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/><path fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/><path fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/><path fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/></svg>") center / contain no-repeat;
 }
 
 .google-btn:hover, .google-btn:focus-visible { border-color: var(--accent-col); }

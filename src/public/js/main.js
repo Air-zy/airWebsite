@@ -324,12 +324,6 @@ function makeNote({ id, name, text, mine, pinned }, admin) {
   return note;
 }
 
-// posting takes an account, signed out visitors get the login link in place of the form
-function showBoardForm(signedIn) {
-  boardForm.hidden = !signedIn;
-  document.getElementById('board-login').hidden = signedIn;
-}
-
 function boardMessage(text) {
   const p = document.createElement('p');
   p.className = 'small-p';
@@ -337,16 +331,38 @@ function boardMessage(text) {
   board.replaceChildren(p);
 }
 
+// one after another, capped so a full board of 50 is not still landing seconds later
+function stagger(note, i, className) {
+  note.classList.add(className);
+  note.style.animationDelay = `${Math.min(i, 20) * 60}ms`;
+  return note;
+}
+
 async function loadGuestbook() {
+  // blank paper while it loads and notes landing after, only the first time. a reload after pinning just swaps
+  const first = !board.firstElementChild;
+  if (first) board.replaceChildren(...[0, 1, 2, 3].map(i => stagger(makeNote({ id: i, name: '', text: '' }), i, 'blank')));
+  board.ariaBusy = true;
   try {
     const res = await fetch('/api/notes');
     if (!res.ok) throw new Error(res.status);
-    const { notes, signedIn, admin } = await res.json();
-    showBoardForm(signedIn);
-    if (!notes.length) return boardMessage('nothing here yet, be the first');
-    board.replaceChildren(...notes.map(n => makeNote(n, admin)));
+    const { notes, admin } = await res.json();
+    if (!notes.length) boardMessage('nothing here yet, be the first');
+    else board.replaceChildren(...notes.map((n, i) => {
+      const note = makeNote(n, admin);
+      return first ? stagger(note, i, 'place') : note;
+    }));
+    // anyone can write, signing in waits until they send. shown after the board so a sent note cant land before it
+    boardForm.hidden = false;
+    if (waitingNote) {
+      boardForm.elements.text.value = waitingNote;
+      waitingNote = null;
+      boardForm.requestSubmit();
+    }
   } catch {
     boardMessage("couldn't load the guestbook, try again in a bit");
+  } finally {
+    board.ariaBusy = false;
   }
 }
 
@@ -362,10 +378,47 @@ async function toGuestbook() {
   await loadIntro();
   // offsetTop ignores the slide in transform, so it lands the same revealed or not. 100 clears the nav
   mainContentElm.scrollTo({ top: guestbook.offsetTop - 100 });
+  setSidebar(false);
 }
 
-// the login link comes back to /home#guestbook
+// signing needs an account. the popup logs you in without leaving the page, then the note goes out
+const loginDialog = document.getElementById('login-dialog');
+const loginFrame = loginDialog.querySelector('iframe');
+
+function askLogin() {
+  // set on every open so it starts fresh, and nothing loads for visitors who never sign
+  loginFrame.src = '/auth/?next=%2Fhome%23guestbook';
+  loginDialog.showModal();
+}
+
+// closing the dialog does not stop the page inside, chrome kept animating its dither. unload it instead
+loginDialog.addEventListener('close', () => { loginFrame.src = 'about:blank'; });
+
+// the auth page posts this in place of redirecting when it is in the popup
+addEventListener('message', e => {
+  if (e.origin !== location.origin || e.source !== loginFrame.contentWindow || e.data !== 'signed-in') return;
+  loginDialog.close();
+  boardForm.requestSubmit();
+});
+
+// google refuses to be framed so it takes the whole tab, the note waits here until it lands back
+addEventListener('pagehide', () => {
+  if (loginDialog.open) sessionStorage.setItem('note', boardForm.elements.text.value);
+});
+let waitingNote = null;
+try {
+  waitingNote = sessionStorage.getItem('note');
+  sessionStorage.removeItem('note');
+} catch {} // storage can be blocked, the note is lost then
+
+// google comes back to /home#guestbook
 if (location.hash === '#guestbook') toGuestbook();
+
+// the address bar follows the guestbook so a refresh or a shared link lands back on it.
+// a line a third of the way down counts, a board taller than the screen still crosses it
+new IntersectionObserver(([entry]) => {
+  history.replaceState(null, '', entry.isIntersecting ? '#guestbook' : location.pathname + location.search);
+}, { root: mainContentElm, rootMargin: '-33% 0px -67% 0px' }).observe(document.getElementById('guestbook'));
 
 boardForm.addEventListener('submit', async e => {
   e.preventDefault();
@@ -381,7 +434,7 @@ boardForm.addEventListener('submit', async e => {
   const data = res && await res.json().catch(() => ({}));
   send.disabled = false;
 
-  if (res?.status === 401) return showBoardForm(false); // logged out in another tab
+  if (res?.status === 401) return askLogin();
   if (!res?.ok) {
     boardStatus.textContent = res?.status === 429 ? 'slow down, try again in a few minutes' : data?.error || "couldn't sign, try again";
     return;
@@ -389,7 +442,7 @@ boardForm.addEventListener('submit', async e => {
   boardForm.elements.text.value = '';
   boardForm.elements.text.style.height = '';
   const note = makeNote(data.note);
-  note.classList.add('pop');
+  note.classList.add('place');
   if (!board.querySelector('.note')) board.replaceChildren(); // drops the "nothing here yet" line
   board.insertBefore(note, board.querySelector('.note:not(.pinned)')); // newest, under the pinned ones
 });
