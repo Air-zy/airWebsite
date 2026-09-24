@@ -68,7 +68,7 @@ thead th.flt .th-lbl{color:var(--ac)}
 thead th.nm .th-inner{flex-direction:row-reverse}
 .th-lbl{cursor:pointer;flex:1}
 thead th.nm .th-lbl{flex:none}
-.th-wb{font-size:8px;color:var(--ac);background:rgba(232,197,71,.16);padding:0 4px;border-radius:1px;flex-shrink:0}
+.th-wb{font-size:8px;color:var(--ac);background:color-mix(in srgb,var(--ac) 16%,transparent);padding:0 4px;border-radius:1px;flex-shrink:0}
 .th-ic{font-size:8px;color:var(--t3);cursor:pointer;padding:0 1px;flex-shrink:0;transition:color .1s}
 .th-ic:hover,.th-ic.act{color:var(--ac)}
 
@@ -112,7 +112,7 @@ body.sb-off #sidebar{display:none}
 .cb-lbl input{accent-color:var(--ac);margin:0;cursor:pointer;width:10px;height:10px;flex-shrink:0}
 .cb-w{width:32px;background:var(--bg4);border:1px solid transparent;color:var(--t2);font:9px var(--f);padding:1px 3px;text-align:right;outline:none;flex-shrink:0;transition:border-color .1s}
 .cb-w:focus{border-color:var(--ac);color:var(--t)}
-.cb-w.nz{color:var(--ac);background:rgba(232,197,71,.1)}
+.cb-w.nz{color:var(--ac);background:color-mix(in srgb,var(--ac) 10%,transparent)}
 .cb-w::-webkit-inner-spin-button,.cb-w::-webkit-outer-spin-button{-webkit-appearance:none}
 .cb-flags{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px}
 #cb-reset{width:calc(100% - 16px);margin:10px 8px;background:var(--bg3);border:1px solid transparent;color:var(--t3);font:9px var(--f);padding:4px 0;cursor:pointer}
@@ -184,7 +184,7 @@ body.sb-off #sidebar{display:none}
 .rec-ph span{font-weight:400;letter-spacing:0;text-transform:none}
 .rec-scroll{flex:1;overflow:auto}
 .rec-scroll thead th{padding:5px 8px}
-.rec-scroll tbody tr.rated{background:rgba(232,197,71,.07)}
+.rec-scroll tbody tr.rated{background:color-mix(in srgb,var(--ac) 7%,transparent)}
 .rec-c{display:flex;align-items:center;justify-content:flex-end;gap:4px;width:78px}
 .rec-b{background:var(--bg3);border:1px solid transparent;color:var(--t2);font:11px var(--f);line-height:1;padding:3px 7px;cursor:pointer;transition:color .1s,border-color .1s}
 .rec-b:hover{border-color:var(--ac);color:var(--ac)}

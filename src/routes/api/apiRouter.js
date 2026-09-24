@@ -27,6 +27,7 @@ router.get('/headers',             require('./api_headers.js')             );
 // the same peer list the heartbeat pings
 router.get('/cluster-units',       requireToken(airWebToken), async (req, res) => res.json(await clusterUrls()) );
 router.get('/deepTalents',         require('./api_deepwokenTalents.js')   );
+router.get('/caliper',             require('./api_caliper.js')            );
 
 router.post('/imggen', limiter({ windowMs: 6 * 1000, max: 1 }), require('./api_imggen.js'));
 module.exports = router;

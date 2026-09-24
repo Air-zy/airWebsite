@@ -75,7 +75,7 @@ function closeCmdP() {
 
 function renderInfo() {
   const el = document.getElementById('v-info');
-  let xKey = 'natint', yKey = 'dialogue', zKey = 'score', colorMode = 'type';
+  let [xKey, yKey] = CHART_AXES, zKey = 'score', colorMode = 'type';
 
   el.innerHTML =
     `<div class="ctrl-bar">` +
@@ -94,7 +94,7 @@ function renderInfo() {
     if (_infoChart) { _infoChart.destroy(); _infoChart = null; }
     const pts = [];
     for (const e of filt()) {
-      const x = EG[xKey]?.(e), y = EG[yKey]?.(e);
+      const x = G[xKey]?.(e), y = G[yKey]?.(e);
       if (typeof x === 'number' && !isNaN(x) && typeof y === 'number' && !isNaN(y)) pts.push({ x, y, e });
     }
     const datasets = colorMode === 'type' ? typeDatasets(pts, 4) : [colorDataset(pts, zKey, 4)];
@@ -141,11 +141,46 @@ function renderInfo() {
 }
 
 async function init() {
+  /* page shell, the same for every board */
+  document.body.insertAdjacentHTML('afterbegin', `
+<div id="app">
+  <header id="hdr">
+    <h1>${NAME.toUpperCase()}</h1>
+    <button class="bt ic" id="sbt" title="Toggle filter sidebar">☰</button>
+    <button class="bt on" data-v="lb">Leaderboard</button>
+    <button class="bt" data-v="info">Chart</button>
+    <button class="bt" data-v="map">Map</button>
+    <button class="bt" data-v="rec">Recommend</button>
+    <input id="search" type="text" placeholder="Filter…">
+    <span id="status"></span>
+  </header>
+  <div id="layout">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <div id="v-lb" class="view">
+        <div class="lb-scroll">
+          <table><thead id="lth"></thead><tbody id="ltb"></tbody></table>
+          <div id="about-benchmarks"></div>
+        </div>
+      </div>
+      <div id="v-info" class="view hid"></div>
+      <div id="v-map" class="view hid"></div>
+      <div id="v-rec" class="view hid"></div>
+    </div>
+    <aside id="det-panel" class="hid"></aside>
+  </div>
+</div>
+<div id="thpop" class="hide"></div>
+<div id="cmdp">
+  <div id="cmdp-box">
+    <input id="cmdp-in" placeholder="Toggle columns…">
+    <div id="cmdp-ls"></div>
+  </div>
+</div>`);
   document.getElementById('status').textContent = 'Loading…';
   try {
-    const res  = await fetch(CSV);
-    const text = await res.text();
-    D = pCSV(text).map(fmtE).filter(e => e.model.name);
+    D = await loadData();
+    vC = new Set(DEFAULT_COLS);
     buildPctData();
   } catch (err) {
     document.getElementById('status').textContent = 'Error loading data';
@@ -204,7 +239,7 @@ async function init() {
     FF = { finetuned: null, merged: null, foundation: null, thinking: null, open: null };
     sq = ''; rowLimit = 20;
     sC = 'score'; sD = -1; exR = null;
-    vC = new Set(['rank','name','score','ugi','writing','natint','w10','params']);
+    vC = new Set(DEFAULT_COLS);
     document.getElementById('search').value = '';
     closeThPop();
     renderColBar();

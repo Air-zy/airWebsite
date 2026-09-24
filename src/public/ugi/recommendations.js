@@ -1,6 +1,6 @@
 /* recommendations.js — rate models, fit a preference model, rank everything else */
 
-const REC_KEY = 'ugi-rec-ratings';
+const REC_KEY = NAME + '-rec-ratings';
 const REC_CLAMP = 5;
 
 let R = {};                  /* model name -> integer rating, non-zero only */
@@ -67,7 +67,7 @@ function renderRec() {
     `</div>` +
     `<div class="rec-split">` +
       `<div class="rec-pane"><div class="rec-ph">RATE MODELS<span>+ good / − bad, click the number to clear</span></div>` +
-        `<div class="rec-scroll"><table><thead><tr><th>MODEL</th><th class="nm">UGI</th><th class="nm">WRITE</th><th class="nm">RATING</th></tr></thead><tbody id="rec-rate"></tbody></table></div></div>` +
+        `<div class="rec-scroll"><table><thead><tr><th>MODEL</th>${REC_COLS.map(k => `<th class="nm">${axisLabel(k)}</th>`).join('')}<th class="nm">RATING</th></tr></thead><tbody id="rec-rate"></tbody></table></div></div>` +
       `<div class="rec-pane"><div class="rec-ph">PREFERENCE<span id="rec-cnt"></span></div>` +
         `<div class="rec-scroll"><table><thead><tr><th class="nm">#</th><th>MODEL</th><th class="nm">MATCH</th><th></th></tr></thead><tbody id="rec-pref"></tbody></table></div></div>` +
     `</div>` +
@@ -108,12 +108,12 @@ function renderRecRate() {
   list.sort((a, b) => {
     const ra = Math.abs(R[D[a].model.name] || 0), rb = Math.abs(R[D[b].model.name] || 0);
     if (!!ra !== !!rb) return rb - ra;
-    return (D[b].scores.ugi || -Infinity) - (D[a].scores.ugi || -Infinity);
+    return (G[MAIN](D[b]) || -Infinity) - (G[MAIN](D[a]) || -Infinity);
   });
   document.getElementById('rec-rate').innerHTML = list.map(i => {
     const e = D[i], v = R[e.model.name] || 0;
     return `<tr data-i="${i}"${v ? ' class="rated"' : ''}><td class="nc">${rName(e)}</td>` +
-      `<td class="nm">${fN(e.scores.ugi)}</td><td class="nm">${fN(e.scores.writing)}</td>` +
+      REC_COLS.map(k => `<td class="nm">${fN(G[k](e))}</td>`).join('') +
       `<td class="rec-c"><button class="rec-b" data-rd="-1">−</button>` +
       `<span class="rec-v${recCls(v)}" data-rd="0">${recVal(v)}</span>` +
       `<button class="rec-b" data-rd="1">+</button></td></tr>`;
