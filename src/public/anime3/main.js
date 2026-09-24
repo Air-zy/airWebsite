@@ -38,6 +38,13 @@ function jsEscape(s) {
     return String(s).replace(/"/g, '\\"').replace(/\n/g, ' ');
 }
 
+// the browser does this natively now, no pako. pako.inflate took zlib or gzip, so sniff the gzip header the same way
+async function inflateB64(b64) {
+    var bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    var format = bytes[0] === 0x1f && bytes[1] === 0x8b ? 'gzip' : 'deflate';
+    return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream(format))).text();
+}
+
 async function loadCoords() {
     var visualPanel = document.getElementById('visual');
     var res = await fetch('/api/anime3/coords?v=2');
@@ -45,15 +52,8 @@ async function loadCoords() {
     var json = await res.json();
     var b64 = json.data || '';
 
-    function b64toU8(s) {
-        var binary = atob(s);
-        var arr = new Uint8Array(binary.length);
-        for (var i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
-        return arr;
-    }
-
     console.log("decompressing coords...")
-    var decompressed = pako.inflate(b64toU8(b64), { to: 'string' });
+    var decompressed = await inflateB64(b64);
     var parsed = JSON.parse(decompressed);
 
     //
@@ -587,16 +587,9 @@ async function load() {
         var json = await res.json();
         var b64 = json.data || '';
 
-        function b64toU8(s) {
-            var binary = atob(s);
-            var arr = new Uint8Array(binary.length);
-            for (var i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
-            return arr;
-        }
-
         msgHtml("decompressing data")
 
-        var decompressed = pako.inflate(b64toU8(b64), { to: 'string' });
+        var decompressed = await inflateB64(b64);
         var parsed = JSON.parse(decompressed);
 
         msgHtml("parsing data")

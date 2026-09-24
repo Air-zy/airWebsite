@@ -1,6 +1,4 @@
-const { getAccountByUID, setAccountPassword } = require('../../modules/account/accountsManager.js');
-
-const BAD = ['password-too-short', 'password-too-long', 'password-required'];
+const { getAccountByUID, setAccountPassword, INPUT_ERRORS } = require('../../modules/account/accountsManager.js');
 
 module.exports = async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
@@ -18,7 +16,7 @@ module.exports = async (req, res) => {
   try {
     await setAccountPassword(acc, newPassword);
   } catch (err) {
-    if (BAD.includes(err.message)) return res.status(400).json({ error: err.message });
+    if (INPUT_ERRORS.includes(err.message)) return res.status(400).json({ error: err.message });
     throw err;
   }
 

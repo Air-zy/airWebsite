@@ -18,11 +18,7 @@ function getAddressMap() {
   return addressMap;
 }
 
-function getIPData(ip) {
-  const addr = addressMap.get(ip);
-  return addr ? addr.toJSON() : null;
-}
-
+// the live instance, not a copy, so callers can flip captcha bits on it
 function getAddress(ip) {
   return addressMap.get(ip);
 }
@@ -53,6 +49,5 @@ module.exports = {
   loadAddresses,
   getAddressMap,
   getAddress,
-  getIPData,
   updateAddress,
 };

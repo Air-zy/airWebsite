@@ -1,4 +1,5 @@
-const { getIPData, bitset, getIP, getProjects, setProjects } = require('../../ip_utils.js');
+const { getIP, getProjects, setProjects } = require('../../ip_utils.js');
+const { getAddress } = require('../../classes/addressRegistry/addressManager.js');
 const { firedbAirsiteSave } = require('../../../firebase/firebasedb.js');
 
 let lastUpdate = 0;
@@ -17,22 +18,11 @@ module.exports = (req, res) => {
   if (req && req.body) {
     
     const ipDecimal = getIP(req)
-    let ipData = getIPData(ipDecimal);
+    const addr = getAddress(ipDecimal);
+    if (!addr) return res.status(400).send("Bad request. IP is not recognized.");
+    addr.captcha |= 1 << 2;
 
-    if (ipData) {
-      let currentCaptcha = 0
-      if (ipData["captcha"] !== undefined) {
-        currentCaptcha = ipData["captcha"];
-      }
-      ipData.captcha = bitset(currentCaptcha, 2);
-    }else {
-      return res.status(400).send("Bad request. IP is not recognized.");
-    }
-    
-    if (attemptedViewsToday[ipDecimal]) {
-    }else{
-      attemptedViewsToday[ipDecimal] = {}
-    }
+    attemptedViewsToday[ipDecimal] ??= {}
     
     try {
       const type = req.body.type

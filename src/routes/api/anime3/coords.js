@@ -1,14 +1,8 @@
-const { coordsAsBase64, coordsAsBase64_2 } = require('../../../firebase/firebasedb2.js')
+const { readChunks } = require('../../../firebase/firebasedb2.js')
 
 module.exports = async (req, res) => {
   try {
-    const useAlt = req.query.v === '2';
-
-    const b64data = useAlt
-      ? await coordsAsBase64_2()
-      : await coordsAsBase64();
-
-
+    const b64data = await readChunks(req.query.v === '2' ? 'animeCoords2' : 'animeCoords');
     res.json({ data: b64data });
   } catch (err) {
     console.error('[anime3 get api] error:', err);

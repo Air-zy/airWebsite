@@ -2,7 +2,7 @@
 
 Monolith personal site on Node and Express. Portfolio, plus a bunch of tools and demos (anime relationship graph, connect 4 AI, quadtree stuff, ROWA leaderboards). Runs at [airzy.ca](https://airzy.ca).
 
-Firestore for most data, one postgres db for the anime blob. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with a hand written AES-128-CBC module in `src/FallbackEncryption/`.
+Firestore for most data, one postgres db for the guestbook. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with a hand written AES-128-CBC module in `src/FallbackEncryption/`.
 
 No auth, session, validation or mail library. All hand rolled on node builtins to keep deps down.
 
@@ -29,7 +29,7 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 | `sessionSecret` | signs session cookies. required, server wont boot without it |
 | `resendKey` | optional. without it reset links print to console instead of emailing |
 | `airWebToken` | admin and roblox endpoints |
-| `UTIL_DB` | encrypted neon postgres url, for the anime store and the guestbook |
+| `UTIL_DB` | encrypted neon postgres url, for the guestbook |
 
 `sessionSecret` is fatal on purpose. A signing key falling back to a default means forgeable cookies, so it crashes at boot instead.
 

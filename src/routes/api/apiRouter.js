@@ -1,8 +1,8 @@
-const rateLimit = require('express-rate-limit');
-const { silent429 } = require('../middleware/ratelimit.js');
+const { limiter } = require('../middleware/ratelimit.js');
 const envDecrypt = require('../../FallbackEncryption/envDecrypt.js');
 const requireToken = require('../middleware/requireToken.js');
 const { requireAdmin } = require('../middleware/auth.js');
+const { clusterUrls } = require('../../heartSystem/heart.js');
 const router = require('express').Router();
 
 const airWebToken = envDecrypt(process.env.airKey, process.env.airWebToken);
@@ -17,7 +17,6 @@ router.get('/roblox-user/:userId', require('../rblxapp/routes/userlookup.js'));
 router.post('/roblox-users', require('../rblxapp/routes/usersLookup.js'));
 router.get('/roblox-thumb/:userId', require('../rblxapp/routes/thumbLookup.js'));
 
-router.get('/anime2/data',         require('./anime2/data.js')             );
 router.get('/anime3/data',         require('./anime3/data.js')             );
 router.get('/anime3/coords',       require('./anime3/coords.js')           );
 
@@ -25,19 +24,9 @@ router.get('/rblx',                require('./api_rblx.js')                );
 // visitor ips and user agents, owner only
 router.get('/logs',                requireAdmin, require('./api_logs.js') );
 router.get('/headers',             require('./api_headers.js')             );
-router.get('/cluster-units',       requireToken(airWebToken), require('./api_clusterUnits.js') );
+// the same peer list the heartbeat pings
+router.get('/cluster-units',       requireToken(airWebToken), async (req, res) => res.json(await clusterUrls()) );
 router.get('/deepTalents',         require('./api_deepwokenTalents.js')   );
 
-router.post('/get-anime',          require('./anime/get_anime.js')         );
-router.post('/commit-anime',       require('./anime/commit_anime.js')      );
-
-const imgLimiter = rateLimit({
-  windowMs: 6 * 1000,
-  max: 1,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: silent429,
-});
-
-router.post('/imggen', imgLimiter, require('./api_imggen.js'));
+router.post('/imggen', limiter({ windowMs: 6 * 1000, max: 1 }), require('./api_imggen.js'));
 module.exports = router;

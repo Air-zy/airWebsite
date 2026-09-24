@@ -1,5 +1,4 @@
-const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js');
-const rbxApiKey = envDecrypt(process.env.airKey, process.env.rowaCloudApi);
+const { rbxApiKey, ENTRIES } = require('../../rblxapp/rowautils.js');
 
 // one uncached call pages the whole datastore then fetches every entry, roughly
 // 900 open cloud requests against a 1k/min key quota. an hour is plenty fresh for this.
@@ -16,10 +15,7 @@ module.exports = async (req, res) => {
 
   try {
     inFlight = (async () => {
-    const universeId = '8502229770';
-    const store = 'plrDataV3';
-    const scope = 'global';
-    const listBase = `https://apis.roblox.com/cloud/v2/universes/${universeId}/data-stores/${encodeURIComponent(store)}/scopes/${encodeURIComponent(scope)}/entries`;
+    const listBase = ENTRIES;
     const entryBase = listBase + '/'; // + id
     const headers = { 'x-api-key': rbxApiKey, Accept: 'application/json' };
 

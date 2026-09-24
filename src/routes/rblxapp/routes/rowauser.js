@@ -1,5 +1,6 @@
 const { readFile } = require('fs').promises;
-const { getThumb } = require('../rowautils');
+const { getThumb, getPlrData } = require('../rowautils');
+const { idtoname } = require('../rblxutils');
 module.exports = async (req, res, next) => {
   const num_id = Number(req.params.userid);
   if (!Number.isInteger(num_id)) {
@@ -10,33 +11,22 @@ module.exports = async (req, res, next) => {
   let loss = '0', wins = '0', elo = '0';
   let displayName = id;
 
-  const base = `${req.protocol}://${req.get('host')}`;
-  const rowaUrl = `${base}/api/rowa/${encodeURIComponent(id)}`;
-  const robloxUrl = `${base}/api/roblox-user/${encodeURIComponent(id)}`;
+  // the same calls /api/rowa/:id and /api/roblox-user/:id make, without a round trip back into this server
+  const [rowaRes, robloxRes] = await Promise.allSettled([getPlrData(id), idtoname(id)]);
 
-  const [rowaRes, robloxRes] = await Promise.allSettled([fetch(rowaUrl), fetch(robloxUrl)]);
-
-  if (rowaRes.status === 'fulfilled' && rowaRes.value.ok) {
-    try {
-      const data = await rowaRes.value.json();
-      loss = String(data.loss ?? loss);
-      wins = String(data.wins ?? wins);
-      elo = String(data.elo ?? elo);
-    } catch (e) {
-      console.log('rowa parse err', e);
-    }
-  } else if (rowaRes.status === 'rejected') {
+  if (rowaRes.status === 'fulfilled') {
+    const data = rowaRes.value || {}; // no datastore entry for this id
+    loss = String(data.loss ?? loss);
+    wins = String(data.wins ?? wins);
+    elo = String(data.elo ?? elo);
+  } else {
     console.log('rowa fetch err', rowaRes.reason);
   }
 
-  if (robloxRes.status === 'fulfilled' && robloxRes.value.ok) {
-    try {
-      const rdata = await robloxRes.value.json();
-      displayName = String(rdata.displayName) + " @" + String(rdata.name);
-    } catch (e) {
-      console.log('roblox parse err', e);
-    }
-  } else if (robloxRes.status === 'rejected') {
+  if (robloxRes.status === 'fulfilled') {
+    const rdata = robloxRes.value;
+    displayName = String(rdata.displayName) + " @" + String(rdata.name);
+  } else {
     console.log('roblox fetch err', robloxRes.reason);
   }
 

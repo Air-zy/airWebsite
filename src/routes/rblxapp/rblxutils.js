@@ -1,5 +1,4 @@
-const envDecrypt = require('../../FallbackEncryption/envDecrypt.js');
-const rbxApiKey = envDecrypt(process.env.airKey, process.env.rowaCloudApi);
+const { rbxApiKey } = require('./rowautils.js');
 
 const roUNameIDcache = {};
 

@@ -7,6 +7,7 @@ const parentRef = firestore.collection('def').doc('anime');
 const DEFAULT_CHUNK_SIZE = 200 * 1024; // 200 KiB -- to allow Firestore overhead
 const BATCH_LIMIT = 500; // firestore max writes per batch
 
+// no caller in here on purpose, its how the anime3 data gets refilled
 async function upload(buf, chunkSize = DEFAULT_CHUNK_SIZE) {
   const totalBytes = buf.length;
   const chunkCount = Math.ceil(totalBytes / chunkSize);
@@ -42,45 +43,18 @@ async function upload(buf, chunkSize = DEFAULT_CHUNK_SIZE) {
   return { totalBytes, chunkCount };
 }
 
-async function downloadAsBase64() {
-  const metaSnap = await parentRef.get();
-  if (!metaSnap.exists) throw new Error('Document metadata not found');
+// every blob under def/ is a meta doc plus its chunks, glued back together in order.
+// name is anime, animeCoords or animeCoords2
+async function readChunks(name) {
+  const ref = firestore.collection('def').doc(name);
+  const metaSnap = await ref.get();
+  if (!metaSnap.exists) throw new Error(`${name} metadata not found`);
 
-  const chunksSnap = await parentRef.collection('chunks').orderBy('index').get();
+  const chunksSnap = await ref.collection('chunks').orderBy('index').get();
   const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
-  const assembled = Buffer.concat(bufs);
-  return assembled.toString('base64');
+
+  console.log("got", name)
+  return Buffer.concat(bufs).toString('base64');
 }
 
-//
-
-const coordsRef = firestore.collection('def').doc('animeCoords');
-async function coordsAsBase64() {
-  const metaSnap = await coordsRef.get();
-  if (!metaSnap.exists) throw new Error('Document metadata not found');
-
-  const chunksSnap = await coordsRef.collection('chunks').orderBy('index').get();
-  const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
-  const assembled = Buffer.concat(bufs);
-
-    console.log("got coords1")
-  return assembled.toString('base64');
-}
-
-//
-
-const coordsRef2 = firestore.collection('def').doc('animeCoords2');
-async function coordsAsBase64_2() {
-  const metaSnap = await coordsRef2.get();
-  if (!metaSnap.exists) throw new Error('Document metadata not found');
-
-  const chunksSnap = await coordsRef2.collection('chunks').orderBy('index').get();
-  const bufs = chunksSnap.docs.map(d => d.data().bytes); // admin SDK returns Buffer
-  const assembled = Buffer.concat(bufs);
-
-  console.log("got coords2")
-  return assembled.toString('base64');
-}
-
-
-module.exports = { upload, downloadAsBase64, coordsAsBase64, coordsAsBase64_2};
+module.exports = { upload, readChunks };

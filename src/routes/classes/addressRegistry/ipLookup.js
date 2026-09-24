@@ -28,31 +28,17 @@ async function ipLookup(ipString) {
   const htmlSnippet = htmlContent.substring(startIndex, endIndex);
   const htmlSnippet2 = htmlContent.substring(startIndex2, endIndex2);
 
-  // Extracting Region
-  const regionRegex = /<td>Region<\/td>\s*<td class="break-all">([^<]+)<\/td>/;
-  const regionMatch = htmlSnippet.match(regionRegex);
-  let region = regionMatch ? regionMatch[1] : null;
+  // maxmind first, db-ip when it has nothing. the ~ marks a db-ip value
+  const field = name => {
+    const regex = new RegExp(`<td>${name}</td>\\s*<td class="break-all">([^<]+)</td>`);
+    const value = htmlSnippet.match(regex)?.[1] ?? null;
+    if (value != null && value != " ") return value;
+    return (htmlSnippet2.match(regex)?.[1] ?? null) + " ~";
+  };
 
-  if (region == null || region == " ") {
-    const regionRegex2 =
-      /<td>Region<\/td>\s*<td class="break-all">([^<]+)<\/td>/;
-    const regionMatch2 = htmlSnippet2.match(regionRegex2);
-    const region2 = regionMatch2 ? regionMatch2[1] : null;
-    region = region2 + " ~";
-  }
+  const region = field('Region');
+  const city = field('City');
 
-  // Extracting City
-  const cityRegex = /<td>City<\/td>\s*<td class="break-all">([^<]+)<\/td>/;
-  const cityMatch = htmlSnippet.match(cityRegex);
-  let city = cityMatch ? cityMatch[1] : null;
-
-  if (city == null || city == " ") {
-    const cityRegex2 = /<td>City<\/td>\s*<td class="break-all">([^<]+)<\/td>/;
-    const cityMatch2 = htmlSnippet2.match(cityRegex2);
-    const city2 = cityMatch2 ? cityMatch2[1] : null;
-    city = city2 + " ~";
-  }
-  
   const ISPRegex = /<td>\s*ISP\s*\/\s*Org\s*<\/td>\s*<td class="break-all">\s*(.*?)\s*<\/td>/s;
   const ISPMatch2 = htmlSnippet2.match(ISPRegex);
   const ISP = ISPMatch2 ? ISPMatch2[1] : null;

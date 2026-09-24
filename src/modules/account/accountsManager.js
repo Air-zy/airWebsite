@@ -22,6 +22,9 @@ function validateUsername(name) {
 }
 
 
+// everything the validators here throw. the auth routes answer these with a 400 and the code as is
+const INPUT_ERRORS = ['username-invalid', 'username-inappropriate', 'username-repetitive', 'email-invalid', 'password-too-short', 'password-too-long', 'password-required'];
+
 function validatePassword(pw) {
   if (!pw || typeof pw !== 'string') throw new Error('password-required');
   if (pw.length < 8) throw new Error('password-too-short');
@@ -136,6 +139,7 @@ async function getAccountByUID(uid) {
 }
 
 module.exports = {
+  INPUT_ERRORS,
   register,
   login,
   getAccountByUID,

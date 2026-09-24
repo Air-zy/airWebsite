@@ -1,11 +1,9 @@
-const { firedbAirsiteGet, firedbAnimeMapGet } = require('../firebase/firebasedb.js');
+const { firedbAirsiteGet } = require('../firebase/firebasedb.js');
 
-let compressedAnimeMap = null;
 let projects = null;
 
 (async () => {
   projects = await firedbAirsiteGet();
-  compressedAnimeMap = await firedbAnimeMapGet()
   console.log("[FIRE DB] all init data loaded")
 })();
 
@@ -23,10 +21,6 @@ function getIP(req) {
          null;
 }
 
-function bitset(num, pos) {
-    return num | (1 << pos);
-}
-
 function getProjects() {
   return projects;
 }
@@ -34,17 +28,6 @@ function getProjects() {
 function setProjects(newProjects) {
   projects = newProjects;
 }
-
-function getCompressedAnimeMap() {
-  return compressedAnimeMap;
-}
-
-const {
-  loadAddresses,
-  getAddressMap,
-  getIPData,
-  updateAddress,
-} = require('./classes/addressRegistry/addressManager.js')
 
 let lookupTBL = {};
 function referLookup(ip, req) {
@@ -64,11 +47,7 @@ function referLookup(ip, req) {
 
 module.exports = {
   getIP,
-  bitset,
-  getIPData,
   getProjects,
   setProjects,
-  getCompressedAnimeMap,
   referLookup,
-  updateAddress,
 };

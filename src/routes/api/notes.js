@@ -1,21 +1,13 @@
 // the guestbook on the home page. anyone can read it, posting takes an account so every note has an owner.
 // notes are public the moment they post. ADMIN_UID pins and deletes them from the page itself
 const router = require('express').Router();
-const rateLimit = require('express-rate-limit');
 const { sql } = require('../../DATABASE/utilDB.js');
-const { silent429 } = require('../middleware/ratelimit.js');
+const { limiter } = require('../middleware/ratelimit.js');
 const { ADMIN_UID, requireAuth, requireAdmin } = require('../middleware/auth.js');
 const { getAccountByUID } = require('../../modules/account/accountsManager.js');
 
 // per account, a shared school or office ip should not share one budget
-const postLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 3,
-  keyGenerator: req => String(req.user.uid),
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: silent429,
-});
+const postLimiter = limiter({ windowMs: 10 * 60 * 1000, max: 3, keyGenerator: req => String(req.user.uid) });
 
 // returns the text to save, or { error } with a reason the page shows as is
 function clean(body) {

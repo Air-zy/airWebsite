@@ -1,97 +1,42 @@
-//const fetch = require('node-fetch');
 const envDecrypt = require('../../../FallbackEncryption/envDecrypt.js')
 const repoPat = envDecrypt(process.env.airKey, process.env.repoPat)
 
-function toBase64(str) {
-  return Buffer.from(str, 'utf8').toString('base64');
-}
+const headers = {
+  'Authorization': `Bearer ${repoPat}`,
+  'Accept': 'application/vnd.github.v3+json',
+};
 
+// create and update are the same PUT, an update just has to send the old sha
 async function game3git(filePath, filecontent, commitMessage) {
-  const owner = 'Air-zy';
-  const repo = 'robloxStudio';
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
-  
-  const content = toBase64(filecontent);
-  const branch = "main"
-  
-  async function createOrUpdateFile() {
-    console.log("[git]", url);
-    try {
-      // Check if the file exists
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${repoPat}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      });
+  const url = `https://api.github.com/repos/Air-zy/robloxStudio/contents/${filePath}`;
+  console.log("[git]", url);
 
-      if (response.ok) {
-        // File exists, update it
-        const data = await response.json();
-        const sha = data.sha; // SHA of the existing file
-        await updateFile(sha);
-      } else if (response.status === 404) {
-        // File doesn't exist, create it
-        await createFile();
-      } else {
-        console.error('[git] Unexpected response:', response);
-      }
-    } catch (error) {
-      console.error('[git] Error:', error);
+  try {
+    // Check if the file exists
+    const response = await fetch(url, { headers });
+    if (!response.ok && response.status !== 404) {
+      return console.error('[git] Unexpected response:', response);
     }
-  }
+    const sha = response.ok ? (await response.json()).sha : undefined;
 
-  async function updateFile(sha) {
-    try {
-      const updateResponse = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${repoPat}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-        body: JSON.stringify({
-          message: `UPD ${commitMessage}`,
-          content: content,
-          sha: sha,
-          branch: branch,
-        }),
-      });
-      if (updateResponse.ok) {
-        console.log("[git] File updated successfully");
-      } else {
-        console.error("[git] Failed to update file:", updateResponse.statusText);
-      }
-    } catch (error) {
-      console.error("[git] Error updating file:", error);
+    const putResponse = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        message: `${sha ? 'UPD' : 'CREATE'} ${commitMessage}`,
+        content: Buffer.from(filecontent, 'utf8').toString('base64'),
+        sha, // undefined drops out of the json, which is what a create wants
+        branch: 'main',
+      }),
+    });
+    if (putResponse.ok) {
+      console.log(`[git] File ${sha ? 'updated' : 'created'} successfully`);
+    } else {
+      console.error("[git] Failed to write file:", putResponse.status, putResponse.statusText);
     }
+  } catch (error) {
+    console.error('[git] Error:', error);
   }
-
-  async function createFile() {
-    try {
-      const createResponse = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${repoPat}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-        body: JSON.stringify({
-          message: `CREATE ${commitMessage}`,
-          content: content,
-          branch: branch,
-        }),
-      });
-      if (createResponse.ok) {
-        console.log("[git] File created successfully");
-      } else {
-        console.error("[git] Failed to create file:", createResponse);
-      }
-    } catch (error) {
-      console.error("[git] Error creating file:", error);
-    }
-  }
-  
-  createOrUpdateFile();
 }
 
 module.exports = { game3git };

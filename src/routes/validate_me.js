@@ -1,4 +1,5 @@
-const { getIPData, bitset, getIP } = require('./ip_utils.js');
+const { getIP } = require('./ip_utils.js');
+const { getAddress } = require('./classes/addressRegistry/addressManager.js');
 const envDecrypt = require('../FallbackEncryption/envDecrypt.js')
 
 const trustedDataToSend = {
@@ -15,17 +16,10 @@ module.exports = (req, res) => {
 
   const { sessionDuration } = behaviorData;
   
-  let ipData = getIPData(ipDecimal);
-  if (sessionDuration > 500 && ipData) {
-    
-    if (ipData) {
-      let currentCaptcha = 0
-      if (ipData["captcha"] !== undefined) {
-        currentCaptcha = ipData["captcha"];
-      }
-      ipData.captcha = bitset(currentCaptcha, 2);
-    }
-    
+  const addr = getAddress(ipDecimal);
+  if (sessionDuration > 500 && addr) {
+    // bit 2, passed the human check. goes out with the next address save
+    addr.captcha |= 1 << 2;
     res.json(trustedDataToSend);
   } else {
     res.json({ valid: false, message: "failed human validation." });

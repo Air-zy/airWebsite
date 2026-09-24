@@ -7,7 +7,6 @@
 
   <!-- same fonts and theme as the homepage so the preview is honest -->
   <link rel="stylesheet" href="/css/fonts.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
   <link rel="stylesheet" href="css/main.css" />
 
   <!-- filled at runtime with the real card css lifted out of projects.html -->
@@ -81,6 +80,7 @@
   </style>
 </head>
 <body>
+  <!--#icons-->
   <div id="main">
     <h1>Edit Projects</h1>
     <p class="sub">preview matches the homepage, ordered by views / rank like it is there.</p>
@@ -140,10 +140,8 @@
 
       const pStats = document.createElement('p');
       pStats.classList.add('proj-stats');
-      const icon = document.createElement('i');
-      icon.classList.add('fa', 'fa-eye');
       pStats.append((proj.stats && proj.stats.views != null ? proj.stats.views : 0) + ' ');
-      pStats.appendChild(icon);
+      pStats.insertAdjacentHTML('beforeend', '<svg class="icon"><use href="#i-eye"/></svg>');
       card.appendChild(pStats);
 
       const textContainer = document.createElement('div');

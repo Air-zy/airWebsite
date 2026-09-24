@@ -173,10 +173,10 @@ flowchart LR
 
   APP --> FS[("firestore")]
   FS --> A1["secure/*<br/>accounts, username + email indexes, counter"]
-  FS --> A2["projects, anime map, roblox blob"]
+  FS --> A2["projects, roblox blob"]
 
   APP --> PG[("postgres UTIL_DB")]
-  PG --> B1["big_value<br/>gzipped anime data"]
+  PG --> B1["notes<br/>the guestbook"]
 
   APP --> RBX{{"roblox open cloud"}}
   RBX --> C1["plrDataV3 datastore<br/>feeds /api/rowa/all and leaderboards"]

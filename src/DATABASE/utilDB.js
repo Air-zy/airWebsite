@@ -17,13 +17,6 @@ const sql = postgres(url.href, {
 
 // safe to run every boot
 async function ensureTables() {
-  // the anime store
-  await sql`
-    CREATE TABLE IF NOT EXISTS big_value (
-      id integer PRIMARY KEY,
-      data bytea NOT NULL
-    );
-  `;
   // the guestbook on the home page, see routes/api/notes.js
   await sql`
     CREATE TABLE IF NOT EXISTS notes (
@@ -37,10 +30,4 @@ async function ensureTables() {
   `;
 }
 
-// still gzipped, the route sends it as is
-async function getAnimeDataCompressed() {
-  const [row] = await sql`SELECT data FROM big_value WHERE id = 1`;
-  return row?.data ?? null;
-}
-
-module.exports = { sql, ensureTables, getAnimeDataCompressed };
+module.exports = { sql, ensureTables };

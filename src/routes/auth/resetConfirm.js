@@ -1,7 +1,5 @@
-const { getAccountByUID, setAccountPassword } = require('../../modules/account/accountsManager.js');
+const { getAccountByUID, setAccountPassword, INPUT_ERRORS } = require('../../modules/account/accountsManager.js');
 const { parseResetUid, readResetToken, setAuthCookie } = require('../middleware/auth.js');
-
-const BAD = ['password-too-short', 'password-too-long', 'password-required'];
 
 module.exports = async (req, res) => {
   const { token, password } = req.body || {};
@@ -20,7 +18,7 @@ module.exports = async (req, res) => {
   try {
     await setAccountPassword(acc, password);
   } catch (err) {
-    if (BAD.includes(err.message)) return res.status(400).json({ error: err.message });
+    if (INPUT_ERRORS.includes(err.message)) return res.status(400).json({ error: err.message });
     throw err;
   }
 

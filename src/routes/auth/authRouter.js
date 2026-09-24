@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { limiter } = require('../middleware/ratelimit.js');
 const { requireAuth, clearAuthCookie } = require('../middleware/auth.js');
 
 const router = require('express').Router();
@@ -12,46 +12,12 @@ function json429(req, res) {
   res.status(429).json({ error: 'too-many-attempts' });
 }
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: json429,
-});
-
-const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: json429,
-});
-
-const accountLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: json429,
-});
-
-const resetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: json429,
-});
-
+const loginLimiter    = limiter({ windowMs: 15 * 60 * 1000, max: 5,  handler: json429 });
+const registerLimiter = limiter({ windowMs: 60 * 60 * 1000, max: 10, handler: json429 });
+const accountLimiter  = limiter({ windowMs: 10 * 60 * 1000, max: 60, handler: json429 });
+const resetLimiter    = limiter({ windowMs: 60 * 60 * 1000, max: 3,  handler: json429 });
 // abuse control only, brute forcing a 256 bit hmac is not a threat model
-const confirmLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: json429,
-});
+const confirmLimiter  = limiter({ windowMs: 60 * 60 * 1000, max: 10, handler: json429 });
 
 router.post('/login', loginLimiter, loginHandler);
 router.post('/register', registerLimiter, registerHandler);

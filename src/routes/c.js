@@ -1,5 +1,5 @@
-const { getIPData, bitset, getIP, referLookup } = require('./ip_utils.js');
-const { updateAddress } = require('./classes/addressRegistry/addressManager.js')
+const { getIP, referLookup } = require('./ip_utils.js');
+const { getAddress, updateAddress } = require('./classes/addressRegistry/addressManager.js')
 
 module.exports = (req, res) => {
   const ipDecimal = getIP(req)
@@ -14,21 +14,13 @@ module.exports = (req, res) => {
   const preUserAgent = req.body.a + ' ' + reqUserAgent
   const referrer = referLookup(ipDecimal, req);
   const userAgent = preUserAgent.slice(0, 1000);
-  let ipData = getIPData(ipDecimal);
 
   console.log("c", ipDecimal)
 
-  if (ipData) {
-    let currentCaptcha = 0
-    if (ipData["captcha"] !== undefined) {
-      currentCaptcha = ipData["captcha"];
-    }
-    ipData = {
-      ...ipData,
-      captcha: bitset(currentCaptcha, 1),
-    };
-  }
-  
+  // bit 1, this ip ran the page js. set on the stored address so updateAddress saves it
+  const addr = getAddress(ipDecimal);
+  if (addr) addr.captcha |= 1 << 1;
+
   updateAddress(ipDecimal, userAgent, referrer, req);
   res.status(200).end();
 };

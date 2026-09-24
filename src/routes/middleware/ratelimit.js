@@ -4,12 +4,15 @@ function silent429(req, res /*, next */) {
   res.status(429).end();
 }
 
-const clientLimiter = rateLimit({
-  windowMs: 30 * 1000,  // 1m
-  max: 30,              // 30 reqs per windowMs
+// every limiter on the site shares these, callers pass the window, the cap and anything else they change
+const limiter = opts => rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: silent429,
+  ...opts,
 });
 
-module.exports = { clientLimiter, silent429 };
+// 30 reqs per 30s per ip
+const clientLimiter = limiter({ windowMs: 30 * 1000, max: 30 });
+
+module.exports = { clientLimiter, limiter };
