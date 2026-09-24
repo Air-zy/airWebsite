@@ -38,13 +38,12 @@ app.use(require('./routes/middleware/auth.js').attachUser);
 // before static, otherwise index.html answers / first
 app.use(require('./routes/middleware/terminal.js').middleware);
 
-// only this site may frame the login pages, the guestbook popup does. anyone else framing them is clickjacking
+// only this site may frame the login pages (the guestbook popup), anyone else is clickjacking
 app.use('/auth', (req, res, next) => { res.set('Content-Security-Policy', "frame-ancestors 'self'"); next(); });
 
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
-// after static so files dont eat the budget, a home page load was 13 requests and a few refreshes hit 30.
-// after the logger so a 429 shows up in the log
+// after static so css and js dont eat the budget, a few refreshes used to hit 30. after the logger so a 429 gets logged
 app.use(require('./routes/middleware/ratelimit.js').clientLimiter);
 
 app.use('/api',  require('./routes/api/apiRouter.js'));

@@ -339,7 +339,7 @@ function stagger(note, i, className) {
 }
 
 async function loadGuestbook() {
-  // blank paper while it loads and notes landing after, only the first time. a reload after pinning just swaps
+  // blank paper and landing notes on the first load only, a reload after pinning just swaps
   const first = !board.firstElementChild;
   if (first) board.replaceChildren(...[0, 1, 2, 3].map(i => stagger(makeNote({ id: i, name: '', text: '' }), i, 'blank')));
   board.ariaBusy = true;
@@ -352,7 +352,7 @@ async function loadGuestbook() {
       const note = makeNote(n, admin);
       return first ? stagger(note, i, 'place') : note;
     }));
-    // anyone can write, signing in waits until they send. shown after the board so a sent note cant land before it
+    // anyone can write, login waits for send. shown after the board so a sent note cant land before it
     boardForm.hidden = false;
     if (waitingNote) {
       boardForm.elements.text.value = waitingNote;
@@ -386,12 +386,12 @@ const loginDialog = document.getElementById('login-dialog');
 const loginFrame = loginDialog.querySelector('iframe');
 
 function askLogin() {
-  // set on every open so it starts fresh, and nothing loads for visitors who never sign
+  // loaded on open so visitors who never sign load nothing
   loginFrame.src = '/auth/?next=%2Fhome%23guestbook';
   loginDialog.showModal();
 }
 
-// closing the dialog does not stop the page inside, chrome kept animating its dither. unload it instead
+// a closed dialog keeps the page inside running, so unload it
 loginDialog.addEventListener('close', () => { loginFrame.src = 'about:blank'; });
 
 // the auth page posts this in place of redirecting when it is in the popup
@@ -414,8 +414,8 @@ try {
 // google comes back to /home#guestbook
 if (location.hash === '#guestbook') toGuestbook();
 
-// the address bar follows the guestbook so a refresh or a shared link lands back on it.
-// a line a third of the way down counts, a board taller than the screen still crosses it
+// the address bar follows the guestbook so a refresh or shared link lands back on it.
+// a line a third down counts, so a board taller than the screen still crosses it
 new IntersectionObserver(([entry]) => {
   history.replaceState(null, '', entry.isIntersecting ? '#guestbook' : location.pathname + location.search);
 }, { root: mainContentElm, rootMargin: '-33% 0px -67% 0px' }).observe(document.getElementById('guestbook'));

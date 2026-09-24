@@ -133,4 +133,4 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js`, `routes/api/notes.js`,
   `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).
-  `node src/config/blueNoise.js` regenerates the auth page dither tile and checks it, same png every run.
+  `node src/config/blueNoise.js` regenerates the background dither tile (`js/dither.js`) and checks it, same png every run.

@@ -1,4 +1,4 @@
-// blue noise threshold tile for the auth page dither, void and cluster (Ulichney 1993).
+// blue noise threshold tile for the page background dither in public/js/dither.js, void and cluster (Ulichney 1993).
 // every level of it is evenly spread with no grid, so a gradient comes out as fine grain instead of bayer's crosshatch.
 // node src/config/blueNoise.js   rewrites public/img/blue-noise.png and checks it. needs node 22.2+ for zlib.crc32
 const fs = require('fs');
@@ -68,14 +68,10 @@ for (let r = start; r < N * N; r++) {
   rank[v] = r;
 }
 
-// gray plus half alpha like bayer.png, the alpha lets the gradient under it through before the threshold
-const row = 1 + N * 2;
+// one gray byte per pixel, the rank scaled to 0 to 255
+const row = 1 + N;
 const raw = Buffer.alloc(N * row); // filter byte 0 starts each row
-for (let p = 0; p < N * N; p++) {
-  const i = ((p / N) | 0) * row + 1 + (p % N) * 2;
-  raw[i] = Math.floor((rank[p] + 0.5) * 256 / (N * N));
-  raw[i + 1] = 128;
-}
+for (let p = 0; p < N * N; p++) raw[((p / N) | 0) * row + 1 + p % N] = Math.floor((rank[p] + 0.5) * 256 / (N * N));
 function chunk(type, data) {
   const body = Buffer.concat([Buffer.from(type), data]);
   const out = Buffer.alloc(body.length + 8);
@@ -88,7 +84,7 @@ const ihdr = Buffer.alloc(13);
 ihdr.writeUInt32BE(N, 0);
 ihdr.writeUInt32BE(N, 4);
 ihdr[8] = 8; // bit depth
-ihdr[9] = 4; // gray and alpha
+ihdr[9] = 0; // gray
 fs.writeFileSync(__dirname + '/../public/img/blue-noise.png', Buffer.concat([
   Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
   chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0)),

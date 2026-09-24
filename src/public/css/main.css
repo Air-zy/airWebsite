@@ -81,6 +81,10 @@ body {
   --dither-blend: screen;
   --dither-strength: 0.02;
   --dither-invert: 0;
+  /* the page background dither, see #bg. lift is read once by js/dither.js */
+  --dither-lift: 0.6;
+  --bg-dither-blend: color-dodge;
+  --bg-dither-opacity: 0.22;
   --frame-bcol2: #1b1b1b;
   --text-grey: grey;
   --text-normal: white;
@@ -95,6 +99,8 @@ body {
   --dither-blend: multiply;
   --dither-strength: 0.03;
   --dither-invert: 1;
+  --bg-dither-blend: multiply;
+  --bg-dither-opacity: 0.04;
   --frame-bcol2: #e3e3e3;
   --text-grey: grey;
   --text-normal: #000000;
@@ -400,8 +406,7 @@ h3 {
   background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
   box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
 }
-/* a note being stuck on, the board on first load and the one you just signed.
-   starts lifted and big, the overshoot presses it into the board. main.js staggers the delay */
+/* a note being stuck on, starts lifted and big and the overshoot presses it in. main.js staggers the delay */
 .note.place {
   animation: 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards notePlace;
 }
@@ -412,7 +417,7 @@ h3 {
     scale: 1.15;
   }
 }
-/* blank paper while the board loads, pulsing up to its own opacity. that stays when reduced motion turns the pulse off */
+/* blank paper while the board loads, reduced motion stops the pulse at this opacity */
 .note.blank {
   opacity: 0.55;
   animation: 0.9s ease-in-out infinite alternate backwards noteBlank;
@@ -479,7 +484,7 @@ h3 {
   border: 0;
   border-radius: 10px;
   overflow: hidden;
-  background: #111111;
+  background: #0a0a0a;
 }
 #login-dialog::backdrop {
   background: rgb(0 0 0 / 0.6);
@@ -537,6 +542,13 @@ h3 {
   mix-blend-mode: var(--dither-blend);
   opacity: var(--dither-strength);
 }
+/* the page dither from js/dither.js, the same one as the auth page. dark mode color-dodges it so it lifts
+   the bg by a share. dodging white does nothing, so light mode inverts it and multiplies it in faintly */
+#bg {
+  mix-blend-mode: var(--bg-dither-blend);
+  filter: invert(var(--dither-invert));
+  opacity: var(--bg-dither-opacity);
+}
 /* background:0 0 on these two cannot reach a pseudo element, so it opts out here */
 #s2::before,
 .social-media-container::before {
@@ -577,7 +589,7 @@ h3 {
   margin: 0;
   padding-left: 10px;
   padding-bottom: 10px;
-  /* em not rem, rem is the browser 16px and not the 18px body so it came out tiny */
+  /* em, rem is the browser 16px not the 18px body */
   font-size: 0.9em;
   color: var(--text-grey);
 }

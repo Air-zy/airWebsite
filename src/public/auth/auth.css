@@ -1,7 +1,8 @@
 :root {
   color-scheme: dark;
-  --bg-col-start: #222222;
-  --bg-col-end: #111111;
+  --bg-col-start: #1a1a1a;
+  --bg-col-end: #0a0a0a;
+  --dither-lift: 0.15; /* read by js/dither.js */
   --card-bg: rgba(16,16,16,0.8);
   --text-col: #e0e0e0;
   --accent-col: #888;
@@ -62,16 +63,9 @@ body {
   opacity: 0.02;
 }
 
-/* the page dither, dither.js draws it at a quarter size so pixelated keeps the cells square.
-   fixed so it still covers the screen when the page scrolls. its strength is ALPHA in there */
-#bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: -1;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
+/* the page dither from js/dither.js. color-dodge brightens the gradient by a share instead of
+   laying grey on it, so dots match the shade under them */
+#bg { mix-blend-mode: color-dodge; }
 
 h3 {
   margin: 0;
