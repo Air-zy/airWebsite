@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { RegExpMatcher, englishDataset, englishRecommendedTransformers } = require('obscenity');
 const { firedbSecure } = require('../../firebase/firebasedb.js');
 const Account = require('./account.js');
@@ -23,7 +24,7 @@ function validateUsername(name) {
 
 
 // everything the validators here throw. the auth routes answer these with a 400 and the code as is
-const INPUT_ERRORS = ['username-invalid', 'username-inappropriate', 'username-repetitive', 'email-invalid', 'password-too-short', 'password-too-long', 'password-required'];
+const INPUT_ERRORS = ['username-invalid', 'username-inappropriate', 'username-repetitive', 'password-too-short', 'password-too-long', 'password-required'];
 
 function validatePassword(pw) {
   if (!pw || typeof pw !== 'string') throw new Error('password-required');
@@ -31,58 +32,116 @@ function validatePassword(pw) {
   if (pw.length > 200) throw new Error('password-too-long');
 }
 
-// deliberately loose. no RFC5322 monster, and no gmail dot or plus stripping,
-// that breaks legitimate addresses.
-function normalizeEmail(e) {
-  if (typeof e !== 'string') throw new Error('email-invalid');
-  const out = e.trim().toLowerCase();
-  if (out.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out)) throw new Error('email-invalid');
-  return out;
+function isValidUsername(name) {
+  try { validateUsername(name); return true; } catch { return false; }
 }
 
-async function register(name, email, password) {
-  if (!name) throw new Error('name required');
-  if (typeof name !== 'string') throw new Error('name required');
-
+function cleanUsername(name) {
+  if (typeof name !== 'string') throw new Error('username-invalid');
   name = normalizeUsername(name);
   validateUsername(name);
-  email = normalizeEmail(email);
-  validatePassword(password);
+  return name;
+}
 
-  const acc = new Account(name, email);
-  await acc.setPassword(password);
-  const payload = acc.serialize();
-
-  const usernameIndexRef = firedbSecure.doc(`username:${name}`);
-  const emailIndexRef = firedbSecure.doc(`email:${email}`);
+// one transaction so two signups cant take the same name or uid.
+// extraRef is one more index doc claimed with it, google:<sub> for google accounts
+async function createAccount(acc, extraRef) {
+  const nameRef = firedbSecure.doc(`username:${acc.name}`);
   const counterRef = firedbSecure.doc(COUNTER_DOC_ID);
 
-  const result = await firedbSecure.firestore.runTransaction(async (tx) => {
+  acc.uid = await firedbSecure.firestore.runTransaction(async (tx) => {
     // firestore needs all reads before any writes
-    const uSnap = await tx.get(usernameIndexRef);
-    if (uSnap.exists) {
-      throw new Error('username-taken');
-    }
-
-    const eSnap = await tx.get(emailIndexRef);
-    if (eSnap.exists) {
-      throw new Error('email-taken');
-    }
+    if ((await tx.get(nameRef)).exists) throw new Error('username-taken');
+    if (extraRef && (await tx.get(extraRef)).exists) throw new Error('already-linked');
 
     const cSnap = await tx.get(counterRef);
-    const nextId = (cSnap.exists && typeof cSnap.data().nextId === 'number') ? cSnap.data().nextId : 1;
-    const uid = nextId;
+    const uid = (cSnap.exists && typeof cSnap.data().nextId === 'number') ? cSnap.data().nextId : 1;
 
     tx.set(counterRef, { nextId: uid + 1 }, { merge: true });
-    tx.set(firedbSecure.doc(String(uid)), { ...payload, uid });
-    tx.set(usernameIndexRef, { uid });
-    tx.set(emailIndexRef, { uid });
-
-    return { uid, name };
+    tx.set(firedbSecure.doc(String(uid)), { ...acc.serialize(), uid });
+    tx.set(nameRef, { uid });
+    if (extraRef) tx.set(extraRef, { uid });
+    return uid;
   });
 
-  acc.uid = result.uid;
   return acc;
+}
+
+async function register(name, password) {
+  name = cleanUsername(name);
+  validatePassword(password);
+
+  const acc = new Account(name);
+  await acc.setPassword(password);
+  return createAccount(acc);
+}
+
+// first name only. the full name or the email would put who they are on the public guestbook.
+// checked with digits on since thats the longest it gets, anything the rules reject becomes user
+function googleNameBase(givenName) {
+  const base = [...normalizeUsername(String(givenName ?? ''))
+    .replace(/\s+/g, '_')
+    .replace(/[^\p{L}\p{N}\p{M}_]/gu, '')].slice(0, 24).join('');
+  return isValidUsername(base + '1234') ? base : 'user';
+}
+
+// sub is googles id for the person, it never changes even if their email does
+async function loginWithGoogle(sub, givenName) {
+  const googleRef = firedbSecure.doc(`google:${sub}`);
+  const linked = await googleRef.get();
+  if (linked.exists) return getAccountByUID(linked.data().uid);
+
+  // no password, so password login and change password never work for these
+  const base = googleNameBase(givenName);
+  // the bare name first, then random digits. they can rename from the profile page
+  for (let i = 0; i < 5; i++) {
+    const name = i ? base + crypto.randomInt(1000, 10000) : base;
+    if (!isValidUsername(name)) continue;
+    try {
+      return await createAccount(new Account(name), googleRef);
+    } catch (err) {
+      if (err.message === 'already-linked') return loginWithGoogle(sub); // another tab finished first
+      if (err.message !== 'username-taken') throw err;
+    }
+  }
+  throw new Error('username-taken');
+}
+
+// uid -> name for the guestbook, so a public page load costs no firestore reads once warm.
+// ponytail: one process only, a second server would show old names after a rename until restart
+const nameCache = new Map();
+
+// names in the same order as uids, null for a deleted account
+async function getNames(uids) {
+  const missing = [...new Set(uids)].filter(uid => !nameCache.has(uid));
+  if (missing.length) {
+    const refs = missing.map(uid => firedbSecure.doc(String(uid)));
+    for (const snap of await firedbSecure.firestore.getAll(...refs, { fieldMask: ['name'] }))
+      nameCache.set(Number(snap.id), snap.exists ? snap.get('name') : null);
+  }
+  return uids.map(uid => nameCache.get(uid));
+}
+
+async function renameAccount(uid, newName) {
+  newName = cleanUsername(newName);
+  const accRef = firedbSecure.doc(String(uid));
+  const newRef = firedbSecure.doc(`username:${newName}`);
+
+  await firedbSecure.firestore.runTransaction(async (tx) => {
+    const [accSnap, taken] = await tx.getAll(accRef, newRef);
+    if (!accSnap.exists) throw new Error('not-authenticated');
+    const old = accSnap.get('name');
+    if (old === newName) return;
+    if (taken.exists) throw new Error('username-taken');
+
+    // the old name is free straight away. notes look names up by uid so they follow the rename
+    tx.delete(firedbSecure.doc(`username:${old}`));
+    tx.set(newRef, { uid: Number(uid) });
+    tx.update(accRef, { name: newName });
+  });
+
+  nameCache.set(Number(uid), newName);
+  return newName;
 }
 
 async function login(identifier, password) {
@@ -111,20 +170,6 @@ async function login(identifier, password) {
   return acc;
 }
 
-async function getAccountByEmail(email) {
-  let norm;
-  try {
-    norm = normalizeEmail(email);
-  } catch {
-    return null;
-  }
-
-  const idx = await firedbSecure.doc(`email:${norm}`).get();
-  if (!idx.exists) return null;
-  return getAccountByUID(idx.data().uid);
-}
-
-// shared by reset confirm and change password
 async function setAccountPassword(acc, newPassword) {
   validatePassword(newPassword);
   await acc.setPassword(newPassword);
@@ -142,8 +187,10 @@ module.exports = {
   INPUT_ERRORS,
   register,
   login,
+  loginWithGoogle,
+  renameAccount,
+  getNames,
   getAccountByUID,
-  getAccountByEmail,
   setAccountPassword
 };
 
@@ -167,6 +214,18 @@ if (require.main === module) {
   a.strictEqual(why('sh1t'), 'username-inappropriate');
   a.strictEqual(why('f_u_c_k'), 'username-inappropriate');
   a.strictEqual(why('aaaaaaab'), 'username-repetitive');
+
+  a.strictEqual(googleNameBase('Airzy'), 'airzy');
+  a.strictEqual(googleNameBase('Mary Jane'), 'mary_jane');
+  a.strictEqual(googleNameBase('José'), 'josé');
+  a.strictEqual(googleNameBase("O'Neil-Smith"), 'oneilsmith');
+  a.strictEqual(googleNameBase('Al'), 'al', 'too short alone, fine once digits go on');
+  a.strictEqual(googleNameBase(''), 'user');
+  a.strictEqual(googleNameBase(undefined), 'user');
+  a.strictEqual(googleNameBase('😀'), 'user');
+  a.strictEqual(googleNameBase('123'), 'user', 'all digits would read as a uid');
+  a.strictEqual(googleNameBase('sh1t'), 'user');
+  a.strictEqual(googleNameBase('abcdefghij'.repeat(4)).length, 24);
 
   console.log('usernames ok');
   process.exit(0);

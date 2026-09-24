@@ -4,7 +4,7 @@ Monolith personal site on Node and Express. Portfolio, plus a bunch of tools and
 
 Firestore for most data, one postgres db for the guestbook. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with a hand written AES-128-CBC module in `src/FallbackEncryption/`.
 
-No auth, session, validation or mail library. All hand rolled on node builtins to keep deps down.
+No auth, session, validation or oauth library. All hand rolled on node builtins to keep deps down.
 
 Diagrams of the request path, auth and boot are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -27,7 +27,7 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 | --- | --- |
 | `airKey` | master key for the AES module, everything else depends on it |
 | `sessionSecret` | signs session cookies. required, server wont boot without it |
-| `resendKey` | optional. without it reset links print to console instead of emailing |
+| `googleClientId`, `googleClientSecret` | optional. continue with google, see Auth below |
 | `airWebToken` | admin and roblox endpoints |
 | `UTIL_DB` | encrypted neon postgres url, for the guestbook |
 
@@ -43,7 +43,7 @@ src/
 ├── FallbackEncryption/     AES-128-CBC
 ├── firebase/               firestore
 ├── heartSystem/            keeps external services warm
-├── modules/                account service, mailer, minifier
+├── modules/                account service, minifier
 ├── public/                 frontend source
 └── routes/
     ├── pagesRouter.js      static pages
@@ -68,23 +68,33 @@ airzy_session = <uid>.<expiresAt>.<hmac-sha256 of the above>
 
 Signed with `sessionSecret`, checked with `timingSafeEqual`, `httpOnly` + `sameSite=Lax`. Seven day window that slides when you show up past the halfway mark. Survives redeploys and costs no db read to verify.
 
-Reset tokens reuse the same signer, but mix the account's current `passwordHash` into the signature. Using one changes the password, which changes the hash, which kills every outstanding token for that account. Single use with nothing stored.
+Two ways in, a username and password, or continue with google. No email anywhere, so there is no password reset.
+A forgotten password on a password account is fixed by hand in the firestore console.
 
-Two ceilings, both deliberate:
+Google is plain openid connect with no library. `/auth/google` sets a random value in a cookie and sends it to google as both
+`state` and `nonce`, the callback checks both, swaps the code for an id token and checks `iss`, `aud` and `exp`.
+No signature check, the token comes straight from google over https with our secret, which google says is enough.
+Accounts are keyed on google's `sub` through a `google:<sub>` index doc, never on email.
+New google accounts get their first name as a username, plus random digits if its taken, and can rename from the profile page.
+They have no password, so password login and change password dont apply to them.
 
-- no per token revocation. rotating `sessionSecret` is the break glass and logs everyone out. add a `tokenVersion` on the account doc if per device logout is ever wanted.
-- no email verification. reset already proves mailbox control. this is also why changing your email isnt in the UI, an unverified change would be a takeover path.
+To turn it on, make a web oauth client in google cloud console, add `https://airzy.ca/auth/google/callback`
+(and `http://localhost:3000/auth/google/callback` for dev) as redirect uris, then put the id and secret in `.env` encrypted with `airKey`.
+
+One ceiling, deliberate: no per token revocation. rotating `sessionSecret` is the break glass and logs everyone out.
+add a `tokenVersion` on the account doc if per device logout is ever wanted.
 
 | route | |
 | --- | --- |
 | `POST /auth/register` | create account, logs you in |
 | `POST /auth/login` | log in |
 | `POST /auth/logout` | clear cookie |
-| `GET /auth/me` | current user, email masked |
+| `GET /auth/google` | start continue with google, redirects to google |
+| `GET /auth/google/callback` | google sends you back here, logs you in or makes the account |
+| `GET /auth/me` | current user |
 | `POST /auth/password` | change password, needs the current one |
-| `POST /auth/reset/request` | email a reset link, never says whether the address exists |
-| `POST /auth/reset/confirm` | set new password from a token, logs you in |
-| `GET /auth/account/:uid` | public lookup, no email |
+| `POST /auth/username` | rename, the old name is free straight away |
+| `GET /auth/account/:uid` | public lookup, name and join date only |
 
 Machine to machine endpoints use a shared bearer token instead, see `routes/middleware/requireToken.js`.
 
@@ -113,9 +123,11 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 
 - `/api/logs` is the raw request log, owner only (`ADMIN_UID` in `auth.js`).
 - The guestbook (`/api/notes`) is public to read and needs an account to sign. The owner pins and deletes from the page,
-  pinning is also the sort, the last pin sits on top.
+  pinning is also the sort, the last pin sits on top. Notes store the uid, names are looked up in one batched firestore read
+  and cached in memory so renames show on old notes.
+- Older accounts still have an `email` field and `email:<address>` index docs in firestore. Nothing reads them, safe to delete.
 - `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
-- Accounts made before email was required cant use reset until you add an `email` field and an `email:<lower>` index doc in the firestore console.
 - No test framework. A few files have a self check you run directly:
-  `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js` and `routes/api/notes.js`,
+  `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js`, `routes/api/notes.js`,
+  `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).

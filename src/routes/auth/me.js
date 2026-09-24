@@ -1,13 +1,6 @@
 const { getAccountByUID } = require('../../modules/account/accountsManager.js');
 const { ADMIN_UID } = require('../middleware/auth.js');
 
-// a***@gmail.com, enough to recognise your own address without publishing it
-function maskEmail(email) {
-  if (typeof email !== 'string' || !email.includes('@')) return null;
-  const [local, domain] = email.split('@');
-  return local.slice(0, 1) + '***@' + domain;
-}
-
 module.exports = async (req, res) => {
   const acc = await getAccountByUID(req.user.uid);
   if (!acc) return res.status(401).json({ error: 'not-authenticated' }); // deleted account
@@ -16,7 +9,7 @@ module.exports = async (req, res) => {
     uid: acc.uid,
     name: acc.name,
     createdAt: acc.createdAt,
-    email: maskEmail(acc.email),
+    hasPassword: !!acc.passwordHash, // google accounts have none, profile hides change password
     admin: acc.uid === ADMIN_UID   // ui affordance only, the server still gates every admin route
   });
 };

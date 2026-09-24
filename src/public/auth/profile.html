@@ -14,11 +14,25 @@
       <div class="row"><span class="k">user</span><span id="p-name"></span></div>
       <div class="row"><span class="k">uid</span><span id="p-uid"></span></div>
       <div class="row"><span class="k">joined</span><span id="p-joined"></span></div>
-      <div class="row"><span class="k">email</span><span id="p-email"></span></div>
       <button class="link-btn" id="logout-btn">Log out</button>
     </div>
 
     <div class="auth-card">
+      <h3>Change username</h3>
+      <form id="name-form">
+        <div class="field">
+          <label for="new-name">New username</label>
+          <div class="input-group">
+            <input id="new-name" autocomplete="username" minlength="3" maxlength="32" required>
+          </div>
+        </div>
+        <button type="submit" style="margin-top:15px;width:100%">Update</button>
+      </form>
+      <div class="hint">your old name is free for anyone once you change it.</div>
+      <div class="response" id="name-response" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="auth-card" id="pw-card">
       <h3>Change password</h3>
       <form id="pw-form">
         <div class="field">
@@ -47,6 +61,23 @@
   <script src="./auth.js"></script>
   <script>
     var pwResp = document.getElementById('pw-response');
+    var nameResp = document.getElementById('name-response');
+
+    document.getElementById('name-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = this.querySelector('button[type=submit]');
+      say(nameResp, '');
+      withBusy(btn, '...', function () {
+        return post('/auth/username', {
+          name: document.getElementById('new-name').value
+        }).then(function (r) {
+          if (!r.ok) return say(nameResp, errMsg(r.error), 'err');
+          document.getElementById('p-name').textContent = r.name;
+          document.getElementById('name-form').reset();
+          say(nameResp, 'username updated', 'ok');
+        });
+      });
+    });
 
     document.getElementById('pw-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -75,7 +106,8 @@
       document.getElementById('p-uid').textContent = me.uid;
       document.getElementById('p-joined').textContent = me.createdAt
         ? new Date(me.createdAt).toISOString().slice(0, 10) : 'unknown';
-      document.getElementById('p-email').textContent = me.email || 'none set';
+      // google accounts have no password to change
+      document.getElementById('pw-card').hidden = !me.hasPassword;
       document.getElementById('page').hidden = false;
     });
   </script>

@@ -13,14 +13,13 @@ function sign(data) {
 }
 
 // ponytail: no per token revocation before expiry. rotating sessionSecret logs everyone out.
-// if per device logout is ever needed, add a tokenVersion int to the account doc and mix it into extra.
-// extra is mixed into the signature but not sent, callers must know it to verify
-function makeToken(data, extra = '') {
-  return `${data}.${sign(data + extra)}`;
+// if per device logout is ever needed, add a tokenVersion int to the account doc and mix it into the signature
+function makeToken(data) {
+  return `${data}.${sign(data)}`;
 }
 
 // returns the data string or null. last dot separated field must be the expiry.
-function readToken(token, extra = '') {
+function readToken(token) {
   if (typeof token !== 'string') return null;
 
   const i = token.lastIndexOf('.');
@@ -28,7 +27,7 @@ function readToken(token, extra = '') {
 
   const data = token.slice(0, i);
   const got = Buffer.from(token.slice(i + 1), 'base64url');
-  const want = Buffer.from(sign(data + extra), 'base64url');
+  const want = Buffer.from(sign(data), 'base64url');
 
   // timingSafeEqual throws on length mismatch so check that first
   if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return null;
@@ -71,33 +70,6 @@ function requireAuth(req, res, next) {
   next();
 }
 
-const RESET_TTL = 30 * 60 * 1000;
-
-// the accounts current passwordHash is mixed into the signature, so the moment the
-// password changes every outstanding reset token stops verifying. thats single use for free.
-// the pw. prefix is domain separation so a reset token can never be replayed as a session cookie.
-function makeResetToken(uid, passwordHash) {
-  return makeToken(`pw.${uid}.${Date.now() + RESET_TTL}`, passwordHash);
-}
-
-// uid lives in field 1. read it before verifying so the caller can load the account
-// and get the passwordHash needed to check the signature.
-function parseResetUid(token) {
-  const parts = String(token || '').split('.');
-  if (parts[0] !== 'pw') return null;
-  const uid = Number(parts[1]);
-  return Number.isInteger(uid) && uid > 0 ? uid : null;
-}
-
-// returns the uid or null
-function readResetToken(token, passwordHash) {
-  const data = readToken(token, passwordHash);
-  if (!data) return null;
-  const parts = data.split('.');
-  if (parts[0] !== 'pw') return null;
-  return Number(parts[1]);
-}
-
 // uid 3 is me. a hardcoded compare beats a roles system for one admin.
 const ADMIN_UID = 3;
 
@@ -109,8 +81,6 @@ function requireAdmin(req, res, next) {
 
 module.exports = {
   ADMIN_UID,
-  makeToken, readToken,
-  makeResetToken, readResetToken, parseResetUid,
   setAuthCookie, clearAuthCookie, attachUser, requireAuth, requireAdmin
 };
 
@@ -126,20 +96,6 @@ if (require.main === module) {
   a.strictEqual(readToken('garbage'), null);
   a.strictEqual(readToken(''), null);
   a.strictEqual(readToken(undefined), null);
-
-  // extra must match or the token is rejected, this is what makes reset tokens single use
-  a.strictEqual(readToken(makeToken(`pw.7.${future}`, 'hashA'), 'hashA'), `pw.7.${future}`);
-  a.strictEqual(readToken(makeToken(`pw.7.${future}`, 'hashA'), 'hashB'), null);
-
-  // reset tokens
-  const rt = makeResetToken(7, 'oldhash');
-  a.strictEqual(parseResetUid(rt), 7);
-  a.strictEqual(readResetToken(rt, 'oldhash'), 7);
-  // using the token changes the password, which changes the hash, which kills the token
-  a.strictEqual(readResetToken(rt, 'newhash'), null);
-  // a session cookie must never verify as a reset token, and vice versa
-  a.strictEqual(parseResetUid(makeToken(`7.${future}`)), null);
-  a.strictEqual(readResetToken(makeToken(`7.${future}`), ''), null);
 
   console.log('auth ok');
   process.exit(0);

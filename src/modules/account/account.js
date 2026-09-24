@@ -1,10 +1,9 @@
 const argon2 = require('argon2');
 
 class Account {
-    constructor(name, email) {
+    constructor(name) {
         this.uid = null;
         this.name = name;
-        this.email = email;
         this.passwordHash = null;
         this.createdAt = Date.now();
     }
@@ -25,7 +24,7 @@ class Account {
 
     // doc id is the uid, older docs have the field as null
     static fromData(data, id) {
-        const acc = new Account(data.name, data.email);
+        const acc = new Account(data.name);
         acc.uid = Number(id);
         acc.createdAt = data.createdAt;
         acc.passwordHash = data.passwordHash;
@@ -36,7 +35,6 @@ class Account {
         return {
             uid: this.uid,
             name: this.name,
-            email: this.email,
             createdAt: this.createdAt,
             passwordHash: this.passwordHash
         };

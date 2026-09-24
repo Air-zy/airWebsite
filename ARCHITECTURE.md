@@ -40,7 +40,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-  subgraph MINT["issued on login, register and reset confirm"]
+  subgraph MINT["issued on login, register and the google callback"]
     U["uid"] --> P
     E["expiresAt"] --> P
     P["payload = uid.expiresAt"] --> H["hmac sha256<br/>key = sessionSecret"]
@@ -75,28 +75,25 @@ sequenceDiagram
   participant M as accountsManager
   participant F as firestore
 
-  C->>R: POST /auth/register {name, email, password}
+  C->>R: POST /auth/register {name, password}
   R->>M: register()
-  M->>M: normalize + validate name, email, password
+  M->>M: normalize + validate name, password
   M->>M: argon2 hash
 
   rect rgb(40,40,40)
     Note over M,F: transaction, all reads before any writes
     M->>F: get username:name
     F-->>M: exists?
-    M->>F: get email:email
-    F-->>M: exists?
     M->>F: get counter
     F-->>M: nextId
 
-    alt username or email taken
-      M-->>R: throw username-taken / email-taken
+    alt username taken
+      M-->>R: throw username-taken
       R-->>C: 409
     else free
       M->>F: set counter = nextId + 1
       M->>F: set secure/uid = account
       M->>F: set username:name = uid
-      M->>F: set email:email = uid
     end
   end
 
@@ -105,39 +102,36 @@ sequenceDiagram
   R-->>C: 200 {uid, name} (already logged in)
 ```
 
-## Password reset, single use without stored state
+## Continue with google, openid connect without a library
 
 ```mermaid
 sequenceDiagram
-  participant U as user
+  participant U as browser
   participant S as server
+  participant G as google
   participant F as firestore
-  participant MAIL as resend
 
-  U->>S: POST /auth/reset/request {email}
-  S-->>U: 200 {ok:true}
-  Note over S,U: replies before the lookup.<br/>constant time, never reveals if the address exists
+  U->>S: GET /auth/google?next=/somewhere
+  S->>U: set g_state cookie = random.next, redirect
+  U->>G: sign in, state = nonce = random
+  G->>U: redirect to /auth/google/callback?code&state
+  U->>S: callback, g_state cookie comes along (sameSite Lax)
+  S->>S: state matches the cookie?
 
-  S->>F: lookup email index
-  F-->>S: account (uid + current passwordHash)
-  S->>S: token = pw.uid.exp + hmac(pw.uid.exp + passwordHash)
-  Note over S: the CURRENT hash is baked into the signature
-  S->>MAIL: reset link (or console when resendKey unset)
-  MAIL-->>U: airzy.ca/auth/reset.html#t=token
-  Note over U: token is in the fragment,<br/>so it never reaches the server log
-
-  U->>S: POST /auth/reset/confirm {token, password}
-  S->>F: load account by uid from the token
-  F-->>S: current passwordHash
-  S->>S: verify signature using that hash
-
-  alt signature matches
-    S->>F: write new passwordHash
-    S->>U: set session cookie
-    S-->>U: 200, logged in
-    Note over S,F: hash just changed, so the token<br/>can no longer verify
-  else replayed or tampered
-    S-->>U: 400 invalid-token
+  alt no match or no code
+    S-->>U: redirect /auth/?e=google-failed
+  else match
+    S->>G: POST token endpoint {code, client secret}
+    G-->>S: id token
+    Note over S,G: straight from google over https,<br/>so no signature check. iss, aud, exp, nonce checked
+    S->>F: get google:sub
+    alt linked
+      F-->>S: uid
+    else new
+      S->>F: transaction, username:name + google:sub + account
+      Note over S,F: first name, then name + 4 random digits if taken
+    end
+    S->>U: set session cookie, redirect to next
   end
 ```
 
@@ -172,7 +166,7 @@ flowchart LR
   APP["airWebsite"]
 
   APP --> FS[("firestore")]
-  FS --> A1["secure/*<br/>accounts, username + email indexes, counter"]
+  FS --> A1["secure/*<br/>accounts, username + google indexes, counter"]
   FS --> A2["projects, roblox blob"]
 
   APP --> PG[("postgres UTIL_DB")]
@@ -184,8 +178,8 @@ flowchart LR
   APP --> GIST{{"github gist"}}
   GIST --> D1["encrypted cluster peer urls<br/>changed without redeploying"]
 
-  APP --> RES{{"resend"}}
-  RES --> E1["password reset mail"]
+  APP --> GOO{{"google"}}
+  GOO --> E1["continue with google<br/>token exchange only"]
 
   APP --> DISC{{"discord webhooks"}}
 ```
@@ -197,8 +191,8 @@ flowchart TD
   subgraph PUB["public"]
     P1["POST /auth/register"]
     P2["POST /auth/login"]
-    P3["POST /auth/reset/request"]
-    P4["POST /auth/reset/confirm"]
+    P3["GET /auth/google"]
+    P4["GET /auth/google/callback"]
     P5["GET /auth/account/:uid"]
     P6["GET /api/notes"]
   end
@@ -206,6 +200,7 @@ flowchart TD
   subgraph SESS["needs a session cookie"]
     S1["GET /auth/me"]
     S2["POST /auth/password"]
+    S5["POST /auth/username"]
     S3["POST /auth/logout"]
     S4["POST /api/notes"]
   end

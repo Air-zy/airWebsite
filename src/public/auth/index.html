@@ -39,7 +39,7 @@
         </div>
         <button type="submit" style="margin-top:15px;width:100%">Login</button>
       </form>
-      <button class="link-btn" onclick="location.href='./forgot.html'">forgot password?</button>
+      <a class="google-btn" href="/auth/google">Continue with Google</a>
       <div class="response" id="login-response" role="status" aria-live="polite"></div>
     </div>
 
@@ -55,12 +55,6 @@
           </div>
         </div>
         <div class="field" style="margin-top:12px">
-          <label for="register-email">Email</label>
-          <div class="input-group">
-            <input id="register-email" name="email" type="email" autocomplete="email" required>
-          </div>
-        </div>
-        <div class="field" style="margin-top:12px">
           <label for="register-password">Password</label>
           <div class="input-group">
             <input id="register-password" name="new-password" type="password" autocomplete="new-password"
@@ -71,7 +65,8 @@
         </div>
         <button type="submit" style="margin-top:15px;width:100%">Register</button>
       </form>
-      <div class="hint">usernames are lowercase. email is used for password resets.</div>
+      <a class="google-btn" href="/auth/google">Continue with Google</a>
+      <div class="hint">usernames are lowercase. google picks one for you, change it on your profile.</div>
       <div class="response" id="register-response" role="status" aria-live="polite"></div>
     </div>
   </div>
@@ -80,6 +75,11 @@
   <script>
     var loginResp = document.getElementById('login-response');
     var registerResp = document.getElementById('register-response');
+
+    // google sends you back here with ?e= when it fails, and needs next passed through to land you back
+    var params = new URLSearchParams(location.search);
+    if (params.get('e')) say(loginResp, errMsg(params.get('e')), 'err');
+    document.querySelectorAll('.google-btn').forEach(function (a) { a.search = location.search; });
 
     document.getElementById('login-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -103,7 +103,6 @@
       withBusy(btn, '...', function () {
         return post('/auth/register', {
           name: document.getElementById('register-username').value,
-          email: document.getElementById('register-email').value,
           password: document.getElementById('register-password').value
         }).then(function (r) {
           if (!r.ok) return say(registerResp, errMsg(r.error), 'err');
@@ -119,8 +118,7 @@
     // decide which half of the page to show
     getJSON('/auth/me').then(function (me) {
       if (me.ok) {
-        var next = new URLSearchParams(location.search).get('next');
-        if (next) return location.href = safeNext();
+        if (params.get('next')) return location.href = safeNext();
         document.getElementById('me-name').textContent = me.name;
         document.getElementById('signed-in').hidden = false;
       } else {

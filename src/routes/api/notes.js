@@ -4,7 +4,7 @@ const router = require('express').Router();
 const { sql } = require('../../DATABASE/utilDB.js');
 const { limiter } = require('../middleware/ratelimit.js');
 const { ADMIN_UID, requireAuth, requireAdmin } = require('../middleware/auth.js');
-const { getAccountByUID } = require('../../modules/account/accountsManager.js');
+const { getAccountByUID, getNames } = require('../../modules/account/accountsManager.js');
 
 // per account, a shared school or office ip should not share one budget
 const postLimiter = limiter({ windowMs: 10 * 60 * 1000, max: 3, keyGenerator: req => String(req.user.uid) });
@@ -26,9 +26,13 @@ function clean(body) {
 router.get('/', async (req, res) => {
   const uid = req.user?.uid ?? null;
   // pinned first with the latest pin on top, then newest. mine lets the page mark your own notes without handing out uids
-  const notes = await sql`
-    SELECT id, name, text, uid = ${uid} AS mine, pinned_at IS NOT NULL AS pinned
+  const rows = await sql`
+    SELECT id, uid, text, uid = ${uid} AS mine, pinned_at IS NOT NULL AS pinned
     FROM notes ORDER BY pinned_at DESC NULLS LAST, id DESC LIMIT 50`;
+
+  // names are looked up so a rename shows on old notes. uid stays on the server
+  const names = await getNames(rows.map(r => r.uid));
+  const notes = rows.map(({ uid, ...n }, i) => ({ ...n, name: names[i] ?? 'deleted' }));
   res.json({ notes, signedIn: uid !== null, admin: uid === ADMIN_UID });
 });
 
@@ -39,11 +43,10 @@ router.post('/', requireAuth, postLimiter, async (req, res) => {
   const acc = await getAccountByUID(req.user.uid);
   if (!acc) return res.status(401).json({ error: 'not-authenticated' }); // account deleted since the cookie was made
 
-  // the name is copied in so reading the wall never has to touch firestore
   const [row] = await sql`
-    INSERT INTO notes (uid, name, text) VALUES (${acc.uid}, ${acc.name}, ${note.text})
-    RETURNING id, name, text, true AS mine, false AS pinned`;
-  res.json({ note: row });
+    INSERT INTO notes (uid, text) VALUES (${acc.uid}, ${note.text})
+    RETURNING id, text, true AS mine, false AS pinned`;
+  res.json({ note: { ...row, name: acc.name } });
 });
 
 // flips the pin. pinning is also how the owner sorts, whatever got pinned last sits on top

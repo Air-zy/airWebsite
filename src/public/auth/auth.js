@@ -7,11 +7,11 @@ var ERRORS = {
   'username-invalid': '3-32 chars, letters numbers and _ only, not just digits',
   'username-inappropriate': 'pick a different username',
   'username-repetitive': 'that username is too repetitive',
-  'email-taken': 'that email already has an account',
-  'email-invalid': 'that email doesnt look right',
   'password-too-short': 'password needs at least 8 characters',
   'password-too-long': 'password is too long',
-  'invalid-token': 'that link expired or was already used',
+  'google-off': 'google sign in isnt set up here',
+  'google-failed': 'google sign in failed, try again',
+  'google-cancelled': 'google sign in was cancelled',
   'not-authenticated': 'youre signed out',
   'too-many-attempts': 'too many attempts, wait a bit',
   'rate-limited': 'too many requests, wait a bit',
@@ -68,10 +68,13 @@ function togglePassword(btn, id) {
   btn.setAttribute('aria-label', showing ? 'show password' : 'hide password');
 }
 
-// only allow same origin paths, never a full url
+// only allow same origin paths. parsed, since a startsWith('/') check lets /\evil.com through
 function safeNext() {
-  var next = new URLSearchParams(location.search).get('next');
-  return next && next.charAt(0) === '/' && next.slice(0, 2) !== '//' ? next : '/';
+  try {
+    var u = new URL(new URLSearchParams(location.search).get('next') || '/', location.origin);
+    if (u.origin === location.origin) return u.pathname + u.search + u.hash;
+  } catch (e) {}
+  return '/';
 }
 
 // disables the button while fn runs so double submits cant happen

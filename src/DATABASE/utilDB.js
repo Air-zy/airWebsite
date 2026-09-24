@@ -22,7 +22,6 @@ async function ensureTables() {
     CREATE TABLE IF NOT EXISTS notes (
       id serial PRIMARY KEY,
       uid integer NOT NULL,
-      name text NOT NULL,
       text text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now(),
       pinned_at timestamptz

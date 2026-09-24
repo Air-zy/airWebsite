@@ -39,6 +39,25 @@ body {
   flex-direction: column;
   gap: 15px;
   border-radius: 10px;
+  position: relative;
+  isolation: isolate;
+}
+
+/* avy: same dither as .txt-section::before in css/main.css, keep them in sync.
+   auth is dark only so the theme vars are inlined */
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-image: url(/img/bayer.png),
+    linear-gradient(to bottom right, #fff, #000);
+  background-size: 24px 24px, 100% 100%;
+  image-rendering: pixelated;
+  filter: contrast(10000%);
+  mix-blend-mode: screen;
+  opacity: 0.02;
 }
 
 h3 {
@@ -102,6 +121,21 @@ button {
 }
 
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* a link, it navigates off to google. same box as a button but outlined so login stays the main one */
+.google-btn {
+  display: block;
+  padding: 9px;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  color: var(--text-col);
+  text-align: center;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.google-btn:hover, .google-btn:focus-visible { border-color: var(--accent-col); }
 
 .link-btn {
   background: none;
