@@ -1,3 +1,26 @@
+/* bricolage grotesque, self hosted, licence in fonts/OFL.txt. latin only, anything outside the range (a guestbook
+   note in another script, the ∴) falls back to the next font in the stack */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-400-normal.woff2) format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-700-normal.woff2) format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-800-normal.woff2) format("woff2");
+  font-weight: 800;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 :root {
   color-scheme: dark;
   /* dark only. the ground leans violet and the text warm so neither is a flat black or white,
@@ -25,8 +48,8 @@ body {
   overflow: hidden;
   background-color: var(--bg-col);
   color: var(--text-normal);
-  font-family: Montserrat, sans-serif;
-  font-size: 16px;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 17px;
   line-height: 1.6;
 }
 main {
@@ -53,7 +76,7 @@ h3 {
 }
 h1 {
   font-size: clamp(44px, 8vw, 96px);
-  font-weight: 900;
+  font-weight: 800;
   margin: 0;
 }
 h2 {
@@ -213,16 +236,20 @@ nav {
   gap: 8px;
 }
 
-/* the first screen. the name sits low on the left and the plant stands beside it on the same baseline */
+/* the first screen. the name sits low on the left and the plant stands beside it on the same baseline.
+   capped below a full screen so the about section starts in view on a tall one, and a fixed height so nothing
+   below jumps when the plant arrives */
 #s1 {
-  --hero-pad: clamp(48px, 10vh, 112px);
+  --hero-h: min(calc(100dvh - var(--nav-h)), 760px);
+  --hero-pad-t: clamp(32px, 6vh, 64px);
+  --hero-pad-b: clamp(40px, 8vh, 96px);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: clamp(24px, 4vw, 64px);
   align-items: end;
-  min-height: calc(100dvh - var(--nav-h));
+  min-height: var(--hero-h);
   box-sizing: border-box;
-  padding: 24px 0 var(--hero-pad);
+  padding: var(--hero-pad-t) 0 var(--hero-pad-b);
 }
 #s1 h1 {
   position: relative;
@@ -237,7 +264,7 @@ nav {
 .flower canvas {
   display: block;
   max-width: 100%;
-  max-height: calc(100dvh - var(--nav-h) - 24px - var(--hero-pad));
+  max-height: calc(var(--hero-h) - var(--hero-pad-t) - var(--hero-pad-b));
   mask: linear-gradient(to top, #000 46%, #0000 54%) 0 0 / 100% 220% no-repeat;
 }
 .flower.grown canvas {
@@ -679,7 +706,7 @@ nav {
     grid-row: 2;
   }
   .flower canvas {
-    max-height: calc(100dvh - var(--nav-h) - 320px);
+    max-height: calc(var(--hero-h) - 320px);
   }
   /* no room past the end of the name, so it sits on top of it */
   #s1 .bubble {
