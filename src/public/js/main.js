@@ -51,16 +51,13 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // a new nonflowers plant every visit, ?seed= brings one back. js/flower/worker.js paints it off the main thread
-// and main.css grows it in. no worker or OffscreenCanvas and the figure just stays hidden
+// and main.css grows it in. no worker or OffscreenCanvas and it just stays hidden
 (function growFlower() {
   const fig = document.querySelector('.flower');
   if (!window.Worker || !window.OffscreenCanvas) return;
   // digits only, nonflowers hashes the seed and a long one overflows to NaN and draws nothing
   const asked = new URLSearchParams(location.search).get('seed');
   const seed = /^\d{1,9}$/.test(asked) ? asked : String(Math.floor(Math.random() * 1e9));
-  const link = document.getElementById('flower-seed');
-  link.href = `?seed=${seed}`;
-  link.textContent = `no. ${seed}`;
 
   fig.hidden = false;
   const worker = new Worker('js/flower/worker.js');

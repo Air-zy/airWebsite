@@ -213,35 +213,31 @@ nav {
   gap: 8px;
 }
 
-/* the first screen. the name sits low on the left and spans both columns, so a long one runs over the
-   foot of the plant instead of wrapping */
+/* the first screen. the name sits low on the left and the plant stands beside it on the same baseline */
 #s1 {
+  --hero-pad: clamp(48px, 10vh, 112px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: clamp(24px, 4vw, 64px);
   align-items: end;
   min-height: calc(100dvh - var(--nav-h));
   box-sizing: border-box;
-  padding: 24px 0 clamp(48px, 10vh, 112px);
-}
-.hero-text {
-  grid-area: 1 / 1 / 2 / 3;
-  position: relative;
-  z-index: 1;
+  padding: 24px 0 var(--hero-pad);
 }
 #s1 h1 {
   position: relative;
   width: fit-content;
 }
 .flower {
-  grid-area: 1 / 2;
-  margin: 0;
+  justify-self: center;
 }
-/* nonflowers paints a 600 square. it grows in bottom up: the mask is opaque at the bottom and clear at the
-   top with a soft band between, twice the canvas tall, and slides down until only its opaque half is left */
+/* the canvas is the plant's own size, cropped to it, and only ever shrinks to fit. it grows in bottom up: the
+   mask is opaque at the bottom and clear at the top with a soft band between, twice the canvas tall, and slides
+   down until only its opaque half is left */
 .flower canvas {
   display: block;
-  width: min(44vw, calc(100dvh - var(--nav-h) - 180px), 640px);
-  aspect-ratio: 1;
+  max-width: 100%;
+  max-height: calc(100dvh - var(--nav-h) - 24px - var(--hero-pad));
   mask: linear-gradient(to top, #000 46%, #0000 54%) 0 0 / 100% 220% no-repeat;
 }
 .flower.grown canvas {
@@ -252,13 +248,7 @@ nav {
     mask-position: 0 100%;
   }
 }
-.flower figcaption {
-  margin-top: 8px;
-  text-align: right;
-}
-.flower a {
-  color: var(--text-soft);
-}
+
 .lede {
   margin: 0.75em 0 0;
   font-size: clamp(16px, 1.6vw, 20px);
@@ -679,22 +669,17 @@ nav {
   }
 }
 @media (max-width: 600px) {
+  /* no room beside the name, so the plant stands above it */
   #s1 {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 1fr auto;
+    row-gap: 24px;
   }
   .hero-text {
-    grid-area: 2 / 1;
-  }
-  .flower {
-    grid-area: 1 / 1;
-    align-self: center;
+    grid-row: 2;
   }
   .flower canvas {
-    width: min(100%, calc(100dvh - var(--nav-h) - 300px));
-  }
-  .flower figcaption {
-    text-align: left;
+    max-height: calc(100dvh - var(--nav-h) - 320px);
   }
   /* no room past the end of the name, so it sits on top of it */
   #s1 .bubble {

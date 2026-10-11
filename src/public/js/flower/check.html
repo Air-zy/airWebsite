@@ -5,7 +5,7 @@
      pixels, a different seed different ones, and a plant has to finish inside the budget. it draws the plant too -->
 <body style="background: #131217; color: #ddd; font: 14px monospace">
 <pre id="out">running</pre>
-<canvas id="c" width="600" height="600"></canvas>
+<canvas id="c"></canvas>
 <script>
   // ponytail: the budget is a desktop number, a phone takes a few times longer and still never blocks the page
   const BUDGET_MS = 1000;
@@ -30,10 +30,15 @@
         hash(pa) !== hash(pb) && 'same seed painted different pixels',
         hash(pa) === hash(pc) && 'different seeds painted the same pixels',
         painted < 2000 && `only ${painted} pixels painted`,
+        // cropped to the plant, so a plant as big as the whole 1200 stage was most likely cut off by it
+        [a, c].some(r => r.bitmap.width >= 1200 || r.bitmap.height >= 1200) && 'a plant fills the whole stage',
         a.ms > BUDGET_MS && `took ${Math.round(a.ms)}ms, budget ${BUDGET_MS}`,
       ].filter(Boolean);
       out.textContent = (fails.length ? 'FAIL\n' + fails.join('\n') : 'ok') + `\n${Math.round(a.ms)}ms, ${painted} pixels painted`;
-      document.getElementById('c').getContext('2d').drawImage(a.bitmap, 0, 0);
+      const cv = document.getElementById('c');
+      cv.width = a.bitmap.width;
+      cv.height = a.bitmap.height;
+      cv.getContext('2d').drawImage(a.bitmap, 0, 0);
     } catch (e) {
       out.textContent = 'FAIL\n' + e;
     }

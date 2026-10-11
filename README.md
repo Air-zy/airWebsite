@@ -111,13 +111,16 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - `/cli` serves the same text to both. curl gets it raw, browsers get `cli.html`, a terminal that fetches `/cli/<command>`
   and paints the ansi codes as spans. `routes/cli.js` reads its page list back out of `pagesRouter.stack` so the list only exists once.
 - The `/c` fingerprint beacon is injected into every page at minify time. Self hosted analytics, no third party script.
-- Socials, skills, the nav, the about text and the copyright live once, in `config/site.js`. The minifier swaps `<!--#socialIcons-->` and friends for real markup on the
+- Socials, skills, the nav, the about text and the copyright live once, in `config/site.js`. The minifier swaps `<!--#socialLinks-->` and friends for real markup on the
   way to `dist`, so `index.html` holds tokens instead of link lists and `cli.js` reads the same array. A typo'd token kills the
   build for that page on purpose, `removeComments` would have eaten it silently.
   The about lines use `{phrase|#color}` so the page can tint a phrase and the cli can drop the braces. The "here to develop"
   line is not in there on purpose, `main.js` animates it by id.
 - User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
 - `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.
+- The flower on the home page is [nonflowers](https://github.com/LingDong-/nonflowers) by Lingdong Huang (MIT, the notice is
+  in `js/flower/nonflowers.js`), a new plant every visit, `?seed=` brings one back. It runs in a web worker
+  (`js/flower/worker.js`) because it patches `Array.prototype` and `Math.random`, which stays inside the worker.
 
 ## Notes
 
@@ -134,3 +137,4 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).
   `node src/config/blueNoise.js` regenerates the background dither tile (`js/dither.js`) and checks it, same png every run.
+  `/js/flower/check.html` in a browser checks the flower: same seed same plant, nothing cut off, inside the time budget.
