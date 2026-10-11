@@ -66,6 +66,7 @@ main {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--text-grey) 45%, var(--bg-col)) transparent;
   scroll-behavior: smooth;
 }
 .page {
@@ -108,9 +109,6 @@ summary {
   outline: 1px solid var(--text-normal);
   outline-offset: 3px;
 }
-main {
-  scrollbar-color: color-mix(in oklab, var(--text-grey) 45%, var(--bg-col)) transparent;
-}
 textarea {
   caret-color: var(--text-normal);
 }
@@ -145,7 +143,6 @@ nav {
   font: inherit;
   color: var(--text-grey);
   text-decoration: none;
-  text-align: center;
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -220,7 +217,7 @@ nav {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 32px;
+  gap: 8px;
   box-sizing: border-box;
   width: 400px;
   max-width: 80%;
@@ -234,12 +231,6 @@ nav {
 #side-bar.open {
   transform: translateX(0);
   visibility: visible;
-}
-#sbar-flex {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
 }
 
 /* the first screen. the name sits low on the left and the plant stands beside it on the same baseline.
@@ -293,12 +284,19 @@ nav {
 }
 /* chat bubble with an ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css.
    he cuts the tail curve with a patch in the page color, a mask does it here so it works over
-   anything, like the background grain behind it. all em so it scales with font-size */
+   anything, like the background grain behind it. all em so it scales with font-size.
+   it hangs off the end of the name and grows out of its tail once the plant has grown */
 .bubble {
-  position: relative;
+  position: absolute;
+  left: calc(100% + 0.35em);
+  top: -1.1em;
   padding: 0.3em 0.45em;
+  font: 400 28px/1.2 sans-serif;
   background: color-mix(in srgb, var(--text-normal) 14%, var(--bg-col));
   border-radius: 0.9em;
+  transform: scale(0);
+  transform-origin: -0.25em 100%;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
 }
 .bubble::after {
   content: "";
@@ -313,17 +311,7 @@ nav {
     linear-gradient(#000 0 0) right / calc(100% - 0.25em) 100% no-repeat,
     radial-gradient(circle 0.36em at -0.11em 0, #0000 calc(100% - 1px), #000) bottom / 100% 0.36em no-repeat;
 }
-/* off the end of the name, grows out of its tail once the name is spelled out */
-#s1 .bubble {
-  position: absolute;
-  left: calc(100% + 0.35em);
-  top: -1.1em;
-  font: 400 28px/1.2 sans-serif;
-  transform: scale(0);
-  transform-origin: -0.25em 100%;
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
-}
-#s1.done .bubble {
+.done .bubble {
   transform: none;
 }
 
@@ -389,7 +377,6 @@ nav {
 .project-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  color: inherit;
   text-decoration: none;
 }
 .project-card > :not(img) {
@@ -433,12 +420,7 @@ nav {
 #guestbook {
   max-width: none;
 }
-/* hidden alone loses to the display on .txt-section */
-#guestbook[hidden] {
-  display: none;
-}
 .board {
-  width: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -633,7 +615,6 @@ nav {
   flex-direction: column;
   gap: 12px;
   font-size: 0.9em;
-  color: var(--text-normal);
   text-decoration: none;
 }
 .item-list p {
@@ -692,16 +673,13 @@ nav {
 }
 /* the sprite replaces font awesome. 1em and currentColor mean every existing
    font-size and color rule keeps working untouched */
-.fa {
-  display: inline-block;
-}
 .icon {
   width: 1em;
   height: 1em;
   fill: currentColor;
   vertical-align: -0.125em;
 }
-.fa.fa-comments-o {
+.chat-button .icon {
   font-size: 1.3em;
 }
 
@@ -725,7 +703,7 @@ nav {
     max-height: calc(var(--hero-h) - 320px);
   }
   /* no room past the end of the name, so it sits on top of it */
-  #s1 .bubble {
+  .bubble {
     left: auto;
     right: 0;
     top: -1.7em;
@@ -746,7 +724,7 @@ nav {
   main {
     scroll-behavior: auto;
   }
-  #s1 .bubble {
+  .bubble {
     transition: none;
   }
   .flower canvas,

@@ -72,7 +72,6 @@ function makeProjectCard(proj, key) {
     const img = document.createElement('img');
     img.src = proj.img;
     img.alt = proj.alt;
-    img.height = img.width = window.innerWidth <= 600 ? 100 : 200;
     card.appendChild(img);
   }
 
@@ -199,13 +198,8 @@ onSeen(document.querySelector(".main-footer"), () => {
     });
 });
 
-function toAbout() {
-  document.getElementById('about').scrollIntoView();
-  setSidebar(false);
-}
-
-function toProjects() {
-  document.getElementById('projects-section').scrollIntoView();
+function goTo(id) {
+  document.getElementById(id).scrollIntoView();
   setSidebar(false);
 }
 

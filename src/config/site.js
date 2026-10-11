@@ -5,19 +5,19 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const socials = [
-  { label: 'GitHub',    icon: 'fa-github',           url: 'https://github.com/Air-zy' },
-  { label: 'Linked In', icon: 'fa-linkedin-square',  url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
-  { label: 'Leetcode',  icon: 'fa-code',             url: 'https://leetcode.com/u/AirzyEz/' },
-  { label: 'Youtube',   icon: 'fa-youtube-play',     url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
-  { label: 'Instagram', icon: 'fa-instagram',        url: 'https://www.instagram.com/airzyalt' },
-  { label: 'Snapchat',  icon: 'fa-snapchat-ghost',   url: 'https://www.snapchat.com/add/airalternative' },
-  { label: 'X',         icon: 'fa-twitter',          url: 'https://x.com/airzyalt' },
+  { label: 'GitHub',    icon: 'github',              url: 'https://github.com/Air-zy' },
+  { label: 'Linked In', icon: 'linkedin-square',     url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
+  { label: 'Leetcode',  icon: 'code',                url: 'https://leetcode.com/u/AirzyEz/' },
+  { label: 'Youtube',   icon: 'youtube-play',        url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
+  { label: 'Instagram', icon: 'instagram',           url: 'https://www.instagram.com/airzyalt' },
+  { label: 'Snapchat',  icon: 'snapchat-ghost',      url: 'https://www.snapchat.com/add/airalternative' },
+  { label: 'X',         icon: 'twitter',             url: 'https://x.com/airzyalt' },
 ];
 
 const nav = [
   { label: 'Home',      href: '/home' },
-  { label: 'About',     click: 'toAbout()' },
-  { label: 'Projects',  click: 'toProjects()' },
+  { label: 'About',     click: "goTo('about')" },
+  { label: 'Projects',  click: "goTo('projects-section')" },
   { label: 'Guestbook', click: 'toGuestbook()' },
   { label: 'Contact',   click: 'toContact()' },
 ];
@@ -36,8 +36,8 @@ const skills = {
 
 // button not div, so the three scroll items take focus and fire on enter/space.
 // span not div because a button only takes phrasing content
-// symbol ids are the fa name minus the prefix, see icons.svg
-const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name.replace('fa-', '')}"/></svg>`;
+// symbol ids in icons.svg are i- plus the name
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
 const navItem = n => n.href
   ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
@@ -103,7 +103,7 @@ if (require.main === module) {
   a.ok(!module.exports.about.join(' ').match(/[{}|]/), 'braces leaked into the cli text');
   a.ok(module.exports.html.about.includes('<span class="hl-tech">software development</span>'));
   for (const m of about.join('').matchAll(/\|([^}]+)\}/g)) a.ok(['accent', 'name', 'tech'].includes(m[1]), `no .hl-${m[1]} role`);
-  for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon.replace('fa-', '')}"`), `sprite lost ${s.icon}`);
+  for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon}"`), `sprite lost ${s.icon}`);
   for (const m of html.matchAll(/#i-([a-z0-9-]+)/g)) a.ok(module.exports.html.icons.includes(`id="${m[0].slice(1)}"`), `sprite lost ${m[1]}`);
   a.ok(module.exports.html.icons.includes('display:none'), 'hidden does nothing on an svg, without display none the sprite renders 300x150');
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
