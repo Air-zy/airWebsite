@@ -77,9 +77,11 @@
       return length(clamp(k.xy, lo, hi) - k.xy) < k.z && length(max(abs(lo - k.xy), abs(hi - k.xy))) > k.z;
     }
 
-    // a bushy patch in whole pieces, d is 1 at its edge. inside gets the fill, a thin ring past it like spores
+    // a bushy patch in whole pieces, d is 1 at its edge. inside gets the fill, a thin ring past it like spores.
+    // the edge creeps, so the steps are ramps: a piece the edge crosses fades over seconds and its dots dissolve one
+    // at a time. a hard step switched the whole piece in one frame, a visible flicker
     float patch(float d, float fill) {
-      return d < 1.0 ? fill : d < 1.6 ? 0.15 : 0.0;
+      return mix(fill, 0.15, smoothstep(0.85, 1.15, d)) * (1.0 - smoothstep(1.45, 1.75, d));
     }
 
     // how full the grain is at p (px), owner is the jigsaw piece p is in. at most one clump per 256px slot,
