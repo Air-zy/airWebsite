@@ -1,35 +1,39 @@
 <!DOCTYPE html>
 <meta charset="utf-8" />
 <title>flower check</title>
-<!-- the check for js/flower, open /js/flower/check.html. the same seed in two fresh workers has to give the same
-     dots, a different seed different ones, and a plant has to finish inside the budget. it draws the plant too -->
-<body style="background: #16151a; color: #ddd; font: 14px monospace">
+<!-- the check for js/flower, open /js/flower/check.html. the same seed in two fresh workers has to paint the same
+     pixels, a different seed different ones, and a plant has to finish inside the budget. it draws the plant too -->
+<body style="background: #131217; color: #ddd; font: 14px monospace">
 <pre id="out">running</pre>
-<canvas id="c" style="image-rendering: pixelated; width: 600px"></canvas>
+<canvas id="c" width="600" height="600"></canvas>
 <script>
   // ponytail: the budget is a desktop number, a phone takes a few times longer and still never blocks the page
   const BUDGET_MS = 1000;
-  const grow = (seed, size) => new Promise((res, rej) => {
+  const grow = seed => new Promise((res, rej) => {
     const w = new Worker('worker.js');
     w.onmessage = ({ data }) => { w.terminate(); data.error ? rej(data.error) : res(data); };
-    w.postMessage({ seed, size });
+    w.postMessage({ seed });
   });
-  const hash = buf => new Uint8Array(buf).reduce((h, b) => Math.imul(h ^ b, 16777619), 2166136261) >>> 0;
+  const pixels = bitmap => {
+    const c = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d');
+    c.drawImage(bitmap, 0, 0);
+    return c.getImageData(0, 0, bitmap.width, bitmap.height).data;
+  };
+  const hash = px => px.reduce((h, b) => Math.imul(h ^ b, 16777619), 2166136261) >>> 0;
   (async () => {
     const out = document.getElementById('out');
     try {
-      const [a, b, c] = [await grow('7', 300), await grow('7', 300), await grow('8', 300)];
-      const on = new Uint8Array(a.rgba).filter((v, i) => i % 4 === 3 && v === 255).length;
+      const [a, b, c] = [await grow('7'), await grow('7'), await grow('8')];
+      const [pa, pb, pc] = [a, b, c].map(r => pixels(r.bitmap));
+      const painted = pa.filter((v, i) => i % 4 === 3 && v > 0).length;
       const fails = [
-        hash(a.rgba) !== hash(b.rgba) && 'same seed gave different dots',
-        hash(a.rgba) === hash(c.rgba) && 'different seeds gave the same dots',
-        on < 500 && `only ${on} dots on`,
+        hash(pa) !== hash(pb) && 'same seed painted different pixels',
+        hash(pa) === hash(pc) && 'different seeds painted the same pixels',
+        painted < 2000 && `only ${painted} pixels painted`,
         a.ms > BUDGET_MS && `took ${Math.round(a.ms)}ms, budget ${BUDGET_MS}`,
       ].filter(Boolean);
-      out.textContent = (fails.length ? 'FAIL\n' + fails.join('\n') : 'ok') + `\n${Math.round(a.ms)}ms, ${on} dots`;
-      const cv = document.getElementById('c');
-      cv.width = cv.height = a.size;
-      cv.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(a.rgba), a.size), 0, 0);
+      out.textContent = (fails.length ? 'FAIL\n' + fails.join('\n') : 'ok') + `\n${Math.round(a.ms)}ms, ${painted} pixels painted`;
+      document.getElementById('c').getContext('2d').drawImage(a.bitmap, 0, 0);
     } catch (e) {
       out.textContent = 'FAIL\n' + e;
     }

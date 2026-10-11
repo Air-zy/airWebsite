@@ -50,8 +50,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }, 40);
 });
 
-// a new nonflowers plant every visit, ?seed= brings one back. js/flower/worker.js grows and stipples it off the
-// main thread, this only prints the dots. no worker or OffscreenCanvas and the figure just stays hidden
+// a new nonflowers plant every visit, ?seed= brings one back. js/flower/worker.js paints it off the main thread
+// and main.css grows it in. no worker or OffscreenCanvas and the figure just stays hidden
 (function growFlower() {
   const fig = document.querySelector('.flower');
   if (!window.Worker || !window.OffscreenCanvas) return;
@@ -63,40 +63,20 @@ document.addEventListener("DOMContentLoaded", function () {
   link.textContent = `no. ${seed}`;
 
   fig.hidden = false;
-  const canvas = fig.querySelector('canvas');
-  // css px per dot, the same grain as js/dither.js. the canvas is sized once, a resize just scales the dots
-  const CELL = 2;
-  const size = Math.round(canvas.getBoundingClientRect().width / CELL);
   const worker = new Worker('js/flower/worker.js');
   const fail = err => { worker.terminate(); fig.hidden = true; console.error('flower:', err); };
   worker.onerror = e => fail(e.message);
   worker.onmessage = ({ data }) => {
     worker.terminate();
     if (data.error) return fail(data.error);
-    printFlower(canvas, data);
+    const canvas = fig.querySelector('canvas');
+    canvas.width = data.bitmap.width;
+    canvas.height = data.bitmap.height;
+    canvas.getContext('2d').drawImage(data.bitmap, 0, 0);
+    fig.classList.add('grown');
   };
-  worker.postMessage({ seed, size });
+  worker.postMessage({ seed });
 })();
-
-// the dots land bottom up like it grows, the blue noise scatters each row so it is not a hard wipe
-function printFlower(canvas, { size, rgba, noise }) {
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const dots = new Uint8ClampedArray(rgba), dotNoise = new Uint8Array(noise);
-  const img = new ImageData(new Uint8ClampedArray(dots), size), px = img.data;
-  const lands = new Float32Array(size * size);
-  for (let i = 0; i < lands.length; i++) lands[i] = 0.7 * (1 - ((i / size) | 0) / size) + 0.3 * dotNoise[i] / 255;
-
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const start = performance.now();
-  requestAnimationFrame(function frame(now) {
-    const t = still ? 1 : Math.min(1, (now - start) / 1600);
-    const eased = 1 - (1 - t) ** 3;
-    for (let i = 0; i < lands.length; i++) px[i * 4 + 3] = dots[i * 4 + 3] && lands[i] <= eased ? 255 : 0;
-    ctx.putImageData(img, 0, 0);
-    if (t < 1) requestAnimationFrame(frame);
-  });
-}
 
 function requestViewsUpdate(key) {
   fetch('/api/projects/edit', {

@@ -236,12 +236,21 @@ nav {
   grid-area: 1 / 2;
   margin: 0;
 }
-/* pixelated keeps every dot a hard square however the canvas gets scaled */
+/* nonflowers paints a 600 square. it grows in bottom up: the mask is opaque at the bottom and clear at the
+   top with a soft band between, twice the canvas tall, and slides down until only its opaque half is left */
 .flower canvas {
   display: block;
   width: min(44vw, calc(100dvh - var(--nav-h) - 180px), 640px);
   aspect-ratio: 1;
-  image-rendering: pixelated;
+  mask: linear-gradient(to top, #000 46%, #0000 54%) 0 0 / 100% 220% no-repeat;
+}
+.flower.grown canvas {
+  animation: 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards grow;
+}
+@keyframes grow {
+  to {
+    mask-position: 0 100%;
+  }
 }
 .flower figcaption {
   margin-top: 8px;
@@ -711,6 +720,11 @@ nav {
   }
   #s1 .bubble {
     transition: none;
+  }
+  .flower canvas,
+  .flower.grown canvas {
+    mask: none;
+    animation: none;
   }
   .note.place,
   .note.blank {
