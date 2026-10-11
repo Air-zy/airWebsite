@@ -1,20 +1,15 @@
 :root {
   color-scheme: dark;
-  --bg-col: #0a0a0a;
-  --frame-bcol: #161616;
-  /* avy: strength is hand matched to frame-bcol over bg-col, css cannot derive it */
-  --dither-blend: screen;
-  --dither-strength: 0.02;
-  --dither-invert: 0;
+  /* dark only. the ground leans violet and the text warm so neither is a flat black or white,
+     grey is 5.5:1 on the ground so even the small print passes */
+  --bg-col: #131217;
+  --frame-bcol: color-mix(in oklab, var(--bg-col), #fff 5%);
+  --frame-bcol2: color-mix(in oklab, var(--bg-col), #fff 9%);
+  --text-normal: #ebe7df;
+  --text-grey: #8e8b94;
+  --text-soft: color-mix(in oklab, var(--text-grey), var(--text-normal) 45%);
   /* the page background dither, see #bg. lift is read once by js/dither.js */
   --dither-lift: 0.6;
-  --bg-dither-blend: color-dodge;
-  --bg-dither-opacity: 0.22;
-  --frame-bcol2: #1b1b1b;
-  --text-grey: grey;
-  --text-normal: white;
-  /* partway from grey to the text colour, so it follows the light theme too */
-  --text-soft: color-mix(in srgb, var(--text-grey), var(--text-normal) 45%);
 
   /* one page width for the nav and the content, so their edges line up */
   --nav-h: 64px;
@@ -24,28 +19,6 @@
   --measure: 40rem;
   --section-gap: clamp(72px, 12vh, 136px);
 }
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg-col: #ffffff;
-  --frame-bcol: #efefef;
-  --dither-blend: multiply;
-  --dither-strength: 0.03;
-  --dither-invert: 1;
-  --bg-dither-blend: multiply;
-  --bg-dither-opacity: 0.04;
-  --frame-bcol2: #e3e3e3;
-  --text-grey: grey;
-  --text-normal: #000000;
-}
-/* about/intro tint phrases with an inline color, unreadable on white.
-   important is needed to beat the inline style */
-:root[data-theme="light"] .txt-section span[style*="color"],
-:root[data-theme="light"] #adapt {
-  color: #000 !important;
-  text-shadow: none !important;
-  text-decoration: underline;
-}
-
 /* main is the scroller, so the nav never covers what you are reading */
 body {
   margin: 0;
@@ -96,6 +69,21 @@ a {
 }
 summary {
   cursor: pointer;
+}
+/* the parts the browser draws, so they match instead of default blue */
+::selection {
+  background: var(--text-normal);
+  color: var(--bg-col);
+}
+:focus-visible {
+  outline: 1px solid var(--text-normal);
+  outline-offset: 3px;
+}
+main {
+  scrollbar-color: color-mix(in oklab, var(--text-grey) 45%, var(--bg-col)) transparent;
+}
+textarea {
+  caret-color: var(--text-normal);
 }
 .small-p {
   font-size: 0.75rem;
@@ -224,16 +212,6 @@ nav {
   align-items: flex-start;
   gap: 8px;
 }
-#toggleLightMode {
-  appearance: none;
-  border: none;
-  background: 0 0;
-  color: var(--text-grey);
-  cursor: pointer;
-}
-#toggleLightMode .fa {
-  font-size: 14px;
-}
 
 /* the first screen. the name sits low on the left */
 #s1 {
@@ -258,7 +236,6 @@ nav {
   min-width: 4ch;
   --name-col: gold;
   color: var(--name-col);
-  transition: text-shadow 1s;
 }
 #airzy .cell {
   display: inline-block;
@@ -267,18 +244,13 @@ nav {
 #airzy .cell.block {
   color: transparent;
   background: var(--name-col);
-  text-shadow: none;
-}
-#airzy.glow {
-  text-shadow: 0 0 100px gold;
 }
 /* chat bubble with an ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css.
    he cuts the tail curve with a patch in the page color, a mask does it here so it works over
-   anything, like the name glow behind it. all em so it scales with font-size */
+   anything, like the background grain behind it. all em so it scales with font-size */
 .bubble {
   position: relative;
   padding: 0.3em 0.45em;
-  text-shadow: none;
   background: color-mix(in srgb, var(--text-normal) 14%, var(--bg-col));
   border-radius: 0.9em;
 }
@@ -295,7 +267,7 @@ nav {
     linear-gradient(#000 0 0) right / calc(100% - 0.25em) 100% no-repeat,
     radial-gradient(circle 0.36em at -0.11em 0, #0000 calc(100% - 1px), #000) bottom / 100% 0.36em no-repeat;
 }
-/* off the end of the name, grows out of its tail once the name glows */
+/* off the end of the name, grows out of its tail once the name is spelled out */
 #s1 .bubble {
   position: absolute;
   left: calc(100% + 0.35em);
@@ -303,9 +275,9 @@ nav {
   font: 400 28px/1.2 sans-serif;
   transform: scale(0);
   transform-origin: -0.25em 100%;
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
 }
-#s1:has(.glow) .bubble {
+#s1:has(.done) .bubble {
   transform: none;
 }
 
@@ -313,8 +285,6 @@ nav {
 .txt-section {
   max-width: var(--measure);
   margin-top: var(--section-gap);
-  position: relative;
-  isolation: isolate;
   scroll-margin-top: 24px;
 }
 .txt-section.with-plate {
@@ -332,28 +302,11 @@ nav {
   max-width: 100%;
   height: auto;
 }
-/* tile stays at its native 24px or the dots stop being square, regenerate the png
-   to change it. contrast() is what thresholds it to 1 bit, without it its a fade */
-.txt-section::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image: url(/img/bayer.png),
-    linear-gradient(to bottom right, #fff, #000);
-  background-size: 24px 24px, 100% 100%;
-  /* the section rarely lands on a whole device pixel, smooth resampling softens the dots */
-  image-rendering: pixelated;
-  filter: contrast(10000%) invert(var(--dither-invert));
-  mix-blend-mode: var(--dither-blend);
-  opacity: var(--dither-strength);
-}
-/* the page dither from js/dither.js, the same one as the auth page. dark mode color-dodges it so it lifts
-   the bg by a share. dodging white does nothing, so light mode inverts it and multiplies it in faintly */
+/* the page grain from js/dither.js, the same one as the auth page. color-dodge lifts the ground under a dot
+   by a share, so the grain keeps the ground's tint instead of going grey */
 #bg {
-  mix-blend-mode: var(--bg-dither-blend);
-  filter: invert(var(--dither-invert));
-  opacity: var(--bg-dither-opacity);
+  mix-blend-mode: color-dodge;
+  opacity: 0.22;
 }
 #adapt {
   color: #daf7a6;
@@ -462,7 +415,6 @@ nav {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: #2b2b2b;
-  text-shadow: none;
   box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
   rotate: var(--tilt);
 }
@@ -502,9 +454,9 @@ nav {
   background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
   box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
 }
-/* a note being stuck on, starts lifted and big and the overshoot presses it in. main.js staggers the delay */
+/* a note being stuck on, starts lifted and big and settles flat. main.js staggers the delay */
 .note.place {
-  animation: 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards notePlace;
+  animation: 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards notePlace;
 }
 @keyframes notePlace {
   from {

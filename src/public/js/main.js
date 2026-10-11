@@ -1,18 +1,3 @@
-// colors live in main.css under :root[data-theme=light], this only flips the switch
-function applyTheme(light) {
-  document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
-  document.querySelector('#icon use').setAttribute('href', light ? '#i-sun-o' : '#i-moon-o');
-}
-
-function toggleLightMode() {
-  const light = document.documentElement.getAttribute('data-theme') !== 'light';
-  applyTheme(light);
-  localStorage.setItem('lightMode', light);
-}
-
-applyTheme(localStorage.getItem('lightMode') === 'true');
-
-
 const sideBar = document.getElementById('side-bar');
 const menuIcon = document.querySelector('.menu-icon');
 
@@ -59,7 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
     index++;
 
     if (index >= cells.length) {
-      name.classList.add("glow");
+      name.classList.add("done");
       clearInterval(interval);
     }
   }, 40);
