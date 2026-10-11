@@ -255,8 +255,12 @@
     gl.uniform1f(uRows, H);
   }
 
-  // reduced motion gets one still frame
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // reduced motion gets one still frame, and so does webgl drawn on the cpu (no gpu, or a blocked one), where a
+  // frame of this shader holds the page's main thread for 100ms or more. firefox without the extension still
+  // answers gl.RENDERER with the real name
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  const cpu = /swiftshader|llvmpipe|softpipe|software|basic render/i.test(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+  const still = cpu || matchMedia('(prefers-reduced-motion: reduce)').matches;
   const now = () => still ? 0 : performance.now() / 1000;
 
   function draw(t) {
