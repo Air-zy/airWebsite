@@ -213,18 +213,42 @@ nav {
   gap: 8px;
 }
 
-/* the first screen. the name sits low on the left */
+/* the first screen. the name sits low on the left and spans both columns, so a long one runs over the
+   foot of the plant instead of wrapping */
 #s1 {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   min-height: calc(100dvh - var(--nav-h));
   box-sizing: border-box;
-  padding-bottom: clamp(48px, 12vh, 128px);
+  padding: 24px 0 clamp(48px, 10vh, 112px);
+}
+.hero-text {
+  grid-area: 1 / 1 / 2 / 3;
+  position: relative;
+  z-index: 1;
 }
 #s1 h1 {
   position: relative;
+  width: fit-content;
+}
+.flower {
+  grid-area: 1 / 2;
+  margin: 0;
+}
+/* pixelated keeps every dot a hard square however the canvas gets scaled */
+.flower canvas {
+  display: block;
+  width: min(44vw, calc(100dvh - var(--nav-h) - 180px), 640px);
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+}
+.flower figcaption {
+  margin-top: 8px;
+  text-align: right;
+}
+.flower a {
+  color: var(--text-soft);
 }
 .lede {
   margin: 0.75em 0 0;
@@ -646,7 +670,28 @@ nav {
   }
 }
 @media (max-width: 600px) {
+  #s1 {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+  }
+  .hero-text {
+    grid-area: 2 / 1;
+  }
+  .flower {
+    grid-area: 1 / 1;
+    align-self: center;
+  }
+  .flower canvas {
+    width: min(100%, calc(100dvh - var(--nav-h) - 300px));
+  }
+  .flower figcaption {
+    text-align: left;
+  }
+  /* no room past the end of the name, so it sits on top of it */
   #s1 .bubble {
+    left: auto;
+    right: 0;
+    top: -1.7em;
     font-size: 20px;
   }
   .nav-links {
@@ -658,12 +703,6 @@ nav {
   .project-card img {
     width: 64px;
     height: 64px;
-  }
-}
-/* measured, below 360 the bubble runs off the right edge */
-@media (max-width: 359px) {
-  #s1 .bubble {
-    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -63,8 +63,18 @@
     <main id="main-content">
       <div class="page">
         <section id="s1">
-          <h1><span id="airzy"></span> Turqueza<span class="bubble" aria-hidden="true">🤓</span></h1>
-          <p class="lede">hii i'm airzy a software developer</p>
+          <div class="hero-text">
+            <h1><span id="airzy"></span> Turqueza<span class="bubble" aria-hidden="true">🤓</span></h1>
+            <p class="lede">hii i'm airzy a software developer</p>
+          </div>
+          <!-- main.js grows a new plant every visit with js/flower/worker.js, it stays hidden if the browser cant -->
+          <figure class="flower" hidden>
+            <canvas aria-hidden="true"></canvas>
+            <figcaption class="small-p">
+              <a id="flower-seed" title="keep this flower"></a>, grown for this visit with
+              <a href="https://github.com/LingDong-/nonflowers" target="_blank">nonflowers</a> by Lingdong Huang
+            </figcaption>
+          </figure>
         </section>
         <article>
           <section class="txt-section">
