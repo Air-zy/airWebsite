@@ -139,7 +139,7 @@ body {
 #Controll label {
   background: none;
 
-  font-family: Minecraft, sans-serif;
+  font-family: Montserrat, sans-serif;
   font-size: 14px;
   color: white; /* Sets the font color to white */
 
@@ -156,7 +156,7 @@ body {
   box-shadow: none; /* Ensure no inset shadows are applied */
   border: none;
 
-  font-family: Minecraft, sans-serif;
+  font-family: Montserrat, sans-serif;
   font-size: 14px;
   color: white;
 
@@ -173,7 +173,7 @@ body {
   box-shadow: none;
   border: none;
   
-  font-family: Minecraft, sans-serif;
+  font-family: Montserrat, sans-serif;
   font-size: 14px;
   color: white;
   
@@ -254,7 +254,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   font-size: 14px;
-  font-family: Minecraft, sans-serif;
+  font-family: Montserrat, sans-serif;
   font-weight: bold;
   color: #000000;
   user-select: none;
