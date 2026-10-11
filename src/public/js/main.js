@@ -1,10 +1,3 @@
-const icons = document.querySelectorAll('.social-media-container .social-medias .fa');
-
-icons.forEach((icon, index) => {
-  icon.style.animationDelay = `${index * 0.1}s`;
-});
-
-
 // colors live in main.css under :root[data-theme=light], this only flips the switch
 function applyTheme(light) {
   document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
@@ -67,22 +60,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (index >= cells.length) {
       name.classList.add("glow");
-      setTimeout(handleSections, 400);
       clearInterval(interval);
     }
   }, 40);
 });
-
-// reveal once the top edge crosses the line, no lower bound so a jump past a section still reveals it.
-// shown and hidden sections drop out of the query, a hidden one measures top 0 and would count as seen
-function handleSections() {
-  const pending = document.querySelectorAll('.txt-section:not(.show):not([hidden])');
-  if (!pending.length) return; // every scroll after the last reveal costs nothing
-  const line = document.getElementById('main-content').clientHeight * 0.9;
-  pending.forEach(section => {
-    if (section.getBoundingClientRect().top < line) section.classList.add('show');
-  });
-}
 
 function requestViewsUpdate(key) {
   fetch('/api/projects/edit', {
@@ -122,7 +103,7 @@ function makeProjectCard(proj, key) {
   pStats.insertAdjacentHTML('beforeend', '<svg class="icon"><use href="#i-eye"/></svg>');
   card.appendChild(pStats);
 
-  const textContainer = document.createElement(window.innerWidth <= 600 ? 'details' : 'div');
+  const textContainer = document.createElement('div');
   proj.text.forEach(line => {
     const p = document.createElement('p');
     // [link text]("url") turns into a link
@@ -161,113 +142,81 @@ async function reloadProjects() {
   }
 }
 
-// projects.html and intro.html get appended to the article when needed. the promise is kept so every
-// caller shares one fetch, and dropped on failure so the next call retries
-const partials = {};
-function loadPartial(file, then) {
-  return partials[file] ??= fetch(file)
-    .then(res => res.ok ? res.text() : Promise.reject(new Error(`${file} ${res.status}`)))
-    .then(html => {
-      document.querySelector('#main-content article').insertAdjacentHTML('beforeend', html);
-      handleSections();
-      then?.();
-    })
-    .catch(err => {
-      delete partials[file];
-      console.error(err);
-    });
-}
-const loadProjects = () => loadPartial('projects.html', reloadProjects);
-const loadIntro = () => loadPartial('intro.html');
+reloadProjects();
 
 const pageStart = Date.now();
-
-let attemptedUserValidate = false;
-let canLoadContent = true;
 const mainContentElm = document.getElementById("main-content");
-mainContentElm.addEventListener("scroll", function () {
-  const scrollTop = this.scrollTop;
-  const scrollHeight = this.scrollHeight - this.clientHeight;
 
-  const nav = document.getElementsByTagName("nav")[0];
-  const section1 = document.getElementById("s1");
-  section1.style.transform = `translateY(${(-scrollTop / 6)}px)`;
+// once, when a thing first scrolls into view
+function onSeen(el, fn) {
+  new IntersectionObserver(([entry], io) => {
+    if (!entry.isIntersecting) return;
+    io.disconnect();
+    fn();
+  }, { root: mainContentElm }).observe(el);
+}
 
-  if (scrollTop < 800) {
-    nav.style.minHeight = `${100 - scrollTop / 8}px`;
-  }
-
-
+onSeen(document.getElementById("adapt"), () => {
   const adapt = document.getElementById("adapt");
-  if (scrollTop > 700 && scrollTop < 740 && adapt.innerText == "develop") {
-    let t = 0
-    const interval = setInterval(() => {
-      t += 0.2
-      adapt.innerText = lerpString("grow", "ADAPT", t)
-      if (t > 2 || adapt.innerText == "ADAPT") {
-        clearInterval(interval);
-      }
-    }, 80);
-  }
-
-  if ((scrollHeight - scrollTop) < 2000 && canLoadContent) {
-    if (!partials['projects.html']) loadProjects();
-    else loadIntro();
-    canLoadContent = false;
-    setTimeout(() => {
-      canLoadContent = true;
-    }, 500);
-  }
-
-  if ((scrollHeight - scrollTop) < 200 && attemptedUserValidate == false) {
-    attemptedUserValidate = true;
-    fetch('/validate-me', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionDuration: Date.now() - pageStart }),
-    }).then(response => response.json())
-      .then(data => {
-        if (data.message) {
-          document.getElementById("main-email").innerHTML = `<a href="mailto:${data.message}" style="text-decoration:none">${data.message}</a>`;
-        } else {
-          console.log("user validate err", data)
-        }
-        if (!data.valid) return;
-        // the text after each icon
-        const discord = document.getElementById("main-discord");
-        discord.href = data.cord;
-        discord.lastChild.textContent = ` "${data.cordN}" on Discord`;
-        document.getElementById("main-location").lastChild.textContent = ` ${data.loc}`;
-      }).catch(error => {
-        const mainEmailP = document.getElementById("main-email")
-        mainEmailP.textContent = "failed to validate human"
-        console.log("user validate:", error);
-      });
-
-    fetch('/api/status/lastOnline').then(response => response.json())
-      .then(data => {
-        const mainLastOnline = document.getElementById("main-last-on");
-        mainLastOnline.innerText = `last online: ${data.minsAgo} mins ago`;
-
-        if (data.backIn == null) return;
-        const backIn = document.getElementById("main-back-in");
-        backIn.innerText = data.backIn ? `expected back in about ~${data.backIn}h` : "probably active within the hour";
-        backIn.hidden = false;
-      })
-  }
-
-  handleSections()
+  let t = 0
+  const interval = setInterval(() => {
+    t += 0.2
+    adapt.innerText = lerpString("grow", "ADAPT", t)
+    if (t > 2 || adapt.innerText == "ADAPT") {
+      clearInterval(interval);
+    }
+  }, 80);
 });
 
-async function toResources() {
-  await loadProjects();
-  document.getElementById('projects').scrollIntoView({ block: 'center' });
+// the contact rows stay hidden until this answers, the server wants half a second on the page first
+onSeen(document.querySelector(".main-footer"), () => {
+  const email = document.getElementById("main-email");
+  fetch('/validate-me', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionDuration: Date.now() - pageStart }),
+  }).then(response => response.json())
+    .then(data => {
+      if (data.message) {
+        email.innerHTML = `<a href="mailto:${data.message}">${data.message}</a>`;
+        email.hidden = false;
+      } else {
+        console.log("user validate err", data)
+      }
+      if (!data.valid) return;
+      // the text after each icon
+      const discord = document.getElementById("main-discord");
+      discord.href = data.cord;
+      discord.append(` "${data.cordN}" on Discord`);
+      discord.hidden = false;
+      const loc = document.getElementById("main-location");
+      loc.append(` ${data.loc}`);
+      loc.hidden = false;
+    }).catch(error => {
+      email.textContent = "failed to validate human"
+      email.hidden = false;
+      console.log("user validate:", error);
+    });
+
+  fetch('/api/status/lastOnline').then(response => response.json())
+    .then(data => {
+      const mainLastOnline = document.getElementById("main-last-on");
+      mainLastOnline.innerText = `last online: ${data.minsAgo} mins ago`;
+
+      if (data.backIn == null) return;
+      const backIn = document.getElementById("main-back-in");
+      backIn.innerText = data.backIn ? `expected back in about ~${data.backIn}h` : "probably active within the hour";
+      backIn.hidden = false;
+    })
+});
+
+function toResources() {
+  document.getElementById('projects-section').scrollIntoView();
   setSidebar(false);
 }
 
-async function toAirzy() {
-  await loadIntro();
-  document.getElementById('intro-section').scrollIntoView({ block: 'center' });
+function toAirzy() {
+  document.getElementById('intro-section').scrollIntoView();
   setSidebar(false);
 }
 
@@ -364,18 +313,14 @@ async function loadGuestbook() {
   }
 }
 
-// hidden until Leave A Note, so a visit that never clicks never wakes the database.
-// projects and intro land above it, load them first or it moves out from under the scroll
-async function toGuestbook() {
+// hidden until Leave A Note, so a visit that never clicks never wakes the database
+function toGuestbook() {
   const guestbook = document.getElementById('guestbook');
   if (guestbook.hidden) {
     guestbook.hidden = false;
     loadGuestbook();
   }
-  await loadProjects();
-  await loadIntro();
-  // offsetTop ignores the slide in transform, so it lands the same revealed or not. 100 clears the nav
-  mainContentElm.scrollTo({ top: guestbook.offsetTop - 100 });
+  guestbook.scrollIntoView();
   setSidebar(false);
 }
 

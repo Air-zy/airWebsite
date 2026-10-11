@@ -19,7 +19,7 @@ const nav = [
   { label: 'Airzy',     click: 'toAirzy()' },
   { label: 'Contact',   click: 'toContact()' },
   { label: 'Resources', click: 'toResources()' },
-  { label: 'Guestbook', click: 'toGuestbook()', sideOnly: true }, // the top bar has no room for it
+  { label: 'Guestbook', click: 'toGuestbook()' },
 ];
 
 const about = [
@@ -47,12 +47,7 @@ const navItem = n => n.href
 const colorize = l => l.replace(/\{([^|}]+)\|([^}]+)\}/g, '<span style="color: $2">$1</span>');
 const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
-const list = items => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
-
-// Other is a details so it starts collapsed, the first two groups are always open
-const skillGroup = ([name, items]) => name === 'Other'
-  ? `<details><summary class="summary-button">${list([name])}</summary><blockquote>${list(items)}</blockquote></details>`
-  : `${list([name])}<blockquote>${list(items)}</blockquote>`;
+const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
 module.exports = {
   socials,
@@ -64,15 +59,12 @@ module.exports = {
   // the shapes index.html asks for by name, see the <!--#token--> comments in it.
   // the icons are inline with no margin, so the space between them is the gap. keep the join(' ')
   html: {
-    socialIcons: socials
-      .map(s => `<a href="${s.url}" class="fa" target="_blank" aria-label="${s.label}">${icon(s.icon)}</a>`).join(' '),
-
     socialLinks: socials
       .map(s => `<a href="${s.url}" target="_blank">${icon(s.icon)}${s.label}</a>`).join(' '),
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
-    nav: nav.filter(n => !n.sideOnly).map(navItem).join(' '),
+    nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
 
     // inlined so the icons cost no request, replaces 108kb of cdn font awesome
@@ -100,15 +92,13 @@ if (require.main === module) {
   for (const k of Object.keys(module.exports.html)) a.ok(used.includes(k), `${k} is dead`);
 
   // the links have to survive the round trip, this is the whole point
-  for (const s of socials) a.ok(module.exports.html.socialIcons.includes(s.url));
   for (const s of socials) a.ok(module.exports.html.socialLinks.includes(s.label));
   a.ok(module.exports.html.skills.includes('<li>Luau</li>'));
-  a.ok(module.exports.html.skills.includes('<details>'));
+  a.ok(module.exports.html.skills.includes('<h3>Other</h3>'));
   for (const n of nav) a.ok(module.exports.html.sideNav.includes(n.label));
-  for (const n of nav) a.strictEqual(module.exports.html.nav.includes(n.label), !n.sideOnly, n.label);
+  for (const n of nav) a.ok(module.exports.html.nav.includes(n.label), n.label);
   a.ok(module.exports.html.nav.includes('<button class="nav-item"'), 'the click items have to be buttons');
   a.ok(!module.exports.html.nav.includes('<div class="nav-item"'), 'a div is not keyboard reachable');
-  for (const s of socials) a.ok(module.exports.html.socialIcons.includes(`aria-label="${s.label}"`));
   a.ok(module.exports.html.copyright.includes(String(new Date().getFullYear())));
   a.ok(!module.exports.about.join(' ').match(/[{}|]/), 'braces leaked into the cli text');
   a.ok(module.exports.html.about.includes('color: #ffc300'));
