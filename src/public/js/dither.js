@@ -39,6 +39,10 @@
     // a piece's corner is 0.71 from its middle and a knob tip 0.82, plus the wander that stays under 1, so only the
     // 3x3 pieces around a point can ever cover it
     const float WANDER = 0.04, SHIFT = 0.12, TURN = 0.3;
+    // so the pieces read as pieces: each is drawn this much of a piece smaller all round, which leaves a dark seam
+    // where two meet, and a patch fills its pieces this densely, capped so a full one keeps about 15% of its dots
+    // off and still shimmers instead of going flat
+    const float SEAM = 0.025, DENSITY = 0.75, FULLEST = 0.85;
 
     // 0 to 1 from a position, no sin so every gpu agrees (dave hoskins' hash12)
     float hash(vec2 p) {
@@ -74,20 +78,21 @@
       d = vec3(fract(hd * 7.0) * 0.2 - 0.1, 0.35, hd < 0.5 ? 0.17 : 0.0);
       u = vec3(fract(hu * 7.0) * 0.2 - 0.1, -0.35, hu >= 0.5 ? 0.17 : 0.0);
     }
-    bool inside(vec2 q, vec3 k) {
-      return length(q - k.xy) < k.z;
-    }
 
     // whether q, in piece g's own units with its middle at 0, is on that piece: its square, minus the knobs its
     // neighbours poke into it, plus its own knobs poking out. an outgoing knob is the neighbour's incoming one seen
-    // from this side, 0.65 out where the neighbour has it 0.35 in, and it exists where the incoming radius is 0
+    // from this side, 0.65 out where the neighbour has it 0.35 in, and it exists where the incoming radius is 0.
+    // the whole outline sits SEAM inside the true one: square smaller, own knobs thinner, the holes wider
     bool onPiece(vec2 q, vec2 g) {
       vec3 r, l, d, u;
       knobs(g, r, l, d, u);
-      if ((r.z == 0.0 && length(q - vec2(0.65, r.y)) < 0.17) || (l.z == 0.0 && length(q - vec2(-0.65, l.y)) < 0.17)
-        || (d.z == 0.0 && length(q - vec2(d.x, 0.65)) < 0.17) || (u.z == 0.0 && length(q - vec2(u.x, -0.65)) < 0.17))
+      float own = 0.17 - SEAM;
+      if ((r.z == 0.0 && length(q - vec2(0.65, r.y)) < own) || (l.z == 0.0 && length(q - vec2(-0.65, l.y)) < own)
+        || (d.z == 0.0 && length(q - vec2(d.x, 0.65)) < own) || (u.z == 0.0 && length(q - vec2(u.x, -0.65)) < own))
         return true;
-      return max(abs(q.x), abs(q.y)) < 0.5 && !inside(q, r) && !inside(q, l) && !inside(q, d) && !inside(q, u);
+      bool hole = (r.z > 0.0 && length(q - r.xy) < r.z + SEAM) || (l.z > 0.0 && length(q - l.xy) < l.z + SEAM)
+        || (d.z > 0.0 && length(q - d.xy) < d.z + SEAM) || (u.z > 0.0 && length(q - u.xy) < u.z + SEAM);
+      return max(abs(q.x), abs(q.y)) < 0.5 - SEAM && !hole;
     }
 
     // the piece over p (px), the higher one where two overlap, false in a gap between them. home is p carried back
@@ -200,11 +205,11 @@
       }
 
       // the box reads the clumps once at its middle and goes on or off as a whole. a clump fills about
-      // 4 in 10 boxes, and blue noise per box keeps them spread out. each box's threshold wobbles a little on its
+      // 3 in 4 boxes, and blue noise per box keeps them spread out. each box's threshold wobbles a little on its
       // own 4 to 8s clock, so boxes near it twinkle while the patch as a whole holds steady
       vec2 m = (box + 0.5) * size * cell;
       float twinkle = 0.015 * sin(t * (0.8 + 0.6 * hash(box + size * 5.0)) + hash(box + size * 7.0) * 6.283);
-      bool on = 0.4 * clump(m, owner) > texture2D(blue, (box + size * 13.0 + 0.5) / tile).r + twinkle;
+      bool on = min(DENSITY * clump(m, owner), FULLEST) > texture2D(blue, (box + size * 13.0 + 0.5) / tile).r + twinkle;
       gl_FragColor = on ? vec4(vec3(lift), 1.0) : vec4(0.0);
     }`);
   gl.linkProgram(prog);
