@@ -468,10 +468,30 @@ nav {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   /* the paper's own colour darkened for the writing, not a flat grey */
-  background: var(--paper);
   color: color-mix(in oklab, var(--paper), #000 78%);
-  box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
+  /* a real one: the glue strip holds the top flat to the board, just under it the paper bends a little darker,
+     and the bottom curls off the board toward the light. the shadow up here is only the tight one of paper
+     lying flat, the lifted bottom casts its own in ::after */
+  background: linear-gradient(var(--paper) 0 1.2em, color-mix(in oklab, var(--paper), #000 3%) 3em,
+    var(--paper) 60%, color-mix(in oklab, var(--paper), #fff 22%));
+  border-radius: 1px 1px 3px 3px / 1px 1px 5px 5px;
+  box-shadow: 0 1px 1.5px rgb(0 0 0 / 0.3);
   rotate: var(--tilt);
+}
+/* the shadow of the curled bottom, darkest under the corners which lift the most. it hangs just past the bottom
+   edge rather than behind the paper, the tilt makes the note its own layer so nothing can go under it */
+.sticky::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 3%;
+  right: 3%;
+  height: 0.8em;
+  background:
+    radial-gradient(ellipse 30% 100% at 10% 0, rgb(0 0 0 / 0.45), transparent 75%),
+    radial-gradient(ellipse 30% 100% at 90% 0, rgb(0 0 0 / 0.45), transparent 75%),
+    linear-gradient(rgb(0 0 0 / 0.2), transparent 70%);
+  pointer-events: none;
 }
 /* ascii art, main.js sets --cols to the widest line. a monospace letter is about 0.6em plus 2em of
    padding, so the font shrinks until that line fits the board. that bounds it, so no 600px p cap */
@@ -486,26 +506,16 @@ nav {
 .paper-1 { --paper: #ffc9d9; }
 .paper-2 { --paper: #bfe3ff; }
 .paper-3 { --paper: #caf2c2; }
-/* a strip of tape holds it up */
-.sticky::before {
+/* the owner pinned it, a pushpin through the glue strip */
+.pinned .sticky::before {
   content: "";
   position: absolute;
-  top: -10px;
-  left: 50%;
-  width: 3.2em;
-  height: 1.2em;
-  translate: -50% 0;
-  rotate: -3deg;
-  background: rgb(255 255 245 / 0.45);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
-}
-/* the owner pinned it, a pushpin instead of tape */
-.pinned .sticky::before {
   top: -6px;
+  left: 50%;
   width: 14px;
   height: 14px;
+  translate: -50% 0;
   border-radius: 50%;
-  rotate: none;
   background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
   box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
 }
