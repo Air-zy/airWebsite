@@ -169,7 +169,9 @@
         float v = block ? 1.0 - smoothstep(0.7, 1.0, square) : 0.0;
         if (bush) v = patch(circle + edge, fill);
         if (growth) v = max(v, patch(rooted + edge, fill));
-        float life = smoothstep(0.1, 0.6, 0.5 + 0.5 * sin(t * (0.1 + 0.2 * hash(s + 9.2)) + hash(s + 2.4) * 6.283));
+        // each patch breathes on its own clock between half and full, it never goes out. a screen holds about 8, and
+        // when they could reach 0 a few of the big ones lining up emptied the screen, 30x fewer dots than at a peak
+        float life = mix(0.5, 1.0, smoothstep(0.1, 0.9, 0.5 + 0.5 * sin(t * (0.1 + 0.2 * hash(s + 9.2)) + hash(s + 2.4) * 6.283)));
         f = max(f, life * v);
       }
       return f;
@@ -198,9 +200,11 @@
       }
 
       // the box reads the clumps once at its middle and goes on or off as a whole. a clump fills about
-      // 4 in 10 boxes, and blue noise per box keeps them spread out
+      // 4 in 10 boxes, and blue noise per box keeps them spread out. each box's threshold wobbles a little on its
+      // own 4 to 8s clock, so boxes near it twinkle while the patch as a whole holds steady
       vec2 m = (box + 0.5) * size * cell;
-      bool on = 0.4 * clump(m, owner) > texture2D(blue, (box + size * 13.0 + 0.5) / tile).r;
+      float twinkle = 0.015 * sin(t * (0.8 + 0.6 * hash(box + size * 5.0)) + hash(box + size * 7.0) * 6.283);
+      bool on = 0.4 * clump(m, owner) > texture2D(blue, (box + size * 13.0 + 0.5) / tile).r + twinkle;
       gl_FragColor = on ? vec4(vec3(lift), 1.0) : vec4(0.0);
     }`);
   gl.linkProgram(prog);
