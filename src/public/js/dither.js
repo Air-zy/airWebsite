@@ -1,5 +1,6 @@
 // the home and auth page background. blue noise grain in glitchy boxes, gathered into jigsaw clumps that fade
-// in and out. it all runs in a fragment shader, the cpu only sends the time. 8fps is plenty, fades take 20 to 60s
+// in and out, and every jigsaw piece drifts and turns a little on its own clock, carrying its dots with it.
+// it all runs in a fragment shader, the cpu only sends the time. 8fps is plenty, fades take 20 to 60s
 (async () => {
   const CELL = 2; // css px per cell, clumps are sized in px so this only changes the grain
   // --dither-lift in the page css. the css color-dodges the canvas so a dot brightens what is under it by 1 / (1 - lift)
@@ -34,6 +35,10 @@
 
     // a patch never reaches past this much of its size, 1.6 for the spores and 0.66 for the ragged edge
     const float FAR = 2.26;
+    // how fast the pieces wander, and how far: a share of a piece off home and radians of turn either way.
+    // a piece's corner is 0.71 from its middle and a knob tip 0.82, plus the wander that stays under 1, so only the
+    // 3x3 pieces around a point can ever cover it
+    const float WANDER = 0.04, SHIFT = 0.12, TURN = 0.3;
 
     // 0 to 1 from a position, no sin so every gpu agrees (dave hoskins' hash12)
     float hash(vec2 p) {
@@ -72,9 +77,40 @@
     bool inside(vec2 q, vec3 k) {
       return length(q - k.xy) < k.z;
     }
-    // whether a knob's round edge runs through the box lo to hi
-    bool crosses(vec2 lo, vec2 hi, vec3 k) {
-      return length(clamp(k.xy, lo, hi) - k.xy) < k.z && length(max(abs(lo - k.xy), abs(hi - k.xy))) > k.z;
+
+    // whether q, in piece g's own units with its middle at 0, is on that piece: its square, minus the knobs its
+    // neighbours poke into it, plus its own knobs poking out. an outgoing knob is the neighbour's incoming one seen
+    // from this side, 0.65 out where the neighbour has it 0.35 in, and it exists where the incoming radius is 0
+    bool onPiece(vec2 q, vec2 g) {
+      vec3 r, l, d, u;
+      knobs(g, r, l, d, u);
+      if ((r.z == 0.0 && length(q - vec2(0.65, r.y)) < 0.17) || (l.z == 0.0 && length(q - vec2(-0.65, l.y)) < 0.17)
+        || (d.z == 0.0 && length(q - vec2(d.x, 0.65)) < 0.17) || (u.z == 0.0 && length(q - vec2(u.x, -0.65)) < 0.17))
+        return true;
+      return max(abs(q.x), abs(q.y)) < 0.5 && !inside(q, r) && !inside(q, l) && !inside(q, d) && !inside(q, u);
+    }
+
+    // the piece over p (px), the higher one where two overlap, false in a gap between them. home is p carried back
+    // to where it sits on that piece unmoved, so the patches, boxes and dots ride along with the piece
+    bool pieceAt(vec2 p, out vec2 owner, out vec2 home) {
+      vec2 g = floor(p / 128.0);
+      float top = -1.0;
+      for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+        vec2 n = g + vec2(float(x), float(y));
+        // three slow wobbles per piece, each read off its own row of the noise
+        float s = t * WANDER;
+        vec2 off = (vec2(noise(vec2(s, hash(n) * 97.0)), noise(vec2(s, hash(n + 3.1) * 97.0))) - 0.5) * 2.0 * SHIFT;
+        float a = (noise(vec2(s, hash(n + 5.7) * 97.0)) - 0.5) * 2.0 * TURN;
+        vec2 q = p / 128.0 - n - 0.5 - off;
+        q = vec2(cos(a) * q.x + sin(a) * q.y, cos(a) * q.y - sin(a) * q.x);
+        float z = hash(n + 31.7);
+        if (z > top && onPiece(q, n)) {
+          top = z;
+          owner = n;
+          home = (n + 0.5 + q) * 128.0;
+        }
+      }
+      return top >= 0.0;
     }
 
     // a bushy patch in whole pieces, d is 1 at its edge. inside gets the fill, a thin ring past it like spores
@@ -141,31 +177,27 @@
       // cells counted from the top left, gl counts rows up from the bottom
       vec2 c = vec2(floor(gl_FragCoord.x), rows - 1.0 - floor(gl_FragCoord.y));
 
-      // the jigsaw cell. boxes line up with its straight edges so only a knob can cut through a box
-      vec2 g = floor(c * cell / 128.0);
-      vec3 kr, kl, kd, ku;
-      knobs(g, kr, kl, kd, ku);
-
-      // macroblocks like a glitched video frame, 8 cells down to 1. a hash decides each split, and a box a knob
-      // edge runs through always splits so knobs stay crisp
-      float size = 8.0;
-      vec2 box = floor(c / size);
-      for (int i = 0; i < 3; i++) {
-        vec2 lo = box * size * cell / 128.0 - g - 0.5, hi = lo + size * cell / 128.0;
-        bool knob = crosses(lo, hi, kr) || crosses(lo, hi, kl) || crosses(lo, hi, kd) || crosses(lo, hi, ku);
-        if (!knob && hash(box + size * 37.0) > split) break;
-        size *= 0.5;
-        box = floor(c / size);
+      // which piece this cell lands on now. the outline is tested every cell, so knobs stay crisp as pieces move
+      vec2 owner, home;
+      if (!pieceAt((c + 0.5) * cell, owner, home)) {
+        gl_FragColor = vec4(0.0);
+        return;
       }
 
-      // the piece the box's middle is in, its own cell unless it sits in a neighbour's knob
-      vec2 m = (box + 0.5) * size * cell;
-      vec2 q = m / 128.0 - g - 0.5;
-      vec2 owner = inside(q, kr) ? g + vec2(1.0, 0.0) : inside(q, kl) ? g - vec2(1.0, 0.0)
-        : inside(q, kd) ? g + vec2(0.0, 1.0) : inside(q, ku) ? g - vec2(0.0, 1.0) : g;
+      // macroblocks like a glitched video frame, 8 cells down to 1, laid out on the unmoved piece so they turn
+      // with it. a hash decides each split
+      vec2 lc = floor(home / cell);
+      float size = 8.0;
+      vec2 box = floor(lc / size);
+      for (int i = 0; i < 3; i++) {
+        if (hash(box + size * 37.0) > split) break;
+        size *= 0.5;
+        box = floor(lc / size);
+      }
 
       // the box reads the clumps once at its middle and goes on or off as a whole. a clump fills about
       // 4 in 10 boxes, and blue noise per box keeps them spread out
+      vec2 m = (box + 0.5) * size * cell;
       bool on = 0.4 * clump(m, owner) > texture2D(blue, (box + size * 13.0 + 0.5) / tile).r;
       gl_FragColor = on ? vec4(vec3(lift), 1.0) : vec4(0.0);
     }`);
