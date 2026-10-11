@@ -114,7 +114,7 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - Socials, skills, the nav, the about text and the copyright live once, in `config/site.js`. The minifier swaps `<!--#socialLinks-->` and friends for real markup on the
   way to `dist`, so `index.html` holds tokens instead of link lists and `cli.js` reads the same array. A typo'd token kills the
   build for that page on purpose, `removeComments` would have eaten it silently.
-  The about lines use `{phrase|#color}` so the page can tint a phrase and the cli can drop the braces. The "here to develop"
+  The about lines use `{phrase|role}` (accent, name or tech, the `.hl-` colours in `main.css`) so the page can tint a phrase and the cli can drop the braces. The "here to develop"
   line is not in there on purpose, `main.js` animates it by id.
 - User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
 - `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.

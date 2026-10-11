@@ -31,6 +31,11 @@
   --text-normal: #ebe7df;
   --text-grey: #8e8b94;
   --text-soft: color-mix(in oklab, var(--text-grey), var(--text-normal) 45%);
+  /* the only colours in the text, taken from the plant. gold for the name, numbers, years and the odd word that
+     matters, the petals' rose for schools, places and brands, the leaves' sage for languages and tools */
+  --accent: gold;
+  --hl-name: #e7a6b9;
+  --hl-tech: #8cc9b5;
   /* the page background dither, see #bg. lift is read once by js/dither.js */
   --dither-lift: 0.6;
 
@@ -38,8 +43,8 @@
   --nav-h: 64px;
   --page: 72rem;
   --gutter: clamp(16px, 4vw, 48px);
-  /* about 70 characters of body text */
-  --measure: 40rem;
+  /* 65 to 75 characters a line of body text, counted, the ch unit runs wide on this font */
+  --measure: 38rem;
   --section-gap: clamp(72px, 12vh, 136px);
 }
 /* main is the scroller, so the nav never covers what you are reading */
@@ -84,11 +89,12 @@ h2 {
   margin: 0 0 0.75em;
 }
 h3 {
-  font-size: 1rem;
+  font-size: 1em;
   margin: 0 0 0.5em;
 }
 a {
   color: inherit;
+  text-underline-offset: 0.2em;
 }
 summary {
   cursor: pointer;
@@ -251,7 +257,8 @@ nav {
   box-sizing: border-box;
   padding: var(--hero-pad-t) 0 var(--hero-pad-b);
 }
-#s1 h1 {
+/* as wide as the name, the bubble hangs off its end. outside the h1 so the heading's text is only the name */
+.hero-text {
   position: relative;
   width: fit-content;
 }
@@ -282,18 +289,7 @@ nav {
   color: var(--text-grey);
 }
 #airzy {
-  display: inline-block;
-  min-width: 4ch;
-  --name-col: gold;
-  color: var(--name-col);
-}
-#airzy .cell {
-  display: inline-block;
-}
-/* letter hidden behind its own background */
-#airzy .cell.block {
-  color: transparent;
-  background: var(--name-col);
+  color: var(--accent);
 }
 /* chat bubble with an ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css.
    he cuts the tail curve with a patch in the page color, a mask does it here so it works over
@@ -327,7 +323,7 @@ nav {
   transform-origin: -0.25em 100%;
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
 }
-#s1:has(.done) .bubble {
+#s1.done .bubble {
   transform: none;
 }
 
@@ -358,8 +354,15 @@ nav {
   mix-blend-mode: color-dodge;
   opacity: 0.22;
 }
-#adapt {
-  color: #daf7a6;
+#adapt,
+.hl-accent {
+  color: var(--accent);
+}
+.hl-name {
+  color: var(--hl-name);
+}
+.hl-tech {
+  color: var(--hl-tech);
 }
 .fin {
   color: var(--text-grey);
@@ -464,7 +467,9 @@ nav {
   line-height: 1.4;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #2b2b2b;
+  /* the paper's own colour darkened for the writing, not a flat grey */
+  background: var(--paper);
+  color: color-mix(in oklab, var(--paper), #000 78%);
   box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
   rotate: var(--tilt);
 }
@@ -477,10 +482,10 @@ nav {
   line-height: 1.2;
   white-space: pre;
 }
-.paper-0 { background: #fdf1a2; }
-.paper-1 { background: #ffc9d9; }
-.paper-2 { background: #bfe3ff; }
-.paper-3 { background: #caf2c2; }
+.paper-0 { --paper: #fdf1a2; }
+.paper-1 { --paper: #ffc9d9; }
+.paper-2 { --paper: #bfe3ff; }
+.paper-3 { --paper: #caf2c2; }
 /* a strip of tape holds it up */
 .sticky::before {
   content: "";
@@ -549,8 +554,18 @@ nav {
   max-height: 12em;
   resize: none;
 }
+/* the browser's own placeholder grey is under 4.5:1 on this box */
+#board-form textarea::placeholder {
+  color: var(--text-grey);
+  opacity: 1;
+}
 #guestbook button {
   cursor: pointer;
+}
+/* while a note is sending */
+#guestbook button:disabled {
+  opacity: 0.5;
+  cursor: progress;
 }
 #guestbook button:hover {
   background: var(--frame-bcol2);
@@ -581,7 +596,7 @@ nav {
   background: #0a0a0a;
 }
 #login-dialog::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: color-mix(in oklab, var(--bg-col) 70%, transparent);
 }
 #login-dialog iframe {
   display: block;
@@ -594,7 +609,7 @@ nav {
   top: 6px;
   right: 12px;
   font-size: 1.5rem;
-  color: #e0e0e0;
+  color: var(--text-normal);
   background: none;
   border: 0;
   cursor: pointer;
@@ -609,8 +624,9 @@ nav {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 40px 32px;
 }
+/* body size and bold, a step over the 0.9em lines under them */
 .main-footer h2 {
-  font-size: 1rem;
+  font-size: 1em;
 }
 .item-list {
   display: flex;

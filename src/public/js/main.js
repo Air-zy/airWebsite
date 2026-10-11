@@ -18,50 +18,22 @@ function lerpString(initial, final, t) {
   return final.slice(0, n) + initial.slice(n);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  const name = document.getElementById("airzy");
-
-  // the letter sits behind the box from the start, so nothing reflows as it resolves
-  const cells = [..."Airzy"].map((ch) => {
-    const cell = document.createElement("span");
-    cell.className = "cell block";
-    cell.textContent = ch;
-    name.appendChild(cell);
-    return cell;
-  });
-
-  const FLASHES = 3;
-  let index = 0;
-  let flashes = 0;
-
-  const interval = setInterval(() => {
-    cells[index].classList.toggle("block");
-
-    if (++flashes < FLASHES) return;
-
-    cells[index].classList.remove("block");
-    flashes = 0;
-    index++;
-
-    if (index >= cells.length) {
-      name.classList.add("done");
-      clearInterval(interval);
-    }
-  }, 40);
-});
+// the plant growing in is the one moment on the first screen, the bubble on the name pops once it has grown,
+// or right away when there is no plant
+const popBubble = () => document.getElementById('s1').classList.add('done');
 
 // a new nonflowers plant every visit, ?seed= brings one back. js/flower/worker.js paints it off the main thread
 // and main.css grows it in. no worker or OffscreenCanvas and it just stays hidden
 (function growFlower() {
   const fig = document.querySelector('.flower');
-  if (!window.Worker || !window.OffscreenCanvas) return;
+  if (!window.Worker || !window.OffscreenCanvas) return popBubble();
   // digits only, nonflowers hashes the seed and a long one overflows to NaN and draws nothing
   const asked = new URLSearchParams(location.search).get('seed');
   const seed = /^\d{1,9}$/.test(asked) ? asked : String(Math.floor(Math.random() * 1e9));
 
   fig.hidden = false;
   const worker = new Worker('js/flower/worker.js');
-  const fail = err => { worker.terminate(); fig.hidden = true; console.error('flower:', err); };
+  const fail = err => { worker.terminate(); fig.hidden = true; popBubble(); console.error('flower:', err); };
   worker.onerror = e => fail(e.message);
   worker.onmessage = ({ data }) => {
     worker.terminate();
@@ -71,6 +43,9 @@ document.addEventListener("DOMContentLoaded", function () {
     canvas.height = data.bitmap.height;
     canvas.getContext('2d').drawImage(data.bitmap, 0, 0);
     fig.classList.add('grown');
+    // reduced motion turns the grow off, then there is no animationend to wait for
+    if (getComputedStyle(canvas).animationName === 'none') popBubble();
+    else canvas.addEventListener('animationend', popBubble, { once: true });
   };
   worker.postMessage({ seed });
 })();
@@ -141,14 +116,15 @@ async function reloadProjects() {
   const container = document.getElementById('projects');
   try {
     const res = await fetch('/api/projects');
-    if (!res.ok) throw new Error('Failed to fetch data');
+    if (!res.ok) throw new Error(`/api/projects ${res.status}`);
     const rank = ([, proj]) => proj.stats.views / proj.rank;
     container.replaceChildren(...Object.entries(await res.json())
       .sort((a, b) => rank(b) - rank(a))
       .map(([key, proj]) => makeProjectCard(proj, key)));
   } catch (error) {
-    // textContent, a json parse error quotes the html it choked on and innerHTML would try to render it
-    container.textContent = 'Failed to fetch projects: ' + String(error);
+    // what went wrong goes to the console, the visitor gets what to do about it
+    console.error('projects:', error);
+    container.textContent = "couldn't load the projects, try again in a bit";
   }
 }
 
@@ -187,13 +163,13 @@ onSeen(document.querySelector(".main-footer"), () => {
     body: JSON.stringify({ sessionDuration: Date.now() - pageStart }),
   }).then(response => response.json())
     .then(data => {
-      if (data.message) {
-        email.innerHTML = `<a href="mailto:${data.message}">${data.message}</a>`;
-        email.hidden = false;
-      } else {
-        console.log("user validate err", data)
-      }
-      if (!data.valid) return;
+      // a failed check comes back with a message too, only a passed one carries the address
+      if (!data.valid) throw new Error(data.message);
+      const mail = document.createElement('a');
+      mail.href = `mailto:${data.message}`;
+      mail.textContent = data.message;
+      email.replaceChildren(mail);
+      email.hidden = false;
       // the text after each icon
       const discord = document.getElementById("main-discord");
       discord.href = data.cord;
@@ -203,7 +179,7 @@ onSeen(document.querySelector(".main-footer"), () => {
       loc.append(` ${data.loc}`);
       loc.hidden = false;
     }).catch(error => {
-      email.textContent = "failed to validate human"
+      email.textContent = "couldn't load my email, try refreshing";
       email.hidden = false;
       console.log("user validate:", error);
     });
@@ -217,16 +193,19 @@ onSeen(document.querySelector(".main-footer"), () => {
       const backIn = document.getElementById("main-back-in");
       backIn.innerText = data.backIn ? `expected back in about ~${data.backIn}h` : "probably active within the hour";
       backIn.hidden = false;
-    })
+    }).catch(error => {
+      document.getElementById("main-last-on").innerText = "couldn't check right now";
+      console.log("last online:", error);
+    });
 });
 
-function toResources() {
-  document.getElementById('projects-section').scrollIntoView();
+function toAbout() {
+  document.getElementById('about').scrollIntoView();
   setSidebar(false);
 }
 
-function toAirzy() {
-  document.getElementById('intro-section').scrollIntoView();
+function toProjects() {
+  document.getElementById('projects-section').scrollIntoView();
   setSidebar(false);
 }
 
