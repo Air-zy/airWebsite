@@ -46,7 +46,7 @@ body {
   isolation: isolate;
 }
 
-/* avy: same dither as .txt-section::before in css/main.css, keep them in sync.
+/* the home page used to share this dither, it is the only copy now.
    auth is dark only so the theme vars are inlined */
 .auth-card::before {
   content: "";

@@ -5,27 +5,27 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const socials = [
-  { label: 'GitHub',    icon: 'fa-github',           url: 'https://github.com/Air-zy' },
-  { label: 'Linked In', icon: 'fa-linkedin-square',  url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
-  { label: 'Leetcode',  icon: 'fa-code',             url: 'https://leetcode.com/u/AirzyEz/' },
-  { label: 'Youtube',   icon: 'fa-youtube-play',     url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
-  { label: 'Instagram', icon: 'fa-instagram',        url: 'https://www.instagram.com/airzyalt' },
-  { label: 'Snapchat',  icon: 'fa-snapchat-ghost',   url: 'https://www.snapchat.com/add/airalternative' },
-  { label: 'X',         icon: 'fa-twitter',          url: 'https://x.com/airzyalt' },
+  { label: 'GitHub',    icon: 'github',              url: 'https://github.com/Air-zy' },
+  { label: 'Linked In', icon: 'linkedin-square',     url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
+  { label: 'Leetcode',  icon: 'code',                url: 'https://leetcode.com/u/AirzyEz/' },
+  { label: 'Youtube',   icon: 'youtube-play',        url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
+  { label: 'Instagram', icon: 'instagram',           url: 'https://www.instagram.com/airzyalt' },
+  { label: 'Snapchat',  icon: 'snapchat-ghost',      url: 'https://www.snapchat.com/add/airalternative' },
+  { label: 'X',         icon: 'twitter',             url: 'https://x.com/airzyalt' },
 ];
 
 const nav = [
   { label: 'Home',      href: '/home' },
-  { label: 'Airzy',     click: 'toAirzy()' },
+  { label: 'About',     click: "goTo('about')" },
+  { label: 'Projects',  click: "goTo('projects-section')" },
+  { label: 'Guestbook', click: 'toGuestbook()' },
   { label: 'Contact',   click: 'toContact()' },
-  { label: 'Resources', click: 'toResources()' },
-  { label: 'Guestbook', click: 'toGuestbook()', sideOnly: true }, // the top bar has no room for it
 ];
 
 const about = [
-  'studied {software development|#ffc300} at {SAIT|#ff5733}.',
+  'studied {software development|tech} at {SAIT|name}.',
   'i write code and build games when I am bored.',
-  'programming {since 2018|#ff99cc}.',
+  'programming {since 2018|accent}.',
 ];
 
 const skills = {
@@ -36,23 +36,18 @@ const skills = {
 
 // button not div, so the three scroll items take focus and fire on enter/space.
 // span not div because a button only takes phrasing content
-// symbol ids are the fa name minus the prefix, see icons.svg
-const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name.replace('fa-', '')}"/></svg>`;
+// symbol ids in icons.svg are i- plus the name
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
 const navItem = n => n.href
   ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
   : `<button class="nav-item" onclick="${n.click}">${n.label} <span class="underline"></span></button>`;
 
-// {phrase|color} is a phrase the page tints. the cli just drops the braces
-const colorize = l => l.replace(/\{([^|}]+)\|([^}]+)\}/g, '<span style="color: $2">$1</span>');
+// {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). the cli just drops the braces
+const colorize = l => l.replace(/\{([^|}]+)\|([^}]+)\}/g, '<span class="hl-$2">$1</span>');
 const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
-const list = items => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
-
-// Other is a details so it starts collapsed, the first two groups are always open
-const skillGroup = ([name, items]) => name === 'Other'
-  ? `<details><summary class="summary-button">${list([name])}</summary><blockquote>${list(items)}</blockquote></details>`
-  : `${list([name])}<blockquote>${list(items)}</blockquote>`;
+const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
 module.exports = {
   socials,
@@ -64,15 +59,12 @@ module.exports = {
   // the shapes index.html asks for by name, see the <!--#token--> comments in it.
   // the icons are inline with no margin, so the space between them is the gap. keep the join(' ')
   html: {
-    socialIcons: socials
-      .map(s => `<a href="${s.url}" class="fa" target="_blank" aria-label="${s.label}">${icon(s.icon)}</a>`).join(' '),
-
     socialLinks: socials
       .map(s => `<a href="${s.url}" target="_blank">${icon(s.icon)}${s.label}</a>`).join(' '),
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
-    nav: nav.filter(n => !n.sideOnly).map(navItem).join(' '),
+    nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
 
     // inlined so the icons cost no request, replaces 108kb of cdn font awesome
@@ -100,19 +92,18 @@ if (require.main === module) {
   for (const k of Object.keys(module.exports.html)) a.ok(used.includes(k), `${k} is dead`);
 
   // the links have to survive the round trip, this is the whole point
-  for (const s of socials) a.ok(module.exports.html.socialIcons.includes(s.url));
   for (const s of socials) a.ok(module.exports.html.socialLinks.includes(s.label));
   a.ok(module.exports.html.skills.includes('<li>Luau</li>'));
-  a.ok(module.exports.html.skills.includes('<details>'));
+  a.ok(module.exports.html.skills.includes('<h3>Other</h3>'));
   for (const n of nav) a.ok(module.exports.html.sideNav.includes(n.label));
-  for (const n of nav) a.strictEqual(module.exports.html.nav.includes(n.label), !n.sideOnly, n.label);
+  for (const n of nav) a.ok(module.exports.html.nav.includes(n.label), n.label);
   a.ok(module.exports.html.nav.includes('<button class="nav-item"'), 'the click items have to be buttons');
   a.ok(!module.exports.html.nav.includes('<div class="nav-item"'), 'a div is not keyboard reachable');
-  for (const s of socials) a.ok(module.exports.html.socialIcons.includes(`aria-label="${s.label}"`));
   a.ok(module.exports.html.copyright.includes(String(new Date().getFullYear())));
   a.ok(!module.exports.about.join(' ').match(/[{}|]/), 'braces leaked into the cli text');
-  a.ok(module.exports.html.about.includes('color: #ffc300'));
-  for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon.replace('fa-', '')}"`), `sprite lost ${s.icon}`);
+  a.ok(module.exports.html.about.includes('<span class="hl-tech">software development</span>'));
+  for (const m of about.join('').matchAll(/\|([^}]+)\}/g)) a.ok(['accent', 'name', 'tech'].includes(m[1]), `no .hl-${m[1]} role`);
+  for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon}"`), `sprite lost ${s.icon}`);
   for (const m of html.matchAll(/#i-([a-z0-9-]+)/g)) a.ok(module.exports.html.icons.includes(`id="${m[0].slice(1)}"`), `sprite lost ${m[1]}`);
   a.ok(module.exports.html.icons.includes('display:none'), 'hidden does nothing on an svg, without display none the sprite renders 300x150');
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');

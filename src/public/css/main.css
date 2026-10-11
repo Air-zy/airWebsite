@@ -1,143 +1,178 @@
-.chat-button,
-.menu-icon,
-.nav-item {
-  cursor: pointer;
+/* bricolage grotesque, self hosted, licence in fonts/OFL.txt. latin only, anything outside the range (a guestbook
+   note in another script, the ∴) falls back to the next font in the stack */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-400-normal.woff2) format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-nav {
-  width: 100%;
-  top: 0;
-  min-height: 100px;
-  background: linear-gradient(to top, var(--bar-bg) 0, var(--bg-col) 100%);
-  justify-content: center;
-  backdrop-filter: blur(10px);
-  z-index: 3;
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-700-normal.woff2) format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-#airzy,
-#s2 h2,
-.nav-item,
-.small-p,
-.social-medias .fa {
-  text-align: center;
-}
-#airzy,
-#s1 h3 {
-  display: inline-block;
-}
-#s2,
-body {
-  padding: 0;
-}
-#s2,
-.menu-icon,
-.nav-item,
-article button,
-nav .inlineb {
-  background: 0 0;
-}
-.menu-icon span,
-.underline {
-  background-color: var(--text-grey);
-}
-.nav-item,
-.social-medias .fa {
-  text-decoration: none;
-}
-.nav-item:hover,
-article button:hover,
-h1 {
-  color: var(--text-normal);
-}
-#s1,
-#side-bar,
-main,
-nav {
-  position: fixed;
-}
-#s1 {
-  z-index: -1;
-  top: 100px;
-  margin: 4% 10%;
-  pointer-events: none;
-}
-#s2,
-#sbar-flex,
-.row-flex,
-.skill-container,
-.txt-section,
-nav {
-  display: flex;
-}
-#s1 h3,
-.image-container,
-body {
-  overflow: hidden;
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-800-normal.woff2) format("woff2");
+  font-weight: 800;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 :root {
   color-scheme: dark;
-  --bg-col: #0a0a0a;
-  --bar-bg: color-mix(in srgb, var(--bg-col) 30%, transparent);
-  --frame-bcol: #161616;
-  /* avy: strength is hand matched to frame-bcol over bg-col, css cannot derive it */
-  --dither-blend: screen;
-  --dither-strength: 0.02;
-  --dither-invert: 0;
+  /* dark only. the ground leans violet and the text warm so neither is a flat black or white,
+     grey is 5.5:1 on the ground so even the small print passes */
+  --bg-col: #131217;
+  --frame-bcol: color-mix(in oklab, var(--bg-col), #fff 5%);
+  --frame-bcol2: color-mix(in oklab, var(--bg-col), #fff 9%);
+  --text-normal: #ebe7df;
+  --text-grey: #8e8b94;
+  --text-soft: color-mix(in oklab, var(--text-grey), var(--text-normal) 45%);
+  /* the only colours in the text, taken from the plant. gold for the name, numbers, years and the odd word that
+     matters, the petals' rose for schools, places and brands, the leaves' sage for languages and tools */
+  --accent: gold;
+  --hl-name: #e7a6b9;
+  --hl-tech: #8cc9b5;
   /* the page background dither, see #bg. lift is read once by js/dither.js */
   --dither-lift: 0.6;
-  --bg-dither-blend: color-dodge;
-  --bg-dither-opacity: 0.22;
-  --frame-bcol2: #1b1b1b;
-  --text-grey: grey;
-  --text-normal: white;
-  /* partway from grey to the text colour, so it follows the light theme too */
-  --text-soft: color-mix(in srgb, var(--text-grey), var(--text-normal) 45%);
+
+  /* one page width for the nav and the content, so their edges line up */
+  --nav-h: 64px;
+  --page: 72rem;
+  --gutter: clamp(16px, 4vw, 48px);
+  /* 65 to 75 characters a line of body text, counted, the ch unit runs wide on this font */
+  --measure: 38rem;
+  --section-gap: clamp(72px, 12vh, 136px);
 }
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg-col: #ffffff;
-  --bar-bg: rgba(226, 226, 226, 0.3);
-  --frame-bcol: #efefef;
-  --dither-blend: multiply;
-  --dither-strength: 0.03;
-  --dither-invert: 1;
-  --bg-dither-blend: multiply;
-  --bg-dither-opacity: 0.04;
-  --frame-bcol2: #e3e3e3;
-  --text-grey: grey;
-  --text-normal: #000000;
-}
-/* about/intro tint phrases with an inline color, unreadable on white.
-   important is needed to beat the inline style */
-:root[data-theme="light"] .txt-section span[style*="color"],
-:root[data-theme="light"] #adapt {
-  color: #000 !important;
-  text-shadow: none !important;
-  text-decoration: underline;
-}
-#toggleLightMode,
-.nav-item,
-.small-p,
-.social-medias .fa,
-.underline,
-article button,
-h3 {
-  color: var(--text-grey);
-}
+/* main is the scroller, so the nav never covers what you are reading */
 body {
   margin: 0;
+  overflow: hidden;
   background-color: var(--bg-col);
-  font-family: Montserrat, sans-serif;
-  font-size: 16px;
+  color: var(--text-normal);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
 }
-#side-bar,
-nav .inlineb {
+main {
+  position: fixed;
+  top: var(--nav-h);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--text-grey) 45%, var(--bg-col)) transparent;
+  scroll-behavior: smooth;
+}
+.page {
+  max-width: var(--page);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+h1,
+h2,
+h3 {
+  line-height: 1.15;
+  text-wrap: balance;
+}
+h1 {
+  font-size: clamp(44px, 8vw, 96px);
+  font-weight: 800;
+  margin: 0;
+}
+h2 {
+  font-size: clamp(22px, 2.4vw, 30px);
+  margin: 0 0 0.75em;
+}
+h3 {
+  font-size: 1em;
+  margin: 0 0 0.5em;
+}
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+summary {
+  cursor: pointer;
+}
+/* the parts the browser draws, so they match instead of default blue */
+::selection {
+  background: var(--text-normal);
+  color: var(--bg-col);
+}
+:focus-visible {
+  outline: 1px solid var(--text-normal);
+  outline-offset: 3px;
+}
+textarea {
+  caret-color: var(--text-normal);
+}
+.small-p {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--text-grey);
+}
+
+/* the bar. its padding puts the links on the page's right edge however wide the window is */
+nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  height: var(--nav-h);
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-inline: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter)));
+  background: var(--bg-col);
 }
-.menu-icon {
-  min-width: 50px;
-  min-height: 50px;
-  max-width: 50px;
+.nav-links {
+  display: flex;
+  gap: clamp(16px, 3vw, 40px);
+}
+.nav-item {
+  padding: 8px 0;
   border: none;
-  padding: 10px 10px 10px 20px;
+  background: 0 0;
+  font: inherit;
+  color: var(--text-grey);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.nav-item:hover {
+  color: var(--text-normal);
+}
+.underline {
+  display: block;
+  width: 0;
+  height: 1px;
+  margin-left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--text-normal);
+  transition: width 0.6s;
+}
+.nav-item:hover .underline {
+  width: 100%;
+  transition: width 0.2s;
+}
+
+/* only under 600px, where the links fold into the side bar */
+.menu-icon {
+  display: none;
+  width: 50px;
+  height: 50px;
+  margin-right: -13px;
+  padding: 13px;
+  border: none;
+  background: 0 0;
+  cursor: pointer;
 }
 .menu-icon span {
   display: block;
@@ -145,16 +180,11 @@ nav .inlineb {
   height: 2px;
   margin: 6px 0;
   border-radius: 2px;
-  transition: transform 0.4s, box-shadow 0.4s, width 0.4s, background-color 0.4s;
-}
-#toggleLightMode,
-article button {
-  border: none;
-  cursor: pointer;
+  background-color: var(--text-grey);
+  transition: transform 0.4s, width 0.4s, background-color 0.4s;
 }
 .menu-icon:hover span {
   background-color: var(--text-normal);
-  box-shadow: 0 0 20px #fff;
 }
 .menu-icon.active .bun2 {
   width: 2px;
@@ -177,131 +207,96 @@ article button {
     width: 12px;
   }
 }
-nav .inlineb {
-  width: 600px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  overflow-y: hidden;
-  overflow-x: auto;
-}
-.nav-item {
-  border: none;
-  font: inherit;
-  padding-right: 40px;
-  padding-left: 40px;
-  transition: padding-left 0.4s, padding-right 0.4s, color;
-}
-.underline {
-  display: block;
-  transform: translateX(-50%);
-  width: 0;
-  height: 1px;
-  transition: width 0.2s;
-  margin-left: 50%;
-}
-.nav-item:not(:hover) .underline {
-  transition: width 0.6s;
-}
-.nav-item:not(:hover) {
-  transition: padding-left 1s, padding-right 1s, color 1s;
-}
-.nav-item:hover .underline {
-  background-color: var(--text-normal);
-  width: 100%;
-}
-.nav-item:hover {
-  padding-right: 50px;
-  padding-left: 50px;
-}
 /* hidden too, not just offscreen, or tab walks through every link in it while its closed.
    visibility flips at the start of an open and the end of a close so the slide still shows */
 #side-bar {
-  flex-direction: column;
-  align-items: center;
-  transform: translateX(100%);
-  visibility: hidden;
+  position: fixed;
+  top: 0;
   right: 0;
-  height: 100%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
   width: 400px;
   max-width: 80%;
-  background-color: var(--bar-bg);
-  backdrop-filter: blur(30px);
-  z-index: 1;
-  padding-top: 100px;
+  height: 100%;
+  padding: calc(var(--nav-h) + 32px) var(--gutter) 32px;
+  background-color: var(--frame-bcol);
+  transform: translateX(100%);
+  visibility: hidden;
   transition: transform 0.3s, visibility 0.3s;
 }
 #side-bar.open {
   transform: translateX(0);
   visibility: visible;
 }
-.small-p {
-  font-size: 0.75rem;
-  line-height: 1rem;
+
+/* the first screen. the name sits low on the left and the plant stands beside it on the same baseline.
+   capped below a full screen so the about section starts in view on a tall one, and a fixed height so nothing
+   below jumps when the plant arrives */
+#s1 {
+  --hero-h: min(calc(100dvh - var(--nav-h)), 760px);
+  --hero-pad-t: clamp(32px, 6vh, 64px);
+  --hero-pad-b: clamp(40px, 8vh, 96px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: clamp(24px, 4vw, 64px);
+  align-items: end;
+  min-height: var(--hero-h);
+  box-sizing: border-box;
+  padding: var(--hero-pad-t) 0 var(--hero-pad-b);
 }
-/* 90% wide plus 5% padding each side fills the sidebar exactly */
-#sbar-flex {
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-evenly;
-  padding: 100px 5%;
-  height: 30%;
-  width: 90%;
+/* as wide as the name, the bubble hangs off its end. outside the h1 so the heading's text is only the name */
+.hero-text {
+  position: relative;
+  width: fit-content;
 }
-main {
-  padding-top: 80px;
-  width: 100%;
-  height: calc(100% - 80px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scroll-behavior: smooth;
+.flower {
+  justify-self: center;
 }
-article {
-  min-height: 1400px;
+/* the canvas is the plant's own size, cropped to it, and only ever shrinks to fit. it grows in bottom up: the
+   mask is opaque at the bottom and clear at the top with a soft band between, twice the canvas tall, and slides
+   down until only its opaque half is left */
+.flower canvas {
+  display: block;
+  max-width: 100%;
+  max-height: calc(var(--hero-h) - var(--hero-pad-t) - var(--hero-pad-b));
+  mask: linear-gradient(to top, #000 46%, #0000 54%) 0 0 / 100% 220% no-repeat;
 }
-article button {
-  appearance: none;
+.flower.grown canvas {
+  animation: 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards grow;
 }
-h1 {
-  font-size: 60px;
-  font-weight: 900;
-  margin: 0;
+@keyframes grow {
+  to {
+    mask-position: 0 100%;
+  }
 }
-h3 {
-  font-size: 20px;
-  font-weight: 1;
+
+.lede {
+  margin: 0.75em 0 0;
+  font-size: clamp(16px, 1.6vw, 20px);
+  color: var(--text-grey);
 }
 #airzy {
-  min-width: 4ch;
-  --name-col: gold;
-  color: var(--name-col);
-  transition: text-shadow 1s;
-}
-#airzy .cell {
-  display: inline-block;
-}
-/* letter hidden behind its own background */
-#airzy .cell.block {
-  color: transparent;
-  background: var(--name-col);
-  text-shadow: none;
-}
-#airzy.glow {
-  text-shadow: 0 0 100px gold;
-}
-#s1 h3 {
-  white-space: nowrap;
+  color: var(--accent);
 }
 /* chat bubble with an ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css.
    he cuts the tail curve with a patch in the page color, a mask does it here so it works over
-   anything, like the name glow behind it. all em so it scales with font-size */
+   anything, like the background grain behind it. all em so it scales with font-size.
+   it hangs off the end of the name and grows out of its tail once the plant has grown */
 .bubble {
-  position: relative;
+  position: absolute;
+  left: calc(100% + 0.35em);
+  top: -1.1em;
   padding: 0.3em 0.45em;
-  text-shadow: none;
+  font: 400 28px/1.2 sans-serif;
   background: color-mix(in srgb, var(--text-normal) 14%, var(--bg-col));
   border-radius: 0.9em;
+  transform: scale(0);
+  transform-origin: -0.25em 100%;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
 }
 .bubble::after {
   content: "";
@@ -316,33 +311,124 @@ h3 {
     linear-gradient(#000 0 0) right / calc(100% - 0.25em) 100% no-repeat,
     radial-gradient(circle 0.36em at -0.11em 0, #0000 calc(100% - 1px), #000) bottom / 100% 0.36em no-repeat;
 }
-/* off the end of the name, grows out of its tail once the name glows. */
-#s1 .bubble {
-  position: absolute;
-  left: calc(100% + 0.35em);
-  top: -1.1em;
-  font: 28px/1.2 sans-serif;
-  transform: scale(0);
-  transform-origin: -0.25em 100%;
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s;
-}
-#s1:has(.glow) .bubble {
+.done .bubble {
   transform: none;
 }
 
-/* the guestbook, a board of sticky notes. they wrap and center so different sizes scatter a bit */
-.board {
-  width: 100%;
+/* every section is one column of text, a picture goes in a second column beside it */
+.txt-section {
+  max-width: var(--measure);
+  margin-top: var(--section-gap);
+  scroll-margin-top: 24px;
+}
+.txt-section.with-plate {
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, var(--measure)) minmax(0, 1fr);
+  column-gap: clamp(32px, 6vw, 96px);
+  align-items: start;
+}
+.plate {
+  margin: 0;
+}
+.plate img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+/* the page grain from js/dither.js, the same one as the auth page. color-dodge lifts the ground under a dot
+   by a share, so the grain keeps the ground's tint instead of going grey */
+#bg {
+  mix-blend-mode: color-dodge;
+  opacity: 0.22;
+}
+#adapt,
+.hl-accent {
+  color: var(--accent);
+}
+.hl-name {
+  color: var(--hl-name);
+}
+.hl-tech {
+  color: var(--hl-tech);
+}
+.fin {
+  color: var(--text-grey);
+}
+
+.skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 24px;
+}
+.skills ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-soft);
+}
+
+/* projects, one row each. the markup comes from makeProjectCard in js/main.js, and projectsEdit.html
+   loads this file for its preview, so these rules are the only copy */
+.project-container {
+  padding: 20px 0;
+  border-top: 1px dotted var(--text-grey);
+}
+.project-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  text-decoration: none;
+}
+.project-card > :not(img) {
+  grid-column: 2;
+}
+.project-card img {
+  grid-row: 1 / span 3;
+  width: 96px;
+  height: 96px;
+  margin-right: 20px;
+  object-fit: cover;
+}
+.proj-title {
+  margin: 0;
+  font-weight: 700;
+}
+.project-card:hover .proj-title {
+  text-decoration: underline;
+}
+.proj-stats {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-grey);
+}
+.project-card div p {
+  margin: 8px 0 0;
+}
+.project-footer {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  gap: 4px 16px;
+  margin-top: 12px;
+}
+.project-footer p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+/* the guestbook, a board of sticky notes. they wrap so different sizes scatter a bit */
+#guestbook {
+  max-width: none;
+}
+.board {
+  display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 36px 28px;
   padding-top: 12px;
   container-type: inline-size;
 }
 .note {
-  /*max-width: 240px;*/
   margin: 0;
 }
 .note figcaption {
@@ -363,8 +449,9 @@ h3 {
   line-height: 1.4;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #2b2b2b;
-  text-shadow: none;
+  /* the paper's own colour darkened for the writing, not a flat grey */
+  background: var(--paper);
+  color: color-mix(in oklab, var(--paper), #000 78%);
   box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
   rotate: var(--tilt);
 }
@@ -377,10 +464,10 @@ h3 {
   line-height: 1.2;
   white-space: pre;
 }
-.paper-0 { background: #fdf1a2; }
-.paper-1 { background: #ffc9d9; }
-.paper-2 { background: #bfe3ff; }
-.paper-3 { background: #caf2c2; }
+.paper-0 { --paper: #fdf1a2; }
+.paper-1 { --paper: #ffc9d9; }
+.paper-2 { --paper: #bfe3ff; }
+.paper-3 { --paper: #caf2c2; }
 /* a strip of tape holds it up */
 .sticky::before {
   content: "";
@@ -404,9 +491,9 @@ h3 {
   background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
   box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
 }
-/* a note being stuck on, starts lifted and big and the overshoot presses it in. main.js staggers the delay */
+/* a note being stuck on, starts lifted and big and settles flat. main.js staggers the delay */
 .note.place {
-  animation: 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards notePlace;
+  animation: 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards notePlace;
 }
 @keyframes notePlace {
   from {
@@ -429,10 +516,6 @@ h3 {
   width: min(600px, 100%);
   margin-bottom: 36px;
 }
-/* hidden alone loses to the display:flex on .txt-section */
-#guestbook[hidden] {
-  display: none;
-}
 /* one line to start, main.js grows the textarea as you type and max-height caps it */
 .board-row {
   display: flex;
@@ -453,8 +536,18 @@ h3 {
   max-height: 12em;
   resize: none;
 }
+/* the browser's own placeholder grey is under 4.5:1 on this box */
+#board-form textarea::placeholder {
+  color: var(--text-grey);
+  opacity: 1;
+}
 #guestbook button {
   cursor: pointer;
+}
+/* while a note is sending */
+#guestbook button:disabled {
+  opacity: 0.5;
+  cursor: progress;
 }
 #guestbook button:hover {
   background: var(--frame-bcol2);
@@ -485,7 +578,7 @@ h3 {
   background: #0a0a0a;
 }
 #login-dialog::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: color-mix(in oklab, var(--bg-col) 70%, transparent);
 }
 #login-dialog iframe {
   display: block;
@@ -498,317 +591,146 @@ h3 {
   top: 6px;
   right: 12px;
   font-size: 1.5rem;
-  color: #e0e0e0;
+  color: var(--text-normal);
   background: none;
   border: 0;
   cursor: pointer;
 }
-#s2 {
-  margin-top: 200px;
-  flex-direction: row-reverse;
-}
-#s2 .skill-col {
-  padding-right: 20px;
-  padding-left: 20px;
-  height: 400px;
-}
-.txt-section {
-  flex-direction: column;
-  align-items: center;
-  margin-top: 100px;
-  padding: 40px;
-  background: var(--bg-col);
-  position: relative;
-  isolation: isolate;
-  opacity: 0;
-  transform: translateY(100px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-}
-/* tile stays at its native 24px or the dots stop being square, regenerate the png
-   to change it. contrast() is what thresholds it to 1 bit, without it its a fade */
-.txt-section::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image: url(/img/bayer.png),
-    linear-gradient(to bottom right, #fff, #000);
-  background-size: 24px 24px, 100% 100%;
-  /* the section rarely lands on a whole device pixel, smooth resampling softens the dots */
-  image-rendering: pixelated;
-  filter: contrast(10000%) invert(var(--dither-invert));
-  mix-blend-mode: var(--dither-blend);
-  opacity: var(--dither-strength);
-}
-/* the page dither from js/dither.js, the same one as the auth page. dark mode color-dodges it so it lifts
-   the bg by a share. dodging white does nothing, so light mode inverts it and multiplies it in faintly */
-#bg {
-  mix-blend-mode: var(--bg-dither-blend);
-  filter: invert(var(--dither-invert));
-  opacity: var(--bg-dither-opacity);
-}
-/* background:0 0 on these two cannot reach a pseudo element, so it opts out here */
-#s2::before,
-.social-media-container::before {
-  content: none;
-}
-.txt-section p {
-  max-width: 600px;
-}
-.txt-section.show {
-  opacity: 1;
-  transform: translateY(0);
-}
 
-#adapt {
-  color: #daf7a6;
-}
-.skill-container {
-  flex-direction: column;
-  border-top: 1px solid var(--text-grey);
-  margin-bottom: 20px;
-  padding-top: 20px;
-  padding-right: 20px;
-  padding-left: 20px;
-  overflow: hidden;
-  height: 0;
-  transition: height 1s;
-}
-#s2.show .skill-container {
-  height: 400px;
-}
-.skill-container ul {
-  margin-top: 0;
-  margin-bottom: 0;
-  padding-left: 0;
-}
-.skill-container blockquote {
-  position: relative;
-  margin: 0;
-  padding-left: 10px;
-  padding-bottom: 10px;
-  /* em, rem is the browser 16px not the 18px body */
-  font-size: 0.9em;
-  color: var(--text-grey);
-}
-.skill-container blockquote::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  border-left: 1px dotted var(--text-grey);
-  margin-left: -15px;
-}
-@keyframes popUp {
-  0% {
-    transform: scale(0) rotate(45deg);
-    opacity: 0;
-  }
-  80% {
-    transform: scale(1.1) rotate(-5deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0);
-  }
-}
-.social-media-container {
-  background: 0 0;
-  margin-top: 0;
-}
-#side-bar .social-medias .fa {
-  font-size: 16px;
-  width: 30px;
-}
-.social-medias .fa:hover {
-  opacity: 0.5;
-}
-.social-media-container .social-medias .fa {
-  padding: 10px;
-  font-size: 20px;
-  width: 50px;
-  margin: 5px 2px;
-  color: var(--text-normal);
-}
-.social-media-container.show .social-medias .fa {
-  opacity: 1;
-  transform: scale(0);
-  animation: 0.5s ease-in-out forwards popUp;
-}
-#toggleLightMode {
-  appearance: none;
-  background: 0 0;
-  margin-top: 40px;
-}
-#toggleLightMode .fa {
-  font-size: 14px;
-}
-.row-flex {
-  justify-content: space-between;
-  flex-wrap: wrap;
-  width: min(1000px, 100%);
-}
-.image-container {
-  min-width: 250px;
-  min-height: 200px;
-  width: 20%;
-  height: 20%;
-  border-radius: 10px;
-}
-.image-container img {
-  width: 100%;
-  height: 100%;
-  transition: transform 0.4s, filter 0.4s, opacity 0.4s;
-  opacity: 0.4;
-}
-.image-container:hover img {
-  transform: scale(1.2);
-  opacity: 1;
-}
 .main-footer {
-  margin-top: 800px;
-  margin-right: 40px;
-  margin-left: 40px;
-}
-.main-footer p {
-  margin: 0;
-  padding: 20px;
-}
-/* the padding makes the hover box run from the dotted line down, a bigger target than just the text */
-.chat-button {
-  font-family: Montserrat, sans-serif;
-  font-size: 0.95rem;
-  background: 0;
-  outline: 0;
-  border: 0;
-  padding: 20px 14px;
-  color: var(--text-soft);
-  margin-right: 40px;
-  white-space: nowrap;
-}
-/* outline is off, so keyboard focus gets the hover box instead */
-.chat-button:hover,
-.chat-button:focus-visible {
-  background: var(--frame-bcol);
+  margin-top: var(--section-gap);
+  padding-bottom: 32px;
 }
 .footer-top {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
-  flex-direction: row;
-  gap: 60px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 40px 32px;
 }
-.item-list p {
-  padding: 0;
+/* body size and bold, a step over the 0.9em lines under them */
+.main-footer h2 {
+  font-size: 1em;
 }
 .item-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  
+  gap: 12px;
   font-size: 0.9em;
-
   text-decoration: none;
-  color: var(--text-normal);
-  white-space: nowrap;
+}
+.item-list p {
+  margin: 0;
 }
 .item-list a {
   text-decoration: none;
-  color: var(--text-normal);
 }
-.footer-top > * {
-  padding: 40px;
-  min-width: 240px;
+.item-list .item-list {
+  padding: 0.75em 0 0 20px;
 }
 .footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-top: 48px;
+  padding-top: 16px;
   border-top: 1px dotted var(--text-grey);
 }
-.inner-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.footer-bottom .small-p {
+  margin: 0 0 0 auto;
 }
-.inner-bottom a {
-  text-decoration: none;
-  color: var(--text-grey);
-  padding: 0 20px 0 0;
+.social-medias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.social-medias a {
   font-size: 0.9em;
+  color: var(--text-grey);
+  text-decoration: none;
   white-space: nowrap;
 }
-.inner-bottom .icon {
-  padding: 0;
-  padding-right: 0.5em;
+.social-medias a:hover {
+  color: var(--text-normal);
+}
+.social-medias .icon {
+  margin-right: 0.4em;
+}
+/* the padding makes the hover box a bigger target than just the text */
+.chat-button {
+  padding: 10px 14px;
+  margin-left: -14px;
+  border: 0;
+  background: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chat-button:hover,
+.chat-button:focus-visible {
+  background: var(--frame-bcol);
 }
 /* the sprite replaces font awesome. 1em and currentColor mean every existing
    font-size and color rule keeps working untouched */
-.fa {
-  display: inline-block;
-}
 .icon {
   width: 1em;
   height: 1em;
   fill: currentColor;
   vertical-align: -0.125em;
 }
-.fa.fa-comments-o {
+.chat-button .icon {
   font-size: 1.3em;
 }
-.summary-button {
-  list-style: none;
-  cursor: pointer;
-  transition: transform 0.3s ease, text-shadow 0.3s ease;
-}
 
-.summary-button:hover {
-  transform: translateX(5px);
-  text-shadow: 0 0 50px rgba(255, 255, 255, 1), 0 0 40px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 255, 255, 1)
+@media (max-width: 800px) {
+  .txt-section.with-plate {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 24px;
+  }
 }
 @media (max-width: 600px) {
-  #s1 .bubble {
+  /* no room beside the name, so the plant stands above it */
+  #s1 {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
+    row-gap: 24px;
+  }
+  .hero-text {
+    grid-row: 2;
+  }
+  .flower canvas {
+    max-height: calc(var(--hero-h) - 320px);
+  }
+  /* no room past the end of the name, so it sits on top of it */
+  .bubble {
+    left: auto;
+    right: 0;
+    top: -1.7em;
     font-size: 20px;
   }
-  h1 {
-    font-size: 40px;
-  }
-  h3 {
-    font-size: 16px;
-  }
-  #s2 {
-    margin-top: 300px;
-  }
-  .txt-section {
-    margin-top: 40px;
-  }
-  .footer-top {
-    gap: 10px;
-  }
-  nav .inlineb {
+  .nav-links {
     display: none;
-  }
-  nav {
-    justify-content: flex-end;
   }
   .menu-icon {
-    max-width: 80px;
-    width: 80px;
+    display: block;
+  }
+  .project-card img {
+    width: 64px;
+    height: 64px;
   }
 }
-
-/* measured, below 360 the bubble runs off the right edge */
-@media (max-width: 359px) {
-  #s1 .bubble {
-    display: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   main {
     scroll-behavior: auto;
   }
-  .txt-section,
-  #s1 .bubble {
+  .bubble {
     transition: none;
+  }
+  .flower canvas,
+  .flower.grown canvas {
+    mask: none;
+    animation: none;
   }
   .note.place,
   .note.blank {

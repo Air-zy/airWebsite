@@ -5,12 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edit Projects</title>
 
-  <!-- same font and theme as the homepage so the preview is honest -->
-  <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet" />
+  <!-- same font, theme and project rows as the homepage so the preview is honest -->
   <link rel="stylesheet" href="css/main.css" />
 
-  <!-- filled at runtime with the real card css lifted out of projects.html -->
-  <style id="card-style"></style>
 
   <style>
     /* main.css sets body overflow hidden for the homepage scroll containers, undo it here */
@@ -58,19 +55,11 @@
 
     .preview { flex: 1 1 560px; min-width: 0; padding-top: 14px; }
     .preview-label { font-size: 0.7rem; color: var(--text-grey); margin: 0 0 10px 0; text-transform: uppercase; }
-    .preview .project-container { margin: 0; width: 100%; }
     .preview .project-card { cursor: default; }
-    /* stats are hover only on the real site, always show them here */
-    .preview .proj-stats { opacity: 1; }
-    .preview .project-container:hover { transform: none; }
 
     @media (max-width: 800px) {
       body { padding: 12px; }
       .editor { padding: 12px; gap: 14px; }
-      /* match the homepage, it drops to 100px images under 600px */
-      .preview .project-container img { width: 100px !important; height: 100px !important; }
-      .preview .project-card { padding: 14px; gap: 12px; }
-      .preview .proj-title { left: 90px; font-size: 0.9rem; }
       #controls button { flex: 1 1 auto; }
     }
 
@@ -103,17 +92,6 @@
       if (statusEl) statusEl.textContent = msg || '';
     }
 
-    // pull the card css straight out of projects.html so this page cant drift from the homepage
-    async function loadCardStyles() {
-      try {
-        const html = await (await fetch('projects.html')).text();
-        const m = html.match(/<style>([\s\S]*?)<\/style>/);
-        if (m) document.getElementById('card-style').textContent = m[1];
-      } catch (err) {
-        console.error('could not load card styles', err);
-      }
-    }
-
     // mirrors makeProjectCard in js/main.js. keep in sync if that changes.
     function buildPreviewCard(proj) {
       const cardContainer = document.createElement('div');
@@ -128,8 +106,6 @@
         const img = document.createElement('img');
         img.src = proj.img;
         img.alt = proj.alt || '';
-        img.width = 200;
-        img.height = 200;
         card.appendChild(img);
       }
 
@@ -340,7 +316,6 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       statusEl = document.getElementById('status');
-      await loadCardStyles();
 
       // open to anyone, the server gates saving
       let me = null;
