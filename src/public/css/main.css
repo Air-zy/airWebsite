@@ -352,7 +352,19 @@ nav {
 .hl-tech {
   color: var(--hl-tech);
 }
-.fin {
+/* the numbers in how i started, each one opens the note under its paragraph on what it counts */
+.why {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+/* the teacher shoutout under high school, a c++ comment. monospace twice or chrome shrinks it to 13/16 */
+.comment {
+  font-family: monospace, monospace;
   color: var(--text-grey);
 }
 

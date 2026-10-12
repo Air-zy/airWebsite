@@ -6,32 +6,32 @@ const crypto = require('crypto');
 
 const socials = [
   { label: 'GitHub',    icon: 'github',              url: 'https://github.com/Air-zy' },
-  { label: 'Linked In', icon: 'linkedin-square',     url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
-  { label: 'Leetcode',  icon: 'code',                url: 'https://leetcode.com/u/AirzyEz/' },
-  { label: 'Youtube',   icon: 'youtube-play',        url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
+  { label: 'LinkedIn',  icon: 'linkedin-square',     url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
+  { label: 'LeetCode',  icon: 'code',                url: 'https://leetcode.com/u/AirzyEz/' },
+  { label: 'YouTube',   icon: 'youtube-play',        url: 'https://www.youtube.com/channel/UCgyAZGAZR_knbCnp-bP9wkw' },
   { label: 'Instagram', icon: 'instagram',           url: 'https://www.instagram.com/airzyalt' },
   { label: 'Snapchat',  icon: 'snapchat-ghost',      url: 'https://www.snapchat.com/add/airalternative' },
   { label: 'X',         icon: 'twitter',             url: 'https://x.com/airzyalt' },
 ];
 
 const nav = [
-  { label: 'Home',      href: '/home' },
-  { label: 'About',     click: "goTo('about')" },
-  { label: 'Projects',  click: "goTo('projects-section')" },
-  { label: 'Guestbook', click: 'toGuestbook()' },
-  { label: 'Contact',   click: 'toContact()' },
+  { label: 'home',      href: '/home' },
+  { label: 'about',     click: "goTo('about')" },
+  { label: 'projects',  click: "goTo('projects-section')" },
+  { label: 'guestbook', click: 'toGuestbook()' },
+  { label: 'contact',   click: 'toContact()' },
 ];
 
 const about = [
-  'studied {software development|tech} at {SAIT|name}.',
-  'i write code and build games when I am bored.',
+  'studied {software development|tech} at <a class="hl-name" href="https://www.sait.ca" target="_blank">SAIT</a>.',
+  "i write code and build games when i'm bored.",
   'programming {since 2018|accent}.',
 ];
 
 const skills = {
-  Languages: ['C++', 'Javascript', 'HTML/CSS', 'Luau'],
-  Technologies: ['Node.js', 'Socket.io', 'Express'],
-  Other: ['SQL', 'Hugging Face', 'Roblox Game Development'],
+  languages: ['C++', 'Java', 'JavaScript', 'TypeScript', 'Luau', 'Python'],
+  technologies: ['Node.js', 'Express', 'PostgreSQL', 'React / React Native', 'Docker', 'Kubernetes', 'Azure', 'WebGL'],
+  other: ['Hugging Face', 'Roblox Game Development'],
 };
 
 // button not div, so the three scroll items take focus and fire on enter/space.
@@ -43,9 +43,10 @@ const navItem = n => n.href
   ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
   : `<button class="nav-item" onclick="${n.click}">${n.label} <span class="underline"></span></button>`;
 
-// {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). the cli just drops the braces
+// {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). a line can hold a
+// plain <a> too. the cli just drops the braces and the tags
 const colorize = l => l.replace(/\{([^|}]+)\|([^}]+)\}/g, '<span class="hl-$2">$1</span>');
-const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
+const plain = l => l.replace(/<[^>]+>/g, '').replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
 const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
@@ -94,13 +95,13 @@ if (require.main === module) {
   // the links have to survive the round trip, this is the whole point
   for (const s of socials) a.ok(module.exports.html.socialLinks.includes(s.label));
   a.ok(module.exports.html.skills.includes('<li>Luau</li>'));
-  a.ok(module.exports.html.skills.includes('<h3>Other</h3>'));
+  a.ok(module.exports.html.skills.includes('<h3>other</h3>'));
   for (const n of nav) a.ok(module.exports.html.sideNav.includes(n.label));
   for (const n of nav) a.ok(module.exports.html.nav.includes(n.label), n.label);
   a.ok(module.exports.html.nav.includes('<button class="nav-item"'), 'the click items have to be buttons');
   a.ok(!module.exports.html.nav.includes('<div class="nav-item"'), 'a div is not keyboard reachable');
   a.ok(module.exports.html.copyright.includes(String(new Date().getFullYear())));
-  a.ok(!module.exports.about.join(' ').match(/[{}|]/), 'braces leaked into the cli text');
+  a.ok(!module.exports.about.join(' ').match(/[{}|<>]/), 'braces or tags leaked into the cli text');
   a.ok(module.exports.html.about.includes('<span class="hl-tech">software development</span>'));
   for (const m of about.join('').matchAll(/\|([^}]+)\}/g)) a.ok(['accent', 'name', 'tech'].includes(m[1]), `no .hl-${m[1]} role`);
   for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon}"`), `sprite lost ${s.icon}`);
