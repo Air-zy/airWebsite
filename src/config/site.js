@@ -23,7 +23,7 @@ const nav = [
 ];
 
 const about = [
-  'studied {software development|tech} at <a class="hl-name" href="https://www.sait.ca" target="_blank">SAIT</a>.',
+  'studied {software development|tech} at {SAIT|name|https://www.sait.ca}.',
   "i write code and build games when i'm bored.",
   'programming {since 2018|accent}.',
 ];
@@ -43,10 +43,12 @@ const navItem = n => n.href
   ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
   : `<button class="nav-item" onclick="${n.click}">${n.label} <span class="underline"></span></button>`;
 
-// {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). a line can hold a
-// plain <a> too. the cli just drops the braces and the tags
-const colorize = l => l.replace(/\{([^|}]+)\|([^}]+)\}/g, '<span class="hl-$2">$1</span>');
-const plain = l => l.replace(/<[^>]+>/g, '').replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
+// {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). {phrase|role|url}
+// makes it a link too. no html in the lines, so the cli just drops the braces and has nothing to strip
+const colorize = l => l.replace(/\{([^|}]+)\|([^|}]+)(?:\|([^}]+))?\}/g, (_, phrase, role, url) => url
+  ? `<a class="hl-${role}" href="${url}" target="_blank">${phrase}</a>`
+  : `<span class="hl-${role}">${phrase}</span>`);
+const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
 const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
@@ -103,7 +105,8 @@ if (require.main === module) {
   a.ok(module.exports.html.copyright.includes(String(new Date().getFullYear())));
   a.ok(!module.exports.about.join(' ').match(/[{}|<>]/), 'braces or tags leaked into the cli text');
   a.ok(module.exports.html.about.includes('<span class="hl-tech">software development</span>'));
-  for (const m of about.join('').matchAll(/\|([^}]+)\}/g)) a.ok(['accent', 'name', 'tech'].includes(m[1]), `no .hl-${m[1]} role`);
+  a.ok(module.exports.html.about.includes('<a class="hl-name" href="https://www.sait.ca" target="_blank">SAIT</a>'), 'the url part makes a link');
+  for (const m of about.join('').matchAll(/\{[^|}]+\|([^|}]+)/g)) a.ok(['accent', 'name', 'tech'].includes(m[1]), `no .hl-${m[1]} role`);
   for (const s of socials) a.ok(module.exports.html.icons.includes(`id="i-${s.icon}"`), `sprite lost ${s.icon}`);
   for (const m of html.matchAll(/#i-([a-z0-9-]+)/g)) a.ok(module.exports.html.icons.includes(`id="${m[0].slice(1)}"`), `sprite lost ${m[1]}`);
   a.ok(module.exports.html.icons.includes('display:none'), 'hidden does nothing on an svg, without display none the sprite renders 300x150');

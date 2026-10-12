@@ -115,7 +115,7 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   way to `dist`, so `index.html` holds tokens instead of link lists and `cli.js` reads the same array. A typo'd token kills the
   build for that page on purpose, `removeComments` would have eaten it silently.
   The about lines use `{phrase|role}` (accent, name or tech, the `.hl-` colours in `main.css`) so the page can tint a phrase and the cli can drop the braces.
-  A plain `<a>` works in them too, the cli strips tags. The "here to grow" line is not in there on purpose, `main.js` animates it by id.
+  `{phrase|role|url}` makes the phrase a link too, so the lines never hold html. The "here to grow" line is not in there on purpose, `main.js` animates it by id.
 - User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
 - `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.
 - The flower on the home page is [nonflowers](https://github.com/LingDong-/nonflowers) by Lingdong Huang (MIT, the notice is
