@@ -114,8 +114,8 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - Socials, skills, the nav, the about text and the copyright live once, in `config/site.js`. The minifier swaps `<!--#socialLinks-->` and friends for real markup on the
   way to `dist`, so `index.html` holds tokens instead of link lists and `cli.js` reads the same array. A typo'd token kills the
   build for that page on purpose, `removeComments` would have eaten it silently.
-  The about lines use `{phrase|role}` (accent, name or tech, the `.hl-` colours in `main.css`) so the page can tint a phrase and the cli can drop the braces. The "here to develop"
-  line is not in there on purpose, `main.js` animates it by id.
+  The about lines use `{phrase|role}` (accent, name or tech, the `.hl-` colours in `main.css`) so the page can tint a phrase and the cli can drop the braces.
+  `{phrase|role|url}` makes the phrase a link too, so the lines never hold html. The "here to grow" line is not in there on purpose, `main.js` animates it by id.
 - User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
 - `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.
 - The flower on the home page is [nonflowers](https://github.com/LingDong-/nonflowers) by Lingdong Huang (MIT, the notice is
@@ -132,9 +132,13 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   and cached in memory so renames show on old notes.
 - Older accounts still have an `email` field and `email:<address>` index docs in firestore. Nothing reads them, safe to delete.
 - `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
+- `/api/roblox-stats` is the live game count and visits in "how i started". It asks roblox at most every 6 hours, and only counts
+  my own games plus the groups i build in (`GROUPS` in `api_robloxStats.js`). The page ships with the last numbers, so a failed
+  fetch still reads fine.
 - No test framework. A few files have a self check you run directly:
   `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js`, `routes/api/notes.js`,
   `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).
+  `node src/routes/api/api_robloxStats.js` checks the visit sums, no network needed.
   `node src/config/blueNoise.js` regenerates the background dither tile (`js/dither.js`) and checks it, same png every run.
   `/js/flower/check.html` in a browser checks the flower: same seed same plant, nothing cut off, inside the time budget.

@@ -153,6 +153,27 @@ onSeen(document.getElementById("adapt"), () => {
   }, 80);
 });
 
+// each number in how i started opens or closes its note
+for (const b of document.querySelectorAll(".why")) {
+  b.addEventListener("click", () => {
+    const note = document.getElementById(b.getAttribute("aria-controls"));
+    note.hidden = !note.hidden;
+    b.setAttribute("aria-expanded", !note.hidden);
+  });
+}
+
+// the live roblox numbers in how i started. the page already holds the last numbers i checked, so a failed fetch
+// just leaves those
+onSeen(document.getElementById("intro-section"), async () => {
+  try {
+    const res = await fetch("/api/roblox-stats");
+    if (!res.ok) return;
+    const r = await res.json();
+    const n = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format;
+    for (const el of document.querySelectorAll("[data-roblox]")) el.textContent = n(r[el.dataset.roblox]);
+  } catch {}
+});
+
 // the contact rows stay hidden until this answers, the server wants half a second on the page first
 onSeen(document.querySelector(".main-footer"), () => {
   const email = document.getElementById("main-email");
@@ -296,7 +317,7 @@ async function loadGuestbook() {
   }
 }
 
-// hidden until Leave A Note, so a visit that never clicks never wakes the database
+// hidden until leave a note, so a visit that never clicks never wakes the database
 function toGuestbook() {
   const guestbook = document.getElementById('guestbook');
   if (guestbook.hidden) {

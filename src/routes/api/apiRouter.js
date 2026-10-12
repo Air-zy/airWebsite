@@ -21,6 +21,8 @@ router.get('/anime3/data',         require('./anime3/data.js')             );
 router.get('/anime3/coords',       require('./anime3/coords.js')           );
 
 router.get('/rblx',                require('./api_rblx.js')                );
+// the live roblox numbers in how i started on the home page
+router.get('/roblox-stats',        require('./api_robloxStats.js')         );
 // visitor ips and user agents, owner only
 router.get('/logs',                requireAdmin, require('./api_logs.js') );
 router.get('/headers',             require('./api_headers.js')             );
