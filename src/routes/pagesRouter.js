@@ -19,5 +19,6 @@ router.get('/deepwoken',  page('/deepwoken.html'));
 router.get('/encryption', page('/encryption/cbc.html'));
 router.get('/trafic',     page('/api.html'));
 router.get('/rowa2',      page('/ROWA/rowa2.html'));
+router.get('/chess',      page('/chess.html'));
 
 module.exports = router;

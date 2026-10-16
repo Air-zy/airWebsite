@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analysis board</title>
+<meta name="description" content="chess analysis board running my own engine in the browser">
+<style>
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-700-normal.woff2) format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+:root {
+  --bg: #161512; --panel: #262421; --line: #3a3835; --text: #bababa; --hi: #fff; --mute: #858585;
+  --blue: #3692e7; --green: #629924; --light: #f0d9b5; --dark: #b58863;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+button, select, input, textarea { font: inherit; color: inherit; }
+
+header { padding: 12px 16px 0; color: var(--mute); }
+header a { color: var(--hi); font: 700 18px "Bricolage Grotesque", system-ui; text-decoration: none; }
+
+main {
+  --b: min(calc(100vh - 110px), calc(100vw - 480px));
+  display: grid; grid-template-columns: 14px var(--b) minmax(280px, 400px); grid-template-areas: "gauge board tools" ". io .";
+  gap: 14px 10px; justify-content: center; align-items: start; padding: 16px;
+}
+
+/* eval gauge, white's share from the bottom, lines every 12.5% like lichess */
+#gauge { grid-area: gauge; position: relative; height: var(--b); overflow: hidden; background: #403d39; border-radius: 2px; }
+#gaugeW { position: absolute; inset: auto 0 0; height: 50%; background: #fff; transition: height .8s cubic-bezier(.2, .8, .2, 1); }
+#gauge.flip #gaugeW { inset: 0 0 auto; }
+#gauge::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(transparent calc(50% - 1px), #d85000 0 calc(50% + 1px), transparent 0),
+    repeating-linear-gradient(transparent 0 calc(12.5% - 1px), #7f7f7f80 0 12.5%);
+}
+.off #gauge, .off #pv { visibility: hidden; }
+
+#board {
+  grid-area: board; position: relative; width: var(--b); aspect-ratio: 1; touch-action: none; user-select: none; -webkit-user-select: none;
+  background: conic-gradient(var(--dark) 0 90deg, var(--light) 0 180deg, var(--dark) 0 270deg, var(--light) 0) 0 0 / 25% 25%;
+  box-shadow: 0 3px 18px #0009;
+}
+#board > * { position: absolute; inset: 0; }
+#squares i, .piece { position: absolute; top: 0; left: 0; width: 12.5%; height: 12.5%; }
+#squares .last { background: #9bc70069; }
+#squares .sel { background: #14551e80; }
+#squares .hover { background: #14551e4d; }
+#squares .dest { background: radial-gradient(#14551e80 19%, transparent 20%); }
+#squares .cap { background: radial-gradient(transparent 79%, #14551e4d 80%); }
+#squares .check { background: radial-gradient(ellipse at center, #f00 0, #e70000 25%, #a9000000 89%); }
+
+.piece {
+  background-size: cover; background-repeat: no-repeat; cursor: grab; will-change: transform;
+  transition: transform .22s cubic-bezier(.25, .8, .35, 1), opacity .2s;
+}
+.piece.drag { transition: none; z-index: 2; cursor: grabbing; }
+.piece.gone { opacity: 0; pointer-events: none; }
+
+#coords span { position: absolute; font: 600 clamp(9px, calc(var(--b) / 55), 13px)/1 system-ui; color: var(--light); pointer-events: none; }
+#coords .lt { color: var(--dark); }
+#coords .rank { right: 3px; margin-top: 3px; }
+#coords .file { bottom: 3px; margin-left: 4px; }
+
+#shapes { z-index: 1; pointer-events: none; }
+
+#promo { z-index: 3; background: #00000080; }
+#promo .piece {
+  cursor: pointer; background-color: #b0b0b0; background-size: 80%; background-position: center; border-radius: 50%;
+  transition: border-radius .15s, background-color .15s;
+}
+#promo .piece:hover { background-color: #d85000; border-radius: 0; }
+
+/* side panel: engine header, best line, move list, buttons */
+#tools { grid-area: tools; display: flex; flex-direction: column; height: var(--b); background: var(--panel); border-radius: 4px; overflow: hidden; }
+#ceval { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+#on {
+  appearance: none; flex: none; position: relative; width: 34px; height: 18px; margin: 0; border-radius: 9px; background: #555; cursor: pointer;
+  transition: background .2s;
+}
+#on::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #eee; transition: transform .2s; }
+#on:checked { background: var(--green); }
+#on:checked::after { transform: translateX(16px); }
+#score { min-width: 3.4em; color: var(--hi); font: 700 24px/1 "Bricolage Grotesque", system-ui; }
+#ceval .meta { display: flex; flex-direction: column; min-width: 0; font-size: 12px; color: var(--mute); }
+#engine { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 600; cursor: pointer; }
+#engine option { background: var(--panel); }
+
+#pv { min-height: 2.4em; padding: 7px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-bottom: 1px solid var(--line); font-size: 13px; }
+#pv span { cursor: pointer; border-radius: 3px; }
+#pv span:hover { color: var(--hi); background: #3692e733; }
+
+#moves { flex: 1; position: relative; display: grid; grid-template-columns: 3em 1fr 1fr; align-content: start; overflow-y: auto; }
+#moves b { padding: 3px 0; background: #2b2926; color: var(--mute); font-weight: 400; text-align: center; }
+#moves > .mv, #moves > i { padding: 3px 10px; }
+#moves i { color: #555; font-style: normal; }
+.mv { cursor: pointer; color: var(--text); }
+#moves > .mv { font-weight: 600; }
+.mv:hover { background: #3692e733; color: var(--hi); }
+.mv.cur { background: #3692e7aa; color: var(--hi); }
+.vars { grid-column: 1 / -1; padding: 4px 10px; background: #1f1e1c; border-block: 1px solid var(--line); color: var(--mute); font-size: 13px; }
+.vars .mv { padding: 0 2px; border-radius: 3px; }
+
+#ctrl { display: flex; border-top: 1px solid var(--line); }
+#ctrl button { flex: 1; padding: 9px 0; border: 0; background: none; cursor: pointer; }
+#ctrl button:hover { background: var(--blue); color: var(--hi); }
+#ctrl svg { display: block; width: 16px; height: 16px; margin: auto; fill: currentColor; }
+
+#io { grid-area: io; display: grid; gap: 8px; font-size: 12px; }
+#io label { display: grid; grid-template-columns: 3em 1fr; align-items: start; gap: 8px; color: var(--mute); }
+#io input, #io textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); font: 12px ui-monospace, monospace; }
+#io textarea { height: 7em; resize: vertical; }
+#io .bad { border-color: #c33; }
+#load { justify-self: end; padding: 6px 14px; border: 0; border-radius: 3px; background: var(--blue); color: var(--hi); cursor: pointer; }
+
+@media (max-width: 860px) {
+  main { --b: calc(100vw - 50px); grid-template-columns: 8px var(--b); grid-template-areas: "gauge board" "tools tools" "io io"; }
+  #tools { height: auto; }
+  #moves { min-height: 8em; max-height: 40vh; }
+}
+</style>
+<script type="module" src="/chess/analysis.js"></script>
+</head>
+<body>
+<header><a href="/">airzy</a> / analysis</header>
+<main>
+  <div id="gauge"><div id="gaugeW"></div></div>
+  <div id="board">
+    <div id="coords"></div>
+    <div id="squares"></div>
+    <div id="pieces"></div>
+    <svg id="shapes" viewBox="0 0 8 8"></svg>
+    <div id="promo" hidden></div>
+  </div>
+  <aside id="tools">
+    <div id="ceval">
+      <input type="checkbox" id="on" checked autocomplete="off" title="engine (l)" aria-label="engine on">
+      <b id="score"></b>
+      <div class="meta"><select id="engine" aria-label="engine"></select><span id="info"></span></div>
+    </div>
+    <div id="pv"></div>
+    <div id="moves"></div>
+    <div id="ctrl">
+      <button data-key="Home" title="first (↑)"><svg viewBox="0 0 16 16"><path d="M12 3 6 8l6 5zM4 3h2v10H4z"/></svg></button>
+      <button data-key="ArrowLeft" title="back (←)"><svg viewBox="0 0 16 16"><path d="M11 3 5 8l6 5z"/></svg></button>
+      <button data-key="ArrowRight" title="forward (→)"><svg viewBox="0 0 16 16"><path d="m5 3 6 5-6 5z"/></svg></button>
+      <button data-key="End" title="last (↓)"><svg viewBox="0 0 16 16"><path d="m4 3 6 5-6 5zm6 0h2v10h-2z"/></svg></button>
+      <button data-key="f" title="flip (f)"><svg viewBox="0 0 16 16"><path d="M5 1 1 6h3v9h2V6h3zm6 14 4-5h-3V1h-2v9H7z"/></svg></button>
+    </div>
+  </aside>
+  <section id="io">
+    <label>FEN <input id="fen" spellcheck="false"></label>
+    <label>PGN <textarea id="pgn" spellcheck="false"></textarea></label>
+    <button id="load">import PGN</button>
+  </section>
+</main>
+</body>
+</html>
