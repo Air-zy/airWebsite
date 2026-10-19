@@ -8,20 +8,32 @@
 <style>
 @font-face {
   font-family: "Bricolage Grotesque";
+  src: url(/fonts/bricolage-grotesque-latin-400-normal.woff2) format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
   src: url(/fonts/bricolage-grotesque-latin-700-normal.woff2) format("woff2");
   font-weight: 700;
   font-display: swap;
 }
+/* lichess's dark board, the greys tinted warm. --sunk sits below the panel, --track is an empty gauge or switch.
+   --blue is dark enough for white text on it, --tint is its hover wash. --fire is fight mode and the gauge's middle line */
 :root {
-  --bg: #161512; --panel: #262421; --line: #3a3835; --text: #bababa; --hi: #fff; --mute: #858585;
-  --blue: #3692e7; --green: #629924; --light: #f0d9b5; --dark: #b58863;
+  --bg: #161512; --sunk: #1f1e1c; --panel: #262421; --raise: #312e2a; --hover: #3d3934; --line: #3a3835; --track: #4a4640;
+  --text: #c4beb4; --hi: #fbf8f2; --mute: #9b958b; --faint: #5f5a52; --blue: #2874bd; --tint: #3692e733; --green: #629924;
+  --fire: #d85000; --bad: #f0866a; --light: #f0d9b5; --dark: #b58863;
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
-button, select, input, textarea { font: inherit; color: inherit; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 14px/1.4 "Bricolage Grotesque", system-ui, sans-serif; }
+button, select, input, textarea { font: inherit; color: inherit; caret-color: var(--hi); }
+::selection { background: #3692e766; color: var(--hi); }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 
 header { padding: 12px 16px 0; color: var(--mute); }
 header a { color: var(--hi); font: 700 18px "Bricolage Grotesque", system-ui; text-decoration: none; }
+h1 { display: inline; margin: 0; font: inherit; }
 
 main {
   --b: min(calc(100vh - 110px), calc(100vw - 480px));
@@ -30,132 +42,282 @@ main {
 }
 
 /* eval gauge, white's share from the bottom, lines every 12.5% like lichess */
-#gauge { grid-area: gauge; position: relative; height: var(--b); overflow: hidden; background: #403d39; border-radius: 2px; }
-#gaugeW { position: absolute; inset: auto 0 0; height: 50%; background: #fff; transition: height .8s cubic-bezier(.2, .8, .2, 1); }
+#gauge { grid-area: gauge; position: relative; height: var(--b); overflow: hidden; background: var(--track); border-radius: 2px; }
+#gaugeW { position: absolute; inset: auto 0 0; height: 50%; background: var(--hi); transition: height .8s cubic-bezier(.2, .8, .2, 1); }
 #gauge.flip #gaugeW { inset: 0 0 auto; }
 #gauge::after {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(transparent calc(50% - 1px), #d85000 0 calc(50% + 1px), transparent 0),
-    repeating-linear-gradient(transparent 0 calc(12.5% - 1px), #7f7f7f80 0 12.5%);
+  background: linear-gradient(transparent calc(50% - 1px), var(--fire) 0 calc(50% + 1px), transparent 0),
+    repeating-linear-gradient(transparent 0 calc(12.5% - 1px), #8a847a80 0 12.5%);
 }
-.off #gauge, .off #pv { visibility: hidden; }
+body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visibility: hidden; }
 
-#board {
-  grid-area: board; position: relative; width: var(--b); aspect-ratio: 1; touch-action: none; user-select: none; -webkit-user-select: none;
+/* squares and pieces, shared by the main board and the hover preview */
+.board {
+  position: relative; aspect-ratio: 1; box-shadow: 0 3px 18px #0b090799;
   background: conic-gradient(var(--dark) 0 90deg, var(--light) 0 180deg, var(--dark) 0 270deg, var(--light) 0) 0 0 / 25% 25%;
-  box-shadow: 0 3px 18px #0009;
 }
-#board > * { position: absolute; inset: 0; }
-#squares i, .piece { position: absolute; top: 0; left: 0; width: 12.5%; height: 12.5%; }
-#squares .last { background: #9bc70069; }
-#squares .sel { background: #14551e80; }
-#squares .hover { background: #14551e4d; }
-#squares .dest { background: radial-gradient(#14551e80 19%, transparent 20%); }
-#squares .cap { background: radial-gradient(transparent 79%, #14551e4d 80%); }
-#squares .check { background: radial-gradient(ellipse at center, #f00 0, #e70000 25%, #a9000000 89%); }
+.board > * { position: absolute; inset: 0; }
+#board { grid-area: board; width: var(--b); touch-action: none; user-select: none; -webkit-user-select: none; }
+.squares i, .piece { position: absolute; top: 0; left: 0; width: 12.5%; height: 12.5%; }
+.squares .last { background: #9bc70069; }
+.squares .sel { background: #14551e80; }
+.squares .hover { background: #14551e4d; }
+.squares .dest { background: radial-gradient(#14551e80 19%, transparent 20%); }
+.squares .cap { background: radial-gradient(transparent 79%, #14551e4d 80%); }
+.squares .check { background: radial-gradient(ellipse at center, #f00 0, #e70000 25%, #a9000000 89%); }
 
 .piece {
-  background-size: cover; background-repeat: no-repeat; cursor: grab; will-change: transform;
+  background-size: cover; background-repeat: no-repeat; cursor: grab;
   transition: transform .22s cubic-bezier(.25, .8, .35, 1), opacity .2s;
 }
 .piece.drag { transition: none; z-index: 2; cursor: grabbing; }
 .piece.gone { opacity: 0; pointer-events: none; }
 
-#coords span { position: absolute; font: 600 clamp(9px, calc(var(--b) / 55), 13px)/1 system-ui; color: var(--light); pointer-events: none; }
+#coords span { position: absolute; font: 700 clamp(9px, calc(var(--b) / 55), 13px)/1 "Bricolage Grotesque", system-ui; color: var(--light); pointer-events: none; }
 #coords .lt { color: var(--dark); }
 #coords .rank { right: 3px; margin-top: 3px; }
 #coords .file { bottom: 3px; margin-left: 4px; }
 
 #shapes { z-index: 1; pointer-events: none; }
+[data-mode=edit] #shapes { display: none; }
 
-#promo { z-index: 3; background: #00000080; }
+#promo { z-index: 3; background: #0b090780; }
 #promo .piece {
-  cursor: pointer; background-color: #b0b0b0; background-size: 80%; background-position: center; border-radius: 50%;
+  cursor: pointer; background-color: #b0aba3; background-size: 80%; background-position: center; border-radius: 50%;
   transition: border-radius .15s, background-color .15s;
 }
-#promo .piece:hover { background-color: #d85000; border-radius: 0; }
+#promo .piece:hover { background-color: var(--fire); border-radius: 0; }
 
-/* side panel: engine header, best line, move list, buttons */
-#tools { grid-area: tools; display: flex; flex-direction: column; height: var(--b); background: var(--panel); border-radius: 4px; overflow: hidden; }
+/* side panel: engine header, best line, move list or the editor, buttons */
+#tools { grid-area: tools; position: relative; display: flex; flex-direction: column; height: var(--b); background: var(--panel); border-radius: 4px; overflow: hidden; }
 #ceval { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-#on {
-  appearance: none; flex: none; position: relative; width: 34px; height: 18px; margin: 0; border-radius: 9px; background: #555; cursor: pointer;
+.switch {
+  appearance: none; flex: none; position: relative; width: 34px; height: 18px; margin: 0; border-radius: 9px; background: var(--track); cursor: pointer;
   transition: background .2s;
 }
-#on::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #eee; transition: transform .2s; }
-#on:checked { background: var(--green); }
-#on:checked::after { transform: translateX(16px); }
-#score { min-width: 3.4em; color: var(--hi); font: 700 24px/1 "Bricolage Grotesque", system-ui; }
-#ceval .meta { display: flex; flex-direction: column; min-width: 0; font-size: 12px; color: var(--mute); }
-#engine { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 600; cursor: pointer; }
-#engine option { background: var(--panel); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--hi); transition: transform .2s; }
+.switch:checked { background: var(--green); }
+.switch:checked::after { transform: translateX(16px); }
+.switch:focus-visible { outline-offset: 2px; }
+#score { min-width: 3.4em; color: var(--hi); font: 700 24px/1 "Bricolage Grotesque", system-ui; font-variant-numeric: tabular-nums; }
+#ceval .meta { display: flex; flex-direction: column; min-width: 0; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
+#engine, #level { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 700; cursor: pointer; }
+:is(#engine, #level) :is(option, optgroup) { background: var(--panel); }
 
-#pv { min-height: 2.4em; padding: 7px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-bottom: 1px solid var(--line); font-size: 13px; }
-#pv span { cursor: pointer; border-radius: 3px; }
-#pv span:hover { color: var(--hi); background: #3692e733; }
+/* fight mode: who you are and the hints switch */
+#fightBar { display: none; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; background: #d850001c; border-bottom: 1px solid var(--line); }
+#fightBar > span { margin-right: auto; }
+[data-mode=fight] #fightBar { display: flex; }
+[data-mode=fight]:has(#hints:not(:checked)) #pvRow { display: none; }
+#fightBar b { color: var(--hi); }
+#sideKing { flex: none; width: 24px; height: 24px; background-size: cover; }
+#fightBar label { display: flex; align-items: center; gap: 6px; color: #d3a98c; font-size: 12px; cursor: pointer; }
+
+/* one line with an expand arrow when it doesn't fit. the moves are inline blocks so the open line only wraps between them */
+#pvRow { display: flex; align-items: flex-start; border-bottom: 1px solid var(--line); }
+#pv { flex: 1; min-width: 0; min-height: 2.4em; padding: 7px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+#pv.open { white-space: normal; }
+#pv span { display: inline-block; padding: 1px 3px; cursor: pointer; border-radius: 3px; }
+#pv span:hover { color: var(--hi); background: var(--tint); }
+#pvMore { flex: none; padding: 9px 10px; border: 0; background: none; color: var(--mute); cursor: pointer; }
+#pvMore:hover { color: var(--hi); }
+#pvMore svg { display: block; width: 16px; height: 16px; fill: currentColor; transition: transform .2s; }
+#pvMore[aria-expanded=true] svg { transform: rotate(180deg); }
+
+/* the position after the hovered pv move, drops in under it */
+#preview {
+  position: absolute; z-index: 4; width: min(240px, 70%); pointer-events: none; box-shadow: 0 10px 30px #0b0907dd, 0 0 0 1px #0b0907aa;
+  opacity: 0; transform: translateY(-6px) scale(.97); transform-origin: top; transition: opacity .14s, transform .14s;
+}
+#preview.show { opacity: 1; transform: none; }
 
 #moves { flex: 1; position: relative; display: grid; grid-template-columns: 3em 1fr 1fr; align-content: start; overflow-y: auto; }
-#moves b { padding: 3px 0; background: #2b2926; color: var(--mute); font-weight: 400; text-align: center; }
+#moves b { padding: 3px 0; background: var(--raise); color: var(--mute); font-weight: 400; text-align: center; }
 #moves > .mv, #moves > i { padding: 3px 10px; }
-#moves i { color: #555; font-style: normal; }
+#moves i { color: var(--faint); font-style: normal; }
 .mv { cursor: pointer; color: var(--text); }
-#moves > .mv { font-weight: 600; }
-.mv:hover { background: #3692e733; color: var(--hi); }
-.mv.cur { background: #3692e7aa; color: var(--hi); }
-.vars { grid-column: 1 / -1; padding: 4px 10px; background: #1f1e1c; border-block: 1px solid var(--line); color: var(--mute); font-size: 13px; }
+#moves > .mv { font-weight: 700; }
+.mv:hover { background: var(--tint); color: var(--hi); }
+.mv.cur { background: var(--blue); color: var(--hi); }
+.mv em { margin-left: 2px; font-style: normal; font-weight: 700; }
+.mv.cur em { color: var(--hi); }
+body:not(:has(#reviewBtn[aria-pressed=true])) .mv em { display: none; }
+#moves:empty::before { content: "play a move on the board, or import a PGN below"; padding: 12px; color: var(--mute); font-size: 13px; grid-column: 1 / -1; }
+.vars { grid-column: 1 / -1; padding: 4px 10px; background: var(--sunk); border-block: 1px solid var(--line); color: var(--mute); font-size: 13px; }
 .vars .mv { padding: 0 2px; border-radius: 3px; }
+#moves, #editor { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+
+/* review: grade colours like lichess, brilliant like chess.com. the graph is drawn in plies by win chance and stretched,
+   so its strokes don't scale */
+.brilliant { color: #2ec4b6; } .inaccuracy { color: #56b4e9; } .mistake { color: #e69f00; } .blunder { color: #e86464; }
+#review { display: none; border-bottom: 1px solid var(--line); }
+body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display: block; }
+#graph { display: block; width: 100%; height: 64px; background: var(--sunk); cursor: pointer; }
+#graph:empty { display: none; }
+#graph * { vector-effect: non-scaling-stroke; }
+#graph .area { fill: #d9d3c8; }
+#graph .curve { fill: none; stroke: var(--hi); stroke-width: 1; }
+#graph line { stroke: currentColor; stroke-width: 3; }
+#graph .mid { stroke: var(--fire); stroke-width: 1; opacity: .6; }
+#graph .here { stroke: var(--hi); stroke-width: 1.5; opacity: .9; }
+#stats { display: grid; grid-template-columns: auto auto repeat(4, 1fr); align-items: center; gap: 4px 12px; padding: 8px 12px; font-size: 12px; font-variant-numeric: tabular-nums; }
+#stats b { color: var(--hi); }
+#stats b + span { color: var(--hi); font-weight: 700; }
+#stats .none { color: var(--mute); }
+#stats p { grid-column: 1 / -1; margin: 2px 0 0; color: var(--mute); }
+
+/* edit mode swaps the engine, line and moves for the palette and the position's settings */
+#editor { display: none; flex: 1; flex-direction: column; gap: 12px; padding: 12px; overflow-y: auto; }
+[data-mode=edit] #editor { display: flex; }
+[data-mode=edit] :is(#ceval, #pvRow, #moves) { display: none; }
+#palette { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+#palette button {
+  aspect-ratio: 1; padding: 0; border: 0; border-radius: 4px; background: var(--raise) center / 84% no-repeat; color: var(--text); cursor: pointer;
+  transition: background-color .12s;
+}
+#palette button:hover { background-color: var(--hover); }
+#palette [aria-pressed=true] { background-color: var(--blue); color: var(--hi); }
+#palette svg { display: block; width: 44%; height: 44%; margin: auto; fill: currentColor; }
+.field { display: grid; grid-template-columns: 6.5em 1fr; align-items: center; gap: 10px; }
+.field > span { color: var(--mute); font-size: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { position: relative; padding: 6px 11px; border: 0; border-radius: 3px; background: var(--raise); font-size: 13px; cursor: pointer; transition: background-color .12s; }
+.chip:hover { background-color: var(--hover); }
+.hint { margin: -4px 0 0; color: var(--mute); font-size: 12px; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip:has(:checked) { background: var(--blue); color: var(--hi); }
+.chip:has(:disabled) { background: var(--raise); color: var(--faint); cursor: default; text-decoration: line-through; }
+.chip:has(:focus-visible) { outline: 2px solid var(--blue); outline-offset: 1px; }
+#editFoot { display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; }
+#editErr { flex: 1; margin: 0; color: var(--bad); font-size: 12px; }
+#done { background: var(--blue); color: var(--hi); font-weight: 700; }
+#done:disabled { background: var(--raise); color: var(--faint); cursor: default; }
 
 #ctrl { display: flex; border-top: 1px solid var(--line); }
-#ctrl button { flex: 1; padding: 9px 0; border: 0; background: none; cursor: pointer; }
-#ctrl button:hover { background: var(--blue); color: var(--hi); }
+#ctrl button { flex: 1; padding: 9px 0; border: 0; background: none; cursor: pointer; transition: background-color .12s; }
+#ctrl button:hover:not(:disabled) { background: var(--blue); color: var(--hi); }
+#ctrl button:disabled { color: var(--faint); cursor: default; }
+#ctrl [aria-pressed=true] { background: var(--blue); color: var(--hi); }
+#ctrl #fightBtn[aria-pressed=true] { background: var(--fire); }
 #ctrl svg { display: block; width: 16px; height: 16px; margin: auto; fill: currentColor; }
 
 #io { grid-area: io; display: grid; gap: 8px; font-size: 12px; }
 #io label { display: grid; grid-template-columns: 3em 1fr; align-items: start; gap: 8px; color: var(--mute); }
 #io input, #io textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); font: 12px ui-monospace, monospace; }
 #io textarea { height: 7em; resize: vertical; }
-#io .bad { border-color: #c33; }
+#io .bad { border-color: var(--bad); }
 #load { justify-self: end; padding: 6px 14px; border: 0; border-radius: 3px; background: var(--blue); color: var(--hi); cursor: pointer; }
+[data-mode=edit] .pgn { display: none; }
 
 @media (max-width: 860px) {
   main { --b: calc(100vw - 50px); grid-template-columns: 8px var(--b); grid-template-areas: "gauge board" "tools tools" "io io"; }
   #tools { height: auto; }
   #moves { min-height: 8em; max-height: 40vh; }
+  #ctrl button, #pvMore { padding-block: 14px; }
+  .chip { padding-block: 12px; }
+}
+/* the last move highlight still shows what moved */
+@media (prefers-reduced-motion: reduce) {
+  .piece, #gaugeW, #preview, #pvMore svg { transition: none; }
 }
 </style>
 <script type="module" src="/chess/analysis.js"></script>
 </head>
 <body>
-<header><a href="/">airzy</a> / analysis</header>
+<header><a href="/">airzy</a> / <h1>analysis</h1></header>
 <main>
   <div id="gauge"><div id="gaugeW"></div></div>
-  <div id="board">
+  <div id="board" class="board">
     <div id="coords"></div>
-    <div id="squares"></div>
+    <div id="squares" class="squares"></div>
     <div id="pieces"></div>
     <svg id="shapes" viewBox="0 0 8 8"></svg>
     <div id="promo" hidden></div>
   </div>
   <aside id="tools">
     <div id="ceval">
-      <input type="checkbox" id="on" checked autocomplete="off" title="engine (l)" aria-label="engine on">
+      <input type="checkbox" id="on" class="switch" checked autocomplete="off" title="engine (l)" aria-label="engine on">
       <b id="score"></b>
-      <div class="meta"><select id="engine" aria-label="engine"></select><span id="info"></span></div>
+      <div class="meta"><select id="engine" aria-label="engine"><option>v31</option><option>mixall512</option></select><span id="info"></span></div>
     </div>
-    <div id="pv"></div>
+    <div id="fightBar">
+      <i id="sideKing"></i><span>you play <b id="side">white</b></span>
+      <label title="how hard the engine searches each move">strength <select id="level">
+        <optgroup label="search depth">
+          <option value="depth 1">depth 1</option>
+          <option value="depth 2">depth 2</option>
+          <option value="depth 4">depth 4</option>
+          <option value="depth 6">depth 6</option>
+          <option value="depth 9">depth 9</option>
+        </optgroup>
+        <optgroup label="time per move">
+          <option value="movetime 300">0.3s</option>
+          <option value="movetime 1000" selected>1s</option>
+          <option value="movetime 3000">3s</option>
+          <option value="movetime 10000">10s</option>
+        </optgroup>
+      </select></label>
+      <label title="the engine's eval and best line on your move too">hints <input type="checkbox" id="hints" class="switch" autocomplete="off"></label>
+    </div>
+    <div id="pvRow">
+      <div id="pv"></div>
+      <button id="pvMore" title="whole line" aria-label="whole line" aria-expanded="false" hidden><svg viewBox="0 0 16 16"><path d="m3 6 5 5 5-5z"/></svg></button>
+    </div>
+    <div id="preview" class="board" aria-hidden="true"><div id="pvSquares" class="squares"></div><div id="pvPieces"></div></div>
+    <div id="review">
+      <svg id="graph" preserveAspectRatio="none" role="img" aria-label="eval graph of the game, click to go to a move"></svg>
+      <div id="stats" aria-live="polite"></div>
+    </div>
     <div id="moves"></div>
+    <form id="editor" aria-label="edit position">
+      <div id="palette" role="toolbar" aria-label="tools">
+        <button type="button" id="hand" data-tool="" aria-pressed="true" title="move pieces, drop one off the board to remove it">
+          <svg viewBox="0 0 16 16"><path d="M8 0 5 3h2v4H3V5L0 8l3 3V9h4v4H5l3 3 3-3H9V9h4v2l3-3-3-3v2H9V3h2z"/></svg></button>
+        <button type="button" id="eraser" data-tool="x" aria-pressed="false" title="erase, right click erases too">
+          <svg viewBox="0 0 16 16"><path d="M9.3 1.4 14.6 6.7 8.3 13H4.7L1.4 9.7zM9 14.5h6V16H9z"/></svg></button>
+      </div>
+      <p class="hint">pick a piece, then click or drag across squares. right click erases</p>
+      <div class="field"><span>to move</span><div class="chips">
+        <label class="chip"><input type="radio" name="turn" value="w">white</label>
+        <label class="chip"><input type="radio" name="turn" value="b">black</label>
+      </div></div>
+      <div class="field"><span>white castles</span><div class="chips">
+        <label class="chip"><input type="checkbox" name="castle" value="K">O-O</label>
+        <label class="chip"><input type="checkbox" name="castle" value="Q">O-O-O</label>
+      </div></div>
+      <div class="field"><span>black castles</span><div class="chips">
+        <label class="chip"><input type="checkbox" name="castle" value="k">O-O</label>
+        <label class="chip"><input type="checkbox" name="castle" value="q">O-O-O</label>
+      </div></div>
+      <div class="field"><span>board</span><div class="chips">
+        <button type="button" class="chip" id="editStart">starting position</button>
+        <button type="button" class="chip" id="editClear">empty</button>
+      </div></div>
+      <div id="editFoot">
+        <p id="editErr" role="status"></p>
+        <button type="button" class="chip" id="cancel" title="drop the changes (esc)">cancel</button>
+        <button type="button" class="chip" id="done">analyse</button>
+      </div>
+    </form>
     <div id="ctrl">
-      <button data-key="Home" title="first (↑)"><svg viewBox="0 0 16 16"><path d="M12 3 6 8l6 5zM4 3h2v10H4z"/></svg></button>
-      <button data-key="ArrowLeft" title="back (←)"><svg viewBox="0 0 16 16"><path d="M11 3 5 8l6 5z"/></svg></button>
-      <button data-key="ArrowRight" title="forward (→)"><svg viewBox="0 0 16 16"><path d="m5 3 6 5-6 5z"/></svg></button>
-      <button data-key="End" title="last (↓)"><svg viewBox="0 0 16 16"><path d="m4 3 6 5-6 5zm6 0h2v10h-2z"/></svg></button>
+      <button class="nav" data-key="Home" title="first (↑)"><svg viewBox="0 0 16 16"><path d="M12 3 6 8l6 5zM4 3h2v10H4z"/></svg></button>
+      <button class="nav" data-key="ArrowLeft" title="back (←)"><svg viewBox="0 0 16 16"><path d="M11 3 5 8l6 5z"/></svg></button>
+      <button class="nav" data-key="ArrowRight" title="forward (→)"><svg viewBox="0 0 16 16"><path d="m5 3 6 5-6 5z"/></svg></button>
+      <button class="nav" data-key="End" title="last (↓)"><svg viewBox="0 0 16 16"><path d="m4 3 6 5-6 5zm6 0h2v10h-2z"/></svg></button>
       <button data-key="f" title="flip (f)"><svg viewBox="0 0 16 16"><path d="M5 1 1 6h3v9h2V6h3zm6 14 4-5h-3V1h-2v9H7z"/></svg></button>
+      <button id="fightBtn" data-key="p" title="fight the engine, you play the bottom side (p)" aria-pressed="false"><svg viewBox="0 0 16 16"><path
+        d="M1 1h2.5l7.75 7.75-2.5 2.5L1 3.5zm6.4 11.6 5.2-5.2 1.1 1.1-5.2 5.2zm4.3-2.1 3.2 3.2-1.2 1.2-3.2-3.2zM15 1v2.5l-7.75 7.75-2.5-2.5L12.5 1zM8.6 12.6 3.4 7.4 2.3 8.5l5.2 5.2zm-4.3-2.1-3.2 3.2 1.2 1.2 3.2-3.2z"/></svg></button>
+      <button id="reviewBtn" data-key="r" title="review the game, grade every move (r)" aria-pressed="false"><svg viewBox="0 0 16 16"><path
+        d="M1 14h14v1.5H1zm1-5h2.6v4H2zm4.2-4h2.6v8H6.2zm4.2 2h2.6v6h-2.6zM12.5.5 15 3l-2.5 2.5V3.8H10V2.2h2.5z"/></svg></button>
+      <button id="editBtn" data-key="e" title="edit the position (e)" aria-pressed="false"><svg viewBox="0 0 16 16"><path
+        d="M11.6 1.2a1 1 0 0 1 1.4 0l1.8 1.8a1 1 0 0 1 0 1.4L5 14.2 1 15l.8-4z"/></svg></button>
     </div>
   </aside>
   <section id="io">
     <label>FEN <input id="fen" spellcheck="false"></label>
-    <label>PGN <textarea id="pgn" spellcheck="false"></textarea></label>
-    <button id="load">import PGN</button>
+    <label class="pgn">PGN <textarea id="pgn" spellcheck="false"></textarea></label>
+    <button id="load" class="pgn">import PGN</button>
   </section>
 </main>
 </body>
