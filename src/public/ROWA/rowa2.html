@@ -6,8 +6,9 @@
 <title>ROWA 2 Leaderboard</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Archivo Black for the wordmarks, podium and elo. anton is heavy but condensed, so at
-     3% opacity the narrow letters read thin. this one is heavy AND wide, far more ink. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+     3% opacity the narrow letters read thin. this one is heavy AND wide, far more ink.
+     plain Archivo for the rest, same family so the body is a chosen face and not whatever the device has -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..700&family=Archivo+Black&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -22,6 +23,13 @@
     --silver: #cfd3da;
     --bronze: #c98a5a;
     --display: 'Archivo Black', Impact, 'Arial Black', sans-serif;
+    /* chart marks. series 1 to 3 passed the colourblind and contrast checks together on --bg,
+       every pair, so they hold up even in a scatter. context is the de-emphasis grey behind
+       a highlighted mark. text never wears these */
+    --series-1: #b8862e;
+    --series-2: #3987e5;
+    --series-3: #d55181;
+    --context: #6e6555;
   }
   html {
     background: var(--bg);
@@ -30,12 +38,14 @@
     height: 100%;
     margin: 0;
     color: var(--text);
-    font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-family: Archivo, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    /* digits line up in every table and stat column */
+    font-variant-numeric: tabular-nums;
   }
-  /* transparent so the fixed texture layer underneath is visible */
-  body { background: transparent; }
   /* a display rule on an img otherwise beats the hidden attribute and draws an empty box while it loads */
   [hidden] { display: none !important; }
+  ::selection { background: rgba(232, 199, 113, 0.3); color: #fff; }
+  :focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
   /* thin scrollbars everywhere. scrollbar-width isnt inherited, so it goes on every element.
      the webkit rules only matter where scrollbar-width isnt supported yet */
@@ -98,25 +108,21 @@
     padding: 20px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    gap: 28px 40px;
   }
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  }
+  /* the tools sit on the texture like the hero and the chapters, a hairline above each instead of a box */
+  .card { padding-top: 18px; border-top: 1px solid var(--border); }
   .col-span-2 { grid-column: span 2; }
   .col-span-3 { grid-column: span 3; }
   
-  h1 { margin: 0 0 4px 0; font-size: 18px; font-weight: 600; color: var(--text); }
+  h2 { margin: 0 0 4px 0; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 15px; flex-wrap: wrap; }
   .btn { background: transparent; border: 1px solid var(--border); padding: 6px 12px; color: var(--accent); cursor: pointer; font-size: 13px; transition: 0.2s; }
   .btn:hover { background: rgba(191, 161, 115, 0.1); border-color: var(--accent); }
   .small { font-size: 12px; color: var(--muted); }
   
-  .chartWrap { height: 400px; width: 100%; display: block; }
-  .chartWrap.small { height: 280px; }
+  .chartWrap { height: 400px; }
+  .chartWrap.tall { height: 440px; }
   canvas { width: 100% !important; height: 100% !important; display: block; }
   
   .axis-controls { display: flex; gap: 20px; margin-top: 16px; }
@@ -127,7 +133,7 @@
     gap: 2px;
     max-height: 140px;
     overflow-y: auto;
-    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.18);
     padding: 8px;
     margin-top: 4px;
   }
@@ -141,18 +147,23 @@
     user-select: none;
   }
   .metric-item:hover { background: rgba(191, 161, 115, 0.1); color: var(--text); }
-  .metric-item.active { background: rgba(191, 161, 115, 0.2); color: var(--accent); border-left: 2px solid var(--accent); }
+  .metric-item.active { background: rgba(191, 161, 115, 0.2); color: var(--accent); }
 
   /* height 0 + flex so the table never sets the row height, it fills whatever the
      scatter card next to it is and scrolls the rest */
   .board { display: flex; flex-direction: column; }
-  #lbWrap { flex: 1 1 0; height: 0; min-height: 360px; overflow: auto; border: 1px solid var(--border); }
+  #lbWrap { flex: 1 1 0; height: 0; min-height: 360px; overflow: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  td.pname { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); z-index: 1; }
-  tr { cursor: pointer; transition: 0.1s; }
-  tr:hover td { background: rgba(191, 161, 115, 0.05); }
+  td.pname { max-width: 150px; }
+  /* a real button so rows can be reached by keyboard, the click still bubbles to the row */
+  .row-btn {
+    display: block; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit;
+    text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis;
+  }
+  th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  #lbWrap tr { cursor: pointer; transition: 0.1s; }
+  #lbWrap tr:hover td { background: rgba(191, 161, 115, 0.05); }
   tr.highlight td { animation: highlightFade 3s ease-out; }
   @keyframes highlightFade {
     0% { background: rgba(191, 161, 115, 0.4); }
@@ -160,15 +171,26 @@
   }
   .muted { color: var(--muted); }
   
-  .modal { position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(0,0,0,0.8); display: none; }
+  /* a native dialog, showModal brings the focus trap, escape and focus going back to the opener */
+  .modal {
+    position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+    margin: 0; padding: 0; border: 0; overflow: auto; background: rgba(0,0,0,0.8); color: inherit;
+  }
+  .modal::backdrop { background: transparent; }
   .modal-content { --metal: var(--accent); position: relative; background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 1120px; max-height: 80vh; overflow: auto; border: 1px solid var(--border); }
-  .close { position: absolute; top: 12px; right: 18px; z-index: 2; color: var(--muted); font-size: 28px; font-weight: bold; cursor: pointer; }
+  .modal-content:focus-visible { outline: none; }
+  .close {
+    position: absolute; top: 10px; right: 10px; z-index: 2; display: grid; place-items: center;
+    width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer;
+  }
+  .close svg { width: 24px; height: 24px; }
   .close:hover { color: var(--text); }
   pre { white-space: pre-wrap; word-wrap: break-word; color: var(--text); font-size: 12px; }
 
   /* Elo Slider & Combat Stats Styling */
   .slider-container { margin-bottom: 20px; }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=range] { width: 100%; }
+  input[type=checkbox], input[type=range] { accent-color: var(--accent); }
   .combat-flex { display: flex; gap: 15px; align-items: flex-start; }
   .combat-main { flex: 1; }
   .combat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -206,31 +228,31 @@
 
   .finder { position: relative; width: min(440px, 100%); }
 
-  /* animated rainbow glow. @property makes the angle a real animatable type, the
-     blurred ::before is the glow and the crisp ::after is the border sitting on top.
-     no @property support just means it sits still, the gradient still renders. */
-  @property --glow-angle {
+  /* a metal rim in the podium's gold, bronze and silver, with a glint that runs round it
+     while you hover or type. @property makes the angle animatable, without it the rim
+     just sits still */
+  @property --rim-angle {
     syntax: '<angle>';
     initial-value: 0deg;
     inherits: false;
   }
-  @keyframes glow-spin { to { --glow-angle: 360deg; } }
+  @keyframes rim-spin { to { --rim-angle: 360deg; } }
 
-  .finder-glow { position: relative; padding: 2px; isolation: isolate; }
-  .finder-glow::before,
-  .finder-glow::after {
+  .finder-rim { position: relative; padding: 2px; isolation: isolate; }
+  .finder-rim::after {
     content: '';
     position: absolute; inset: 0; z-index: -1;
-    background: conic-gradient(from var(--glow-angle),
-      #ff5f6d, #ffc371, #47e6b1, #4aa3f0, #a86ee0, #ff5f6d);
-    animation: glow-spin 6s linear infinite;
+    background: conic-gradient(from var(--rim-angle),
+      var(--accent2), var(--gold) 6%, #fff7df 9%, var(--gold) 12%, var(--accent2) 22%,
+      var(--bronze) 45%, var(--accent2) 60%, var(--silver) 78%, var(--accent2));
+    animation: rim-spin 3s linear infinite paused;
   }
-  .finder-glow::before { filter: blur(11px); opacity: 0.55; }
+  .finder-rim:hover::after, .finder-rim:focus-within::after { animation-play-state: running; }
 
   .finder-input {
     position: relative;
     width: 100%; box-sizing: border-box; padding: 14px 16px; font-family: inherit; font-size: 16px;
-    background: var(--panel); color: var(--text); border: none; outline: none;
+    background: var(--panel); color: var(--text); border: none; outline: none; caret-color: var(--gold);
   }
   .finder-input::placeholder { color: var(--muted); }
 
@@ -259,11 +281,11 @@
     --lgap: calc(1.5 * var(--pod-w) + var(--pod-gap) - 40px);
   }
   .podium .podium-laurel::before, .podium .podium-laurel::after { content: ''; animation-delay: 0.5s; }
-  /* spotlight on first place */
+  /* stage light on first place, white so it reads as light and not a coloured glow */
   .podium::before {
     content: ''; position: absolute; left: 50%; top: -30px; width: min(620px, 100%); height: 100%;
     transform: translateX(-50%); pointer-events: none;
-    background: radial-gradient(ellipse 50% 60% at 50% 35%, rgba(232, 199, 113, 0.13), transparent 70%);
+    background: radial-gradient(ellipse 50% 60% at 50% 35%, rgba(255, 255, 255, 0.06), transparent 70%);
   }
   /* podium spots and the profile of whoever holds one. the laurel art is gold, the other two are tinted off it */
   .pod-1, .rank-1 { --metal: var(--gold); }
@@ -281,7 +303,7 @@
   }
   /* above the block so the feet can stand on it */
   .pod-top { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
-  .pod-crown { width: 34px; height: 22px; color: var(--gold); margin-bottom: 2px; filter: drop-shadow(0 0 8px rgba(232, 199, 113, 0.45)); }
+  .pod .crown { width: 34px; height: 22px; color: var(--gold); margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
   /* overhead name tag, the way roblox draws names in game. it sits above the neighbours'
      tags so it can spill past a narrow pod instead of truncating */
   .pod-name {
@@ -291,7 +313,6 @@
   }
   .pod .fig { width: 100%; height: var(--fig); margin-top: 4px; }
   .pod .fig img { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)); }
-  .pod-1 .fig img { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 18px rgba(232, 199, 113, 0.22)); }
 
   .pod-block {
     position: relative; width: 100%; height: var(--h); box-sizing: border-box; padding-top: 10px;
@@ -345,7 +366,7 @@
   @keyframes pod-drop { from { opacity: 0; transform: translateY(-16px); } }
 
   @media (prefers-reduced-motion: reduce) {
-    .finder-glow::before, .finder-glow::after { animation: none; }
+    .finder-rim::after { animation: none; }
     .bg-row { animation: none; }
     .podium.rise .pod-block, .podium.rise .pod-top, .fig img, .laurel::before, .laurel::after { animation: none; }
     .cbar span { transition: none; }
@@ -353,18 +374,18 @@
 
   /* ---- profile, their figure on the left and the stats beside it ---- */
   .pf { display: grid; grid-template-columns: minmax(240px, 360px) minmax(0, 1fr); gap: 12px 30px; }
-  /* a little stage that stays put while the stats scroll, spotlit in their metal. the
+  /* a little stage that stays put while the stats scroll, lit like a photo backdrop. the
      render brings its own floor shadow */
   .pf-side {
     position: sticky; top: 0; align-self: start; padding: 40px 0 14px;
-    background: radial-gradient(ellipse 60% 45% at 50% 42%, color-mix(in srgb, var(--metal) 16%, transparent), transparent 75%);
+    background: radial-gradient(ellipse 60% 45% at 50% 42%, rgba(255, 255, 255, 0.06), transparent 75%);
   }
   .pf-fig { position: relative; width: 100%; aspect-ratio: 1.15; --lgap: 6%; }
   /* a top three wreath round the figure, once it has shown up */
   .pf-fig.laurel:has(> img:not([hidden]))::before,
   .pf-fig.laurel:has(> img:not([hidden]))::after { content: ''; }
   .modal-head { padding-right: 40px; margin-bottom: 16px; }
-  .modal-head h1 { margin: 0; font-size: 26px; }
+  .modal-head h2 { margin: 0; font-size: 26px; }
   .pf-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
   .pf-sub b { color: var(--metal); }
   .pf-sub span { white-space: nowrap; }
@@ -381,17 +402,17 @@
   .feint-head b { color: var(--text); font-weight: 600; }
   .fs-bar { display: flex; height: 8px; width: 100%; overflow: hidden; background: rgba(255,255,255,0.05); }
   .fs-bar span { display: block; height: 100%; }
-  .fs-key { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .fs-key { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
 
   .similar { margin-top: 14px; }
   .similar-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
   .sim-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .sim {
     display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; padding: 6px 6px 10px;
-    background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border);
+    background: none; border: 1px solid transparent;
     color: var(--text); font: inherit; font-size: 12px; cursor: pointer;
   }
-  .sim:hover, .sim:focus-visible { border-color: var(--accent); outline: none; }
+  .sim:hover, .sim:focus-visible { border-color: var(--border); background: rgba(191, 161, 115, 0.06); outline: none; }
   .sim .fig { width: 100%; height: 96px; margin: 6px 0; }
   .sim-name { max-width: 100%; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sim-delta { color: var(--accent); font-size: 11px; }
@@ -401,7 +422,140 @@
   .small-p { text-align: center; color: var(--muted); font-size: 12px; margin: 4px 0; }
   .small-p a { color: var(--accent); }
 
+  /* highlights */
+  .hl-group { margin-bottom: 18px; }
+  .hl-group h3 { font-size: 15px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; }
+  .hl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .hl-row .rank { color: var(--muted); white-space: nowrap; }
+  .hl-row.sole { color: #f0d089; font-weight: 600; }
+  .hl-row.sole .muted { color: #d8b877; }
+  .hl-row.sole .rank { color: #d8b877; font-weight: 400; }
+  .hl-row .crown { width: 15px; height: 10px; margin-right: 3px; vertical-align: -1px; color: var(--gold); }
+  .hl-empty { font-size: 12px; color: var(--muted); }
+
+  /* combat share bars, plain flex so widths tween between players */
+  .cbar-title { font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
+  .cbar { display: flex; height: 26px; background: rgba(255,255,255,0.05); overflow: hidden; }
+  .cbar span {
+    display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
+    font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.9); transition: width 0.4s ease;
+  }
+  .ckey { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .ckey i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -1px; }
+
+  /* region rows, bar is hours relative to their main region */
+  .reg-row { display: grid; grid-template-columns: 96px 1fr 46px 52px; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .reg-bar { height: 6px; background: rgba(255,255,255,0.05); }
+  .reg-bar span { display: block; height: 100%; background: var(--accent); }
+  .reg-row .muted, .reg-ping { text-align: right; }
+  .ping-good { color: #7fc98f; }
+  .ping-ok { color: #d8b877; }
+  .ping-bad { color: #e07a6a; }
+
+  .json-toggle { display: block; margin: 18px 0 0 auto; font-size: 11px; padding: 4px 8px; }
+
+  /* who plays, plain bars reusing the region track */
+  .share-h { font-size: 13px; font-weight: 600; color: var(--accent); margin: 18px 0 6px; }
+  .share-row { display: grid; grid-template-columns: 112px 1fr 34px; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; }
+  .share-row .muted { text-align: right; }
+
+  /* ---- chapters, the stories under the tools ---- */
+  /* hidden until the data has rendered, a failed load leaves the leaderboard message and no bare headings */
+  .wrap:not(.ready) .chapter { display: none; }
+  .chapter { grid-column: 1 / -1; margin-top: 36px; padding: 40px 4px 0; border-top: 1px solid var(--border); }
+  .chapter > h2 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 4.4vw, 52px); line-height: 1; letter-spacing: 0.01em; margin: 0; }
+  .finding { max-width: 62ch; margin: 14px 0 28px; font-size: 16px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
+  .finding b { color: var(--text); font-weight: 600; }
+  .chapter-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px 32px; align-items: start; }
+  .chart-note { margin-top: 8px; }
+  /* notes and subtitles stop where a line is still easy to follow */
+  .chart-note, .topbar .small { max-width: 80ch; }
+
+  /* elo beeswarm, a dot per player. plain html so the profile reuses it with their dot lit */
+  .swarm { position: relative; margin: 34px 0 36px; border-bottom: 1px solid var(--border); }
+  .swarm.mini { margin: 4px 0 30px; }
+  .sw-dot {
+    position: absolute; transform: translate(-50%, -50%); padding: 0; font: inherit; cursor: pointer;
+    border-radius: 50%; border: 1.5px solid var(--bg); background: var(--series-1);
+  }
+  .sw-dot.r1 { background: var(--gold); }
+  .sw-dot.r2 { background: var(--silver); }
+  .sw-dot.r3 { background: var(--bronze); }
+  .mini .sw-dot { background: var(--context); }
+  .mini .sw-dot.me { background: var(--gold); z-index: 1; }
+  .sw-dot:hover { z-index: 2; border-color: var(--text); }
+  /* packed dots get small on a phone, the tap area stays 5px wider all round */
+  .sw-dot::before { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
+  .sw-dot:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+  /* dots near an edge anchor their tip inward so it never pokes off the page */
+  .sw-dot.tip-l:hover::after { left: 0; transform: none; }
+  .sw-dot.tip-r:hover::after { left: auto; right: 0; transform: none; }
+  .sw-dot:hover::after, .net-tip {
+    z-index: 3; padding: 6px 9px; white-space: nowrap; font-size: 12px; color: var(--text);
+    background: var(--panel); border: 1px solid var(--border); pointer-events: none;
+  }
+  .sw-tick { position: absolute; top: calc(100% + 6px); transform: translateX(-50%); font-size: 11px; color: var(--muted); }
+  .sw-mark { position: absolute; top: -6px; bottom: 0; border-left: 1px solid var(--muted); pointer-events: none; }
+  .sw-mark span { position: absolute; top: -20px; left: 6px; font-size: 12px; white-space: nowrap; }
+
+  .meta-pick h3 { font-size: 20px; margin: 0 0 4px; }
+  .meta-pick p { margin: 6px 0 8px; font-size: 14px; line-height: 1.45; }
+
+  /* two state switch above the chart it scopes */
+  .seg { display: inline-flex; margin: -8px 0 20px; border: 1px solid var(--border); }
+  .seg button { padding: 11px 18px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: rgba(191, 161, 115, 0.2); color: var(--text); }
+
+  .net { position: relative; height: 540px; }
+  .net canvas { touch-action: pan-y; }
+  .net-tip { position: absolute; }
+  .net-tip b { display: block; font-size: 13px; }
+
+  /* playstyles, the four groups side by side */
+  .style-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin-top: 18px; }
+  .style h3 { font-family: var(--display); font-weight: 400; font-size: 28px; letter-spacing: 0.01em; margin: 0 0 6px; }
+  .style .cbar { height: 18px; margin-top: 4px; }
+  .meta-pick .sim-grid, .style .sim-grid { grid-template-columns: repeat(2, 1fr); margin: 14px 0 6px; }
+  #styleLine { margin-bottom: 4px; }
+
+  /* versus, the two avatars face each other across the stat rows */
+  .vs-pick { display: flex; align-items: center; gap: 12px; margin: -8px 0 22px; }
+  .vs-input {
+    flex: 0 1 260px; min-width: 0; padding: 11px 14px; font: inherit; font-size: 15px; color: var(--text);
+    background: var(--panel); border: 1px solid var(--border); caret-color: var(--gold);
+  }
+  .vs { display: grid; grid-template-columns: 200px minmax(0, 1fr) 200px; grid-template-areas: "a rows b"; gap: 12px 28px; align-items: center; }
+  .vs-side { display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; }
+  .vs-side.a { grid-area: a; }
+  .vs-side.b { grid-area: b; }
+  .vs-side .fig { width: 100%; height: 240px; }
+  .vs-side.b .fig img { transform: scaleX(-1); }
+  .vs-side .sim-name { font-size: 16px; margin-top: 8px; }
+  .vs-rows { grid-area: rows; }
+  .vs-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) 150px minmax(0, 1fr) 70px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--muted); }
+  .vs-row > :first-child { text-align: right; }
+  .vs-row .win { color: var(--text); font-weight: 700; }
+  .vs-label { text-align: center; font-size: 13px; }
+  .vs-bar { display: flex; height: 8px; }
+  .vs-bar.a { justify-content: flex-end; }
+  .vs-bar span { height: 100%; }
+  .vs-btn { margin-top: 10px; }
+  /* the headline, one bar split by the odds with a 2px gap */
+  .vs-odds { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; }
+  .vs-pct { font-family: var(--display); font-size: clamp(28px, 4vw, 44px); line-height: 1; }
+  .vs-split { display: flex; gap: 2px; height: 14px; }
+  .vs-bar.a span, .vs-split .a { background: var(--series-1); border-radius: 4px 0 0 4px; }
+  .vs-bar.b span, .vs-split .b { background: var(--series-2); border-radius: 0 4px 4px 0; }
+  .vs-odds-note { text-align: center; margin: 6px 0 14px; }
+
+  /* every chart has its numbers in a table too, folded away */
+  .tv { margin-top: 14px; font-size: 13px; }
+  .tv summary { cursor: pointer; color: var(--accent); width: max-content; }
+  .tv table { margin-top: 8px; max-width: 640px; }
+
   /* ---- responsive ---- */
+  /* last in the sheet so these win over the base rules above */
 
   /* tablet, three columns is too tight before it is too narrow */
   @media (max-width: 1150px) {
@@ -409,22 +563,22 @@
     .col-span-2, .col-span-3, .board { grid-column: span 2; }
     /* nothing beside it to borrow a height from anymore */
     #lbWrap { flex: none; height: 520px; }
+    .style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 
   /* phone */
   @media (max-width: 780px) {
     .wrap {
       grid-template-columns: 1fr;
-      gap: 14px; margin: 10px auto; padding: 12px;
+      gap: 14px; margin: 10px auto; padding: 16px;
     }
     .col-span-2, .col-span-3, .board { grid-column: span 1; }
-    .card { padding: 13px; }
     .hero { padding-top: 10px; }
     .finder { width: 100%; }
-    h1 { font-size: 16px; }
+    h2 { font-size: 19px; }
 
     .chartWrap { height: 300px; }
-    .chartWrap.small { height: 240px; }
+    .chartWrap.tall { height: 360px; }
 
     /* axis pickers side by side leaves about 130px each, useless */
     .axis-controls { flex-direction: column; gap: 14px; }
@@ -453,10 +607,9 @@
       min-height: 100vh; max-height: none;
       padding: 18px; border: none;
     }
-    .close { font-size: 34px; line-height: 1; padding: 0 4px; }
     .pf { grid-template-columns: minmax(0, 1fr); }
     .pf-side { position: static; padding-top: 10px; }
-    .modal-head h1 { font-size: 21px; }
+    .modal-head h2 { font-size: 21px; }
     .pf-stats { gap: 12px 22px; }
     .pf-stat.elo b { font-size: 26px; }
 
@@ -470,47 +623,20 @@
     .sim-grid { grid-template-columns: repeat(2, 1fr); }
     .json-toggle { width: 100%; padding: 10px; }
     pre { font-size: 11px; }
-  }
 
-  /* wordmark size is set by the builder script, it needs the number to size bands too */
+    .chapter { margin-top: 16px; padding-top: 28px; }
+    .chapter-body { grid-template-columns: minmax(0, 1fr); }
+    .net { height: 420px; }
+    .style-grid { grid-template-columns: minmax(0, 1fr); }
+    .vs { grid-template-columns: 1fr 1fr; grid-template-areas: "a b" "rows rows"; }
+    .vs-side .fig { height: 170px; }
+    .vs-row { grid-template-columns: 52px minmax(0, 1fr) 96px minmax(0, 1fr) 52px; gap: 6px; font-size: 13px; }
+    .vs-label { font-size: 12px; }
+  }
 
   @media (max-width: 420px) {
     .chartWrap { height: 260px; }
-    .wrap { padding: 8px; }
-    .card { padding: 11px; }
   }
-
-  /* highlights */
-  .hl-group { margin-bottom: 18px; }
-  .hl-group h2 { font-size: 14px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; }
-  .hl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .hl-row .rank { color: var(--muted); white-space: nowrap; }
-  .hl-row.sole { color: #f0d089; font-weight: 600; }
-  .hl-row.sole .muted { color: #d8b877; }
-  .hl-row.sole .rank { color: #d8b877; font-weight: 400; }
-  .crown { font-size: 12px; }
-  .hl-empty { font-size: 12px; color: var(--muted); }
-
-  /* combat share bars, plain flex so widths tween between players */
-  .cbar-title { font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
-  .cbar { display: flex; height: 26px; background: rgba(255,255,255,0.05); overflow: hidden; }
-  .cbar span {
-    display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
-    font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.75); transition: width 0.4s ease;
-  }
-  .ckey { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11px; color: var(--muted); }
-  .ckey i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -1px; }
-
-  /* region rows, bar is hours relative to their main region */
-  .reg-row { display: grid; grid-template-columns: 96px 1fr 46px 52px; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .reg-bar { height: 6px; background: rgba(255,255,255,0.05); }
-  .reg-bar span { display: block; height: 100%; background: var(--accent); }
-  .reg-row .muted, .reg-ping { text-align: right; }
-  .ping-good { color: #7fc98f; }
-  .ping-ok { color: #d8b877; }
-  .ping-bad { color: #e07a6a; }
-
-  .json-toggle { display: block; margin: 18px 0 0 auto; font-size: 11px; padding: 4px 8px; }
 </style>
 </head>
 <body>
@@ -561,7 +687,7 @@
           <p class="hero-sub" id="heroSub">Ranked stats for every player, pulled straight from the game.</p>
         </div>
         <div class="finder">
-          <div class="finder-glow">
+          <div class="finder-rim">
             <input id="finderInput" class="finder-input" placeholder="Find yourself, type your roblox username" autocomplete="off" aria-label="Search players">
           </div>
           <div id="finderResults" class="finder-results" hidden></div>
@@ -573,7 +699,7 @@
     <div class="card board">
       <div class="topbar">
         <div>
-          <h1>Leaderboard</h1>
+          <h2>Leaderboard</h2>
           <div class="small">Click a player for their full profile</div>
         </div>
         <label class="small" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
@@ -586,8 +712,8 @@
     <div class="card col-span-2">
       <div class="topbar">
         <div>
-          <h1>Compare any two stats</h1>
-          <div class="small">Each dot is a player, coloured by home region. The shaded quarter has the highest average elo.</div>
+          <h2>Compare any two stats</h2>
+          <div class="small">Each dot is a player, the top ten on the board in gold. The shaded quarter has the highest average elo.</div>
         </div>
       </div>
       <div class="chartWrap"><canvas id="chart1"></canvas></div>
@@ -605,7 +731,7 @@
     </div>
 
     <div class="card col-span-2">
-      <h1>How fights go at each elo</h1>
+      <h2>How fights go at each elo</h2>
       <div class="combat-flex">
         <div class="combat-main">
           <div class="slider-container">
@@ -623,15 +749,79 @@
     </div>
 
     <div class="card">
-      <h1>Platforms</h1>
-      <div class="small">What people play on</div>
-      <div class="chartWrap small"><canvas id="chart4"></canvas></div>
+      <h2>Who plays</h2>
+      <div class="small">From the game client, so it's whatever their device reports</div>
+      <h3 class="share-h">Platform</h3>
+      <div id="platformBars"></div>
+      <h3 class="share-h">Country</h3>
+      <div id="countryBars"></div>
     </div>
 
-    <div class="card col-span-3">
-      <h1>Hours played by region</h1>
-      <div class="chartWrap" style="height: 240px"><canvas id="chart5"></canvas></div>
-    </div>
+    <!-- the stories below the tools, on the texture like the hero instead of in more cards -->
+    <section class="chapter">
+      <h2>The elo spread</h2>
+      <p class="finding" id="spreadFinding"></p>
+      <div id="spreadChart" class="swarm"></div>
+      <div class="small chart-note">Each dot is a player. Hover for the name, click for their profile.</div>
+    </section>
+
+    <section class="chapter">
+      <h2>What people run</h2>
+      <p class="finding" id="metaFinding"></p>
+      <div class="seg" id="metaKind" role="group" aria-label="Show">
+        <button type="button" data-kind="abilities" aria-pressed="true">Abilities</button>
+        <button type="button" data-kind="talents" aria-pressed="false">Talents</button>
+      </div>
+      <div class="chapter-body">
+        <div>
+          <div class="chartWrap tall"><canvas id="metaChart"></canvas></div>
+          <div class="small chart-note">Click a dot to see who runs it. Win rate is over every game played on a character that has it. Above the line it wins more than it loses. Ones with too few games to trust are only in the table.</div>
+        </div>
+        <div id="metaPick" class="meta-pick"></div>
+      </div>
+      <div id="metaTable"></div>
+    </section>
+
+    <section class="chapter">
+      <h2>Who follows who</h2>
+      <p class="finding" id="netFinding"></p>
+      <div class="chapter-body">
+        <div>
+          <div class="net"><canvas id="netCanvas"></canvas><div id="netTip" class="net-tip" hidden></div></div>
+          <div class="small chart-note">Drag the dots around, click one for their profile.</div>
+        </div>
+        <div>
+          <h3 class="share-h">Most followed</h3>
+          <div id="netTop"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter">
+      <h2>How it grew</h2>
+      <p class="finding" id="growthFinding"></p>
+      <div class="chartWrap"><canvas id="growthChart"></canvas></div>
+      <div id="growthTable"></div>
+    </section>
+
+    <section class="chapter" id="styles">
+      <h2>Playstyles</h2>
+      <p class="finding" id="styleFinding"></p>
+      <div class="ckey" id="styleKey"></div>
+      <div id="styleGroups" class="style-grid"></div>
+    </section>
+
+    <section class="chapter" id="versus">
+      <h2>Versus</h2>
+      <p class="finding" id="vsFinding"></p>
+      <div class="vs-pick">
+        <input id="vsA" class="vs-input" list="vsNames" autocomplete="off" placeholder="Any player" aria-label="First player">
+        <span class="muted">vs</span>
+        <input id="vsB" class="vs-input" list="vsNames" autocomplete="off" placeholder="Any player" aria-label="Second player">
+        <datalist id="vsNames"></datalist>
+      </div>
+      <div id="vsBody" class="vs"></div>
+    </section>
   </div>
 
   <footer class="page-footer">
@@ -642,15 +832,18 @@
     <p class="small-p"><!--#copyright--></p>
   </footer>
 
-  <div id="modal" class="modal">
-    <div class="modal-content" id="modalBox">
-      <span id="closeModal" class="close">&times;</span>
+  <dialog id="modal" class="modal" aria-labelledby="modalTitle">
+    <div class="modal-content" id="modalBox" tabindex="-1" autofocus>
+      <button type="button" id="closeModal" class="close" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
       <div class="pf">
         <div class="pf-side"><span class="fig pf-fig"><img id="modalFigure" alt="" hidden></span></div>
         <div class="pf-main">
           <div class="modal-head">
-            <h1 id="modalTitle"></h1>
+            <h2 id="modalTitle"></h2>
             <div id="modalSub" class="pf-sub"></div>
+            <button type="button" id="vsFromProfile" class="btn vs-btn">Compare with someone</button>
           </div>
           <div id="modalStats" class="pf-stats"></div>
           <div id="highlights"></div>
@@ -658,7 +851,8 @@
           <!-- kept out of #highlights on purpose. that div gets innerHTML replaced on every
                open, which would reset the bars instead of letting them slide to the new player. -->
           <div id="combatSection" class="hl-group" hidden>
-            <h2>Combat breakdown</h2>
+            <h3>Combat breakdown</h3>
+            <div id="styleLine" class="small" hidden></div>
             <div class="cbar-title">Defending, how hits on them ended</div>
             <div id="cbarDef" class="cbar"></div>
             <div id="ckeyDef" class="ckey"></div>
@@ -673,12 +867,17 @@
             <div id="similarList"></div>
           </div>
 
+          <div class="hl-group">
+            <h3>Among ranked players</h3>
+            <div id="modalSpread" class="swarm mini"></div>
+          </div>
+
           <pre id="modalContent" hidden></pre>
           <button id="toggleJson" class="btn json-toggle">show json</button>
         </div>
       </div>
     </div>
-  </div>
+  </dialog>
 
 <script type="module">
   import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/auto/+esm';
@@ -688,40 +887,98 @@
   const modal = document.getElementById('modal');
   const modalContent = document.getElementById('modalContent');
   const modalTitle = document.getElementById('modalTitle');
-  function closeModal() {
-    modal.style.display = 'none';
-    // drop the id again so a refresh does not reopen a profile you just closed
-    if (new URLSearchParams(location.search).has('id')) {
-      history.replaceState(null, '', location.pathname);
-    }
-  }
+  // one query param at a time, so ?id and ?vs links never wipe each other. replaceState, so
+  // the back button leaves the page rather than walking through every profile clicked
+  const setParam = (key, value) => {
+    const url = new URL(location.href);
+    value == null ? url.searchParams.delete(key) : url.searchParams.set(key, value);
+    history.replaceState(null, '', url);
+  };
 
-  document.getElementById('closeModal').onclick = closeModal;
-  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  // escape closes it natively too, so the cleanup lives on the close event.
+  // dropping the id means a refresh does not reopen a profile you just closed
+  modal.addEventListener('close', () => setParam('id', null));
+
+  document.getElementById('closeModal').onclick = () => modal.close();
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.close(); });
 
   const minGamesToggle = document.getElementById('minGamesToggle');
   let filterMinGames = minGamesToggle.checked;
   minGamesToggle.addEventListener('change', () => {
     filterMinGames = minGamesToggle.checked;
     renderBoard();
+    renderSpread();
     updateScatterChart();
     updateAverageCombat(parseInt(document.getElementById('eloSlider').value));
   });
 
   let charts = {};
   let players = [];
-  let allKeys = new Set();
+  // the ones with enough games to rank, sorted by elo like players
+  let ranked = [];
   let currentXKey = '_calcWinrate';
   let currentYKey = 'elo';
-  let uniqueRegions = [];
-  let regionColors = {};
   let targetProfile = [0, 0, 0, 0, 0, 0, 0, 0];
   let highlightQuadrant = null;
   const nowSecs = Math.floor(Date.now() / 1000);
+  const DAY = 86400;
+  const daysAgo = t => Math.max(0, Math.floor((nowSecs - t) / DAY));
 
-  Chart.defaults.color = '#b0a896';
-  Chart.defaults.borderColor = '#322d25';
-  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  // charts read the same tokens as the css
+  const rootStyle = getComputedStyle(document.documentElement);
+  const tok = name => rootStyle.getPropertyValue(name).trim();
+
+  // the podium rise is the page's one moment of motion, charts only move when you change them
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) Chart.defaults.animation = false;
+
+  Chart.defaults.color = tok('--muted');
+  Chart.defaults.borderColor = tok('--border');
+  Chart.defaults.font.family = 'Archivo, system-ui, sans-serif';
+  Object.assign(Chart.defaults.plugins.tooltip, {
+    backgroundColor: tok('--panel'), borderColor: tok('--border'), borderWidth: 1, cornerRadius: 2,
+    padding: 10, titleColor: tok('--text'), bodyColor: tok('--text'), boxPadding: 4
+  });
+
+  // direct labels for the few points a chart names, set per dataset as { index: text }
+  const pointLabels = {
+    id: 'pointLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = '600 12px Archivo, system-ui, sans-serif';
+      ctx.fillStyle = tok('--text');
+      ctx.textBaseline = 'middle';
+      chart.data.datasets.forEach((ds, i) => {
+        for (const [idx, text] of Object.entries(ds.pointLabels || {})) {
+          const el = chart.getDatasetMeta(i).data[idx];
+          if (!el) continue;
+          // flips to the left near the edge so it never runs off the canvas
+          const left = el.x > chart.width - ctx.measureText(text).width - 14;
+          ctx.textAlign = left ? 'right' : 'left';
+          ctx.fillText(text, el.x + (left ? -10 : 10), el.y);
+        }
+      });
+      ctx.restore();
+    }
+  };
+
+  // hairline at the hovered x, so a reader aims at a date and not at a 2px line
+  const crosshair = {
+    id: 'crosshair',
+    afterDatasetsDraw(chart) {
+      const el = chart.tooltip?.getActiveElements()[0];
+      if (!el) return;
+      const { ctx, chartArea } = chart;
+      ctx.save();
+      ctx.strokeStyle = tok('--muted');
+      ctx.beginPath();
+      ctx.moveTo(el.element.x, chartArea.top);
+      ctx.lineTo(el.element.x, chartArea.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
 
   function parseNum(v) {
     if (v == null) return NaN;
@@ -730,9 +987,24 @@
     return s === '' ? NaN : Number(s);
   }
 
-  const validCounts = {};
+  const sum = a => a.reduce((s, x) => s + x, 0);
+  const mean = a => a.length ? sum(a) / a.length : 0;
+
   // plrStats slots 0-7, the datastore names. 0-3 are hits on this player, 4-7 are their hits
   const statLabels = ['Parried', 'Blocked', 'Dodged', 'DamageTaken', 'ParriedBy', 'BlockedBy', 'DodgedBy', 'DamageDealt'];
+  // [i][0] is the event count and [i][1] the damage, damage is what every share is of
+  const combatDmg = s => statLabels.map((_, i) => Array.isArray(s[i]) ? s[i][1] || 0 : 0);
+  // 8 and 9 are basic and ability feints, attacks thrown are the 4-7 counts
+  function feintCounts(s) {
+    if (!Array.isArray(s)) return { fb: 0, fa: 0, total: 0, attacks: 0 };
+    const fb = typeof s[8] === 'number' ? s[8] : 0;
+    const fa = typeof s[9] === 'number' ? s[9] : 0;
+    const attacks = sum([4, 5, 6, 7].map(i => Array.isArray(s[i]) ? s[i][0] || 0 : 0));
+    return { fb, fa, total: fb + fa, attacks };
+  }
+  const combatVec = p => statLabels.map(k => p.flatData[`plrStats.${k}.Pct`]);
+  // the biggest single gap between two stat profiles
+  const maxDelta = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
   // what people read for the same slots
   const DEF_LABELS = ['Parried', 'Blocked', 'Dodged', 'Hits taken'];
   const ATK_LABELS = ['Got parried', 'Got blocked', 'Got dodged', 'Hits landed'];
@@ -767,44 +1039,18 @@
       const newKey = prefix ? `${prefix}.${key}` : key;
       
       if (key === 'plrStats' && Array.isArray(val)) {
-        const incomingDmgs = [0, 0, 0, 0];
-        const outgoingDmgs = [0, 0, 0, 0];
-        
-        for (let i = 0; i < 4; i++) {
-          if (Array.isArray(val[i])) incomingDmgs[i] = val[i][1] || 0;
-        }
-        for (let i = 4; i < 8; i++) {
-          if (Array.isArray(val[i])) outgoingDmgs[i - 4] = val[i][1] || 0;
-        }
-        
-        const totalIncoming = incomingDmgs.reduce((a, b) => a + b, 0);
-        const totalOutgoing = outgoingDmgs.reduce((a, b) => a + b, 0);
-
-        for (let i = 0; i < 8; i++) {
-          const lbl = statLabels[i];
-          const dmg = i < 4 ? incomingDmgs[i] : outgoingDmgs[i - 4];
-          const total = i < 4 ? totalIncoming : totalOutgoing;
-          const pct = total ? (dmg / total * 100) : 0;
-          
-          const pKey = `plrStats.${lbl}.Pct`;
-          result[pKey] = pct;
-          validCounts[pKey] = (validCounts[pKey] || 0) + 1;
-        }
-
-        if (typeof val[8] === 'number') {
-          const nKey = 'plrStats.FeintedBasic';
-          result[nKey] = val[8];
-          validCounts[nKey] = (validCounts[nKey] || 0) + 1;
-        }
-        if (typeof val[9] === 'number') {
-          const nKey = 'plrStats.FeintedAbility';
-          result[nKey] = val[9];
-          validCounts[nKey] = (validCounts[nKey] || 0) + 1;
-        }
+        // 0-3 as a share of hits on them, 4-7 as a share of their hits
+        const dmg = combatDmg(val);
+        const totals = [sum(dmg.slice(0, 4)), sum(dmg.slice(4))];
+        statLabels.forEach((lbl, i) => {
+          const total = totals[i < 4 ? 0 : 1];
+          result[`plrStats.${lbl}.Pct`] = total ? dmg[i] / total * 100 : 0;
+        });
+        if (typeof val[8] === 'number') result['plrStats.FeintedBasic'] = val[8];
+        if (typeof val[9] === 'number') result['plrStats.FeintedAbility'] = val[9];
       } else if (typeof val === 'number' || (typeof val === 'string' && isFinite(parseNum(val)))) {
         // elo can be a string like "1500", unparsed it drops off the axis list
         result[newKey] = typeof val === 'number' ? val : parseNum(val);
-        validCounts[newKey] = (validCounts[newKey] || 0) + 1;
       } else if (typeof val === 'object' && val !== null) {
         Object.assign(result, flattenObject(val, newKey));
       }
@@ -812,28 +1058,45 @@
     return result;
   }
 
+  const b64Bytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
   function decodeBuffer(bufObj) {
     if (!bufObj || typeof bufObj !== 'object') return null;
     const b64 = bufObj.base64 || bufObj.zbase64;
     if (!b64) return null;
     try {
-      const binaryStr = atob(b64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-      const decompressed = zstdDecompress(bytes);
-      const text = new TextDecoder().decode(decompressed);
+      const text = new TextDecoder().decode(zstdDecompress(b64Bytes(b64)));
       try { return JSON.parse(text); } catch { return text; }
     } catch (err) {
       return `[Decode Error: ${err.message}]`;
     }
   }
 
-  function getFilteredPlayers() {
-    // same bar as highlights, so the board position and "of N" in a profile agree
-    if (filterMinGames) {
-      return players.filter(p => (p.wins + p.loss) >= MIN_RANKED_GAMES);
+  // flags and talent cards are a SparseBitSet from rblxUtils: 16 bits of count, 6 bits of L,
+  // padded to 3 bytes, then the elias fano low bits and the unary high bits. bits are read
+  // lowest first, the way luau's buffer.readbits does
+  function decodeBitSet(bufObj) {
+    let b;
+    try { b = b64Bytes(bufObj.base64); } catch { return []; }
+    if (b.length < 3) return [];
+    const k = b[0] | b[1] << 8, L = b[2] & 63;
+    const bit = i => (b[i >> 3] >> (i & 7)) & 1;
+    const ids = [];
+    for (let pos = 24 + k * L, high = 0; ids.length < k; pos++) {
+      // truncated, no set beats a wrong one
+      if (pos >= b.length * 8) return [];
+      if (!bit(pos)) { high++; continue; }
+      let low = 0;
+      for (let j = 0; j < L; j++) low |= bit(24 + ids.length * L + j) << j;
+      ids.push(high << L | low);
     }
-    return players;
+    return ids;
+  }
+  console.assert(decodeBitSet({ base64: 'CQACIf9SrRQ=' }).join() === '9,12,18,20,23,27,31,39,42', 'bitset decode broke');
+
+  // same bar as highlights, so the board position and "of N" in a profile agree
+  function getFilteredPlayers() {
+    return filterMinGames ? ranked : players;
   }
 
   function getBestScaleType(data) {
@@ -844,10 +1107,7 @@
     const max = Math.max(...validNums);
     if (max / min <= 50) return 'linear';
     
-    const sorted = [...validNums].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
-    
-    if (median < min + 0.20 * (max - min)) {
+    if (median(validNums) < min + 0.20 * (max - min)) {
       return 'logarithmic';
     }
     return 'linear';
@@ -869,46 +1129,26 @@
       minMax[f] = { min: Math.min(...vals), max: Math.max(...vals) };
     });
 
-    const getVec = (p) => [
-      minMax.elo.max === minMax.elo.min ? 0 : (p.elo - minMax.elo.min) / (minMax.elo.max - minMax.elo.min),
-      minMax.winrate.max === minMax.winrate.min ? 0 : (p.winrate - minMax.winrate.min) / (minMax.winrate.max - minMax.winrate.min),
-      minMax.playtimeHrs.max === minMax.playtimeHrs.min ? 0 : (p.playtimeHrs - minMax.playtimeHrs.min) / (minMax.playtimeHrs.max - minMax.playtimeHrs.min)
-    ];
-
-    const playersWithPing = players.filter(p => p.weightedPing > 0);
-    if (playersWithPing.length === 0) return;
-
-    const validVecs = playersWithPing.map(p => ({ vec: getVec(p), ping: p.weightedPing }));
-
-    players.forEach(p => {
-      if (p.weightedPing <= 0) {
-        const tVec = getVec(p);
-        
-        const closest = [];
-        for (let i = 0; i < validVecs.length; i++) {
-          const vVec = validVecs[i].vec;
-          let dist = Math.pow(tVec[0] - vVec[0], 2) + Math.pow(tVec[1] - vVec[1], 2) + Math.pow(tVec[2] - vVec[2], 2);
-          
-          if (closest.length < 5) {
-            closest.push({ dist, ping: validVecs[i].ping });
-            closest.sort((a, b) => a.dist - b.dist);
-          } else if (dist < closest[4].dist) {
-            closest[4] = { dist, ping: validVecs[i].ping };
-            closest.sort((a, b) => a.dist - b.dist);
-          }
-        }
-        
-        const pings = closest.map(c => c.ping).sort((a, b) => a - b);
-        const medianPing = pings.length % 2 !== 0 ? pings[Math.floor(pings.length / 2)] : (pings[pings.length / 2 - 1] + pings[pings.length / 2]) / 2;
-        
-        p.weightedPing = Math.round(medianPing);
-        p.flatData['_calcWeightedPing'] = p.weightedPing;
-        validCounts['_calcWeightedPing'] = (validCounts['_calcWeightedPing'] || 0) + 1;
-        
-        if (!p.synthesized) p.synthesized = [];
-        p.synthesized.push('weightedPing');
-      }
+    const getVec = p => features.map(f => {
+      const { min, max } = minMax[f];
+      return max === min ? 0 : (p[f] - min) / (max - min);
     });
+
+    const validVecs = players.filter(p => p.weightedPing > 0).map(p => ({ vec: getVec(p), ping: p.weightedPing }));
+    if (!validVecs.length) return;
+
+    // median ping of the 5 players nearest on elo, win rate and hours
+    for (const p of players) {
+      if (p.weightedPing > 0) continue;
+      const tVec = getVec(p);
+      const nearest = validVecs
+        .map(v => ({ d: sum(v.vec.map((x, i) => (x - tVec[i]) ** 2)), ping: v.ping }))
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 5);
+      p.weightedPing = Math.round(median(nearest.map(c => c.ping)));
+      p.flatData._calcWeightedPing = p.weightedPing;
+      p.synthesized.push('weightedPing');
+    }
   }
 
   // roblox usernames. ids are what the datastore gives us, nobody wants to read those.
@@ -950,6 +1190,16 @@
     .then(m => m.renderR6(id, size, shadows))
     .catch(err => { console.warn('r6 fell back to png', id, err.message); return null; })
     .then(src => src || flatFigure(id)));
+
+  // runs fn the first time el comes into view
+  const onceVisible = (el, fn, opts) => new IntersectionObserver((entries, io) => {
+    if (!entries[0].isIntersecting) return;
+    io.disconnect();
+    fn();
+  }, opts).observe(el);
+
+  // fills once the section is close, a chapter of r6 renders up front would slow the first paint
+  const fillWhenNear = el => onceVisible(el, () => fillFigures(el), { rootMargin: '400px' });
 
   // every img[data-body] under root
   function fillFigures(root) {
@@ -1029,12 +1279,7 @@
   const MIN_COMBAT_DMG = 1000;
 
   function hasCombatVolume(p) {
-    const ps = p.raw && p.raw.plrStats;
-    if (!Array.isArray(ps)) return false;
-    let inc = 0, out = 0;
-    for (let i = 0; i < 4; i++) if (Array.isArray(ps[i])) inc += ps[i][1] || 0;
-    for (let i = 4; i < 8; i++) if (Array.isArray(ps[i])) out += ps[i][1] || 0;
-    return inc >= MIN_COMBAT_DMG && out >= MIN_COMBAT_DMG;
+    return !!p.dmg && sum(p.dmg.slice(0, 4)) >= MIN_COMBAT_DMG && sum(p.dmg.slice(4)) >= MIN_COMBAT_DMG;
   }
 
   function ordinal(n) {
@@ -1075,20 +1320,10 @@
   }
 
 
-  // plrStats[4..7][0] is a COUNT and [1] is damage, so the counts are the denominator.
   function renderFeints(p) {
     const el = document.getElementById('feintLine');
-    const s = p.raw && p.raw.plrStats;
-
-    const fb = (s && typeof s[8] === 'number') ? s[8] : 0;
-    const fa = (s && typeof s[9] === 'number') ? s[9] : 0;
-    const total = fb + fa;
+    const { fb, fa, total, attacks } = p.feints;
     if (!total) { el.hidden = true; return; }
-
-    let attacks = 0;
-    if (Array.isArray(s)) {
-      for (let i = 4; i < 8; i++) if (Array.isArray(s[i])) attacks += s[i][0] || 0;
-    }
     const games = p.wins + p.loss;
 
     // per attack is cleanest, per game is the fallback for players with no counts
@@ -1123,10 +1358,9 @@
   document.getElementById('ckeyDef').innerHTML = keyHtml(DEF_LABELS);
   document.getElementById('ckeyAtk').innerHTML = keyHtml(ATK_LABELS);
 
-  function fillCombatBar(id, vals, labels) {
-    const el = document.getElementById(id);
+  function fillCombatBar(el, vals, labels) {
     if (!el.children.length) el.innerHTML = labels.map((_, i) => `<span style="background:${STAT_COLORS[i]}"></span>`).join('');
-    const total = vals.reduce((a, b) => a + b, 0);
+    const total = sum(vals);
 
     [...el.children].forEach((s, i) => {
       const pct = total ? vals[i] / total * 100 : 0;
@@ -1138,17 +1372,11 @@
 
   function renderCombat(p) {
     const section = document.getElementById('combatSection');
-    const stats = p.raw && p.raw.plrStats;
-
-    if (!Array.isArray(stats)) { section.hidden = true; return; }
-
-    // damage share, [i][1] is damage
-    const dmg = statLabels.map((_, i) => Array.isArray(stats[i]) ? (stats[i][1] || 0) : 0);
-    if (!dmg.some(Boolean)) { section.hidden = true; return; }
+    if (!p.dmg?.some(Boolean)) { section.hidden = true; return; }
 
     section.hidden = false;
-    fillCombatBar('cbarDef', dmg.slice(0, 4), DEF_LABELS);
-    fillCombatBar('cbarAtk', dmg.slice(4), ATK_LABELS);
+    fillCombatBar(document.getElementById('cbarDef'), p.dmg.slice(0, 4), DEF_LABELS);
+    fillCombatBar(document.getElementById('cbarAtk'), p.dmg.slice(4), ATK_LABELS);
     renderFeints(p);
     const sim = document.getElementById('similarList');
     sim.innerHTML = similarList(p);
@@ -1157,17 +1385,8 @@
 
   // how often and which kind, both roughly 0-100 so they join the same max delta measure
   function feintMetrics(p) {
-    const s = p.raw && p.raw.plrStats;
-    if (!Array.isArray(s)) return null;
-    const fb = typeof s[8] === 'number' ? s[8] : 0;
-    const fa = typeof s[9] === 'number' ? s[9] : 0;
-    const total = fb + fa;
-    if (!total) return null;
-
-    let attacks = 0;
-    for (let i = 4; i < 8; i++) if (Array.isArray(s[i])) attacks += s[i][0] || 0;
-    if (!attacks) return null;
-
+    const { fb, total, attacks } = p.feints;
+    if (!total || !attacks) return null;
     return { per100: total / attacks * 100, basicPct: fb / total * 100 };
   }
 
@@ -1175,32 +1394,41 @@
   // instead of the slider profile
   function similarPlayers(me, n = 4) {
     if (!me.hasValidCombatData) return [];
-    const mine = statLabels.map(k => me.flatData[`plrStats.${k}.Pct`] || 0);
+    const mine = combatVec(me);
     const myFeints = feintMetrics(me);
 
     return players
       .filter(p => p.hasValidCombatData && p.id !== me.id)
       .map(p => {
-        let maxDelta = 0;
-        statLabels.forEach((k, i) => {
-          const d = Math.abs((p.flatData[`plrStats.${k}.Pct`] || 0) - mine[i]);
-          if (d > maxDelta) maxDelta = d;
-        });
-
         // only compare feints when both sides have them, otherwise a player with no
         // feint data would be scored as maximally different rather than unknown
         const theirs = myFeints && feintMetrics(p);
-        if (theirs) {
-          maxDelta = Math.max(maxDelta,
-            Math.abs(theirs.per100 - myFeints.per100),
-            Math.abs(theirs.basicPct - myFeints.basicPct));
-        }
-
-        return { p, delta: maxDelta };
+        const delta = theirs
+          ? maxDelta([...combatVec(p), theirs.per100, theirs.basicPct], [...mine, myFeints.per100, myFeints.basicPct])
+          : maxDelta(combatVec(p), mine);
+        return { p, delta };
       })
       .sort((a, b) => a.delta - b.delta)
       .slice(0, n);
   }
+
+  // avatar tile, fillFigures paints the body in once it is on the page
+  const playerTile = (p, extra = '', cls = 'sim') => `<button type="button" class="${cls}" data-pid="${p.id}">
+      <span class="fig"><img alt="" data-body="${p.id}" hidden></span>
+      <span class="sim-name" data-uid="${p.id}">${playerLabel(p.id)}</span>
+      <span class="muted">${p.elo} elo</span>
+      ${extra && `<span class="sim-delta">${extra}</span>`}
+    </button>`;
+
+  // name and a number on one line, a lighter list than tiles
+  const playerRow = (p, value) => `<button type="button" class="side-player" data-pid="${p.id}">
+      <span data-uid="${p.id}">${playerLabel(p.id)}</span><span class="muted">${value}</span>
+    </button>`;
+
+  const tableView = (head, rows) => `<details class="tv"><summary>Show as a table</summary><table>
+      <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></details>`;
 
   function similarList(me) {
     const hits = similarPlayers(me, 4);
@@ -1208,12 +1436,7 @@
 
     return `<div class="similar">
       <div class="similar-title">Fights most like</div>
-      <div class="sim-grid">${hits.map(h => `<button type="button" class="sim" data-pid="${h.p.id}">
-          <span class="fig"><img alt="" data-body="${h.p.id}" hidden></span>
-          <span class="sim-name" data-uid="${h.p.id}">${playerLabel(h.p.id)}</span>
-          <span class="muted">${h.p.elo} elo</span>
-          <span class="sim-delta">within ${h.delta.toFixed(1)}%</span>
-        </button>`).join('')}</div>
+      <div class="sim-grid">${hits.map(h => playerTile(h.p, `within ${h.delta.toFixed(1)}%`)).join('')}</div>
     </div>`;
   }
 
@@ -1237,7 +1460,7 @@
     const most = rows[0].hrs || 1;
     const pingClass = ms => ms <= 80 ? 'ping-good' : ms <= 150 ? 'ping-ok' : 'ping-bad';
 
-    return `<div class="hl-group"><h2>Regions</h2>${rows.map(r => `
+    return `<div class="hl-group"><h3>Regions</h3>${rows.map(r => `
       <div class="reg-row">
         <span>${r.name}</span>
         <span class="reg-bar"><span style="width:${r.hrs / most * 100}%"></span></span>
@@ -1254,9 +1477,9 @@
 
     const seen = new Set();
 
-    const add = (label, mineSeg, segOf) => {
-      if (isUnknownSeg(mineSeg)) return;
-      const group = pool.filter(q => key(segOf(q)) === key(mineSeg));
+    const add = (seg, segOf) => {
+      if (isUnknownSeg(seg)) return;
+      const group = pool.filter(q => key(segOf(q)) === key(seg));
       if (group.length < 3) return;              // top of two is not an award
 
       // a segment holding most of the pool just restates the global rank
@@ -1272,7 +1495,7 @@
 
       const sharing = group.filter(q => q.elo === me.elo).length;
       out.push({
-        label: `elo in ${label}`, top: 'highest', bottom: null, high: true,
+        label: `elo in ${seg}`, top: 'highest', bottom: null, high: true,
         rank, total: group.length,
         sole: rank === 1 && sharing === 1,
         pct: rank / group.length, beatsAvg: false,
@@ -1280,26 +1503,24 @@
       });
     };
 
-    add(me.primaryRegion, me.primaryRegion, q => q.primaryRegion);
-    add(me.os, me.os, q => q.os);
+    add(me.primaryRegion, q => q.primaryRegion);
+    add(me.os, q => q.os);
 
-    const dev = DEVICE_CLASS[String(me.os || '').trim()];
-    if (dev) add(dev, dev, q => DEVICE_CLASS[String(q.os || '').trim()]);
+    const dev = DEVICE_CLASS[me.os];
+    if (dev) add(dev, q => DEVICE_CLASS[q.os]);
 
     return out;
   }
 
   function buildHighlights(p) {
     // under the threshold you get no ranks, not a rank against a pool you are not in
-    const games = q => q.wins + q.loss;
-    const pool = players.filter(q => games(q) >= MIN_RANKED_GAMES);
-    const ranked = games(p) >= MIN_RANKED_GAMES;
-    const ranks = ranked ? rankPlayer(p, pool) : [];
+    const isRanked = ranked.includes(p);
+    const ranks = isRanked ? rankPlayer(p, ranked) : [];
 
     // top ten or top 10%, a percentage alone only reaches rank 4 on a small pool.
     // outright wins lead, then shared firsts, then the rest
     const best = ranks.filter(r => r.rank <= 10 || r.pct <= 0.1)
-      .concat(ranked ? segmentAwards(p, pool) : [])
+      .concat(isRanked ? segmentAwards(p, ranked) : [])
       .sort((a, b) => (b.sole - a.sole) || a.rank - b.rank || a.pct - b.pct);
     const worst = ranks.filter(r => r.bottom && !best.includes(r) && (r.rank > r.total - 3 || r.pct >= 0.9))
       .sort((a, b) => b.rank - a.rank);
@@ -1310,7 +1531,7 @@
 
     // rank 1 is whichever end `top` names, so say the word instead of a bare ordinal
     const topRow = r => `<div class="hl-row${r.sole ? ' sole' : ''}">
-        <span>${r.sole ? '<span class="crown" title="first and the only one">👑</span> ' : ''}${ordinal(r.rank)} ${r.top} ${r.label} <span class="muted">${r.text}</span></span>
+        <span>${r.sole ? `<span title="first and the only one">${CROWN}</span>` : ''}${ordinal(r.rank)} ${r.top} ${r.label} <span class="muted">${r.text}</span></span>
         <span class="rank">of ${r.total}</span>
       </div>`;
 
@@ -1325,41 +1546,24 @@
         <span class="rank">${r.high ? 'above' : 'below'} the ${r.avgText} average</span>
       </div>`;
 
-    let html = '';
+    const one = best[0];
+    const name = playerLabel(p.id);
+    // "top 60%" off 3rd of 5 reads like a dig, so past a quarter the rows speak for themselves
+    const lead = !one ? ''
+      : one.sole ? `${name} has the ${one.top} ${one.label} here, outright. Nobody else even matches it.`
+      : one.rank === 1 ? `${name} is tied for the ${one.top} ${one.label} here.`
+      : one.pct <= 0.25 ? `Top ${Math.max(1, Math.round(one.pct * 100))}% for ${one.top} ${one.label}.`
+      : '';
+    const group = (title, rows, intro = '') => rows.length ? `<div class="hl-group"><h3>${title}</h3>${intro}${rows.join('')}</div>` : '';
 
-    if (best.length) {
-      const one = best[0];
-      const name = playerLabel(p.id);
-      // "top 60%" off 3rd of 5 reads like a dig, so past a quarter the rows speak for themselves
-      const lead = one.sole ? `${name} has the ${one.top} ${one.label} here, outright. Nobody else even matches it.`
-        : one.rank === 1 ? `${name} is tied for the ${one.top} ${one.label} here.`
-        : one.pct <= 0.25 ? `Top ${Math.max(1, Math.round(one.pct * 100))}% for ${one.top} ${one.label}.`
-        : '';
-      html += `<div class="hl-group">
-        <h2>Highlights</h2>
-        ${lead ? `<div class="small" style="margin-bottom:8px">${lead}</div>` : ''}
-        ${best.map(topRow).join('')}
-      </div>`;
-    }
-
-    if (worst.length) {
-      html += `<div class="hl-group">
-        <h2>Not so much</h2>
-        ${worst.map(bottomRow).join('')}
-      </div>`;
-    }
-
-    if (okay.length) {
-      html += `<div class="hl-group">
-        <h2>Better than average</h2>
-        ${okay.map(okayRow).join('')}
-      </div>`;
-    }
+    let html = group('Highlights', best.map(topRow), lead && `<div class="small" style="margin-bottom:8px">${lead}</div>`) +
+      group('Not so much', worst.map(bottomRow)) +
+      group('Better than average', okay.map(okayRow));
 
     if (!html) {
-      html = ranked
+      html = isRanked
         ? `<div class="hl-empty">Not enough data on this player to compare.</div>`
-        : `<div class="hl-empty">Needs ${MIN_RANKED_GAMES} games to be ranked, this one has ${games(p)}.</div>`;
+        : `<div class="hl-empty">Needs ${MIN_RANKED_GAMES} games to be ranked, this one has ${p.wins + p.loss}.</div>`;
     }
 
     html += regionTable(p);
@@ -1393,7 +1597,6 @@
   function renderProfileHead(p) {
     // the ranked pool, not the toggle, so a profile reads the same either way
     const games = p.wins + p.loss;
-    const ranked = players.filter(q => q.wins + q.loss >= MIN_RANKED_GAMES);
     const rank = ranked.indexOf(p) + 1;
     const box = document.getElementById('modalBox');
     const top = rank && rank <= 3;
@@ -1418,15 +1621,17 @@
       (p.weightedPing ? stat(p.weightedPing + 'ms', guessedPing ? 'ping, estimated' : 'ping') : '');
   }
 
+  let profilePlayer = null;
+
   function openPlayerModal(p) {
-    // replaceState not pushState, so the back button leaves the page rather than
-    // walking through every profile you clicked
-    history.replaceState(null, '', `${location.pathname}?id=${encodeURIComponent(p.id)}`);
+    profilePlayer = p;
+    setParam('id', p.id);
 
     modalTitle.textContent = playerLabel(p.id);
     renderProfileHead(p);
     document.getElementById('highlights').innerHTML = buildHighlights(p);
     renderCombat(p);
+    renderStyleLine(p);
     loadFigure(p);
 
     const displayObj = {
@@ -1434,32 +1639,33 @@
       primaryRegion: p.primaryRegion, weightedPing: p.weightedPing,
       decodedSlots: p.decodedSlots, decodedFlags: p.decodedFlags, raw: p.raw
     };
-    if (p.synthesized && p.synthesized.length > 0) displayObj._synthesized = p.synthesized;
+    if (p.synthesized.length) displayObj._synthesized = p.synthesized;
     modalContent.textContent = JSON.stringify(displayObj, null, 2);
 
     modalContent.hidden = true;
     document.getElementById('toggleJson').textContent = 'show json';
-    modal.style.display = 'block';
+    if (!modal.open) modal.showModal();
+
+    // after showModal, the swarm lays out off its own width. an unranked player is added in to show where they would land
+    eloSwarm(document.getElementById('modalSpread'), ranked.includes(p) ? ranked : [...ranked, p], { maxH: 90, mark: p });
   }
 
   const quadrantPlugin = {
     id: 'quadrantHighlight',
     beforeDatasetsDraw: (chart) => {
-      if (!highlightQuadrant || chart.canvas.id !== 'chart1') return;
-      
+      if (!highlightQuadrant) return;
+
       const { ctx, scales: { x, y } } = chart;
       const { medX, medY, target } = highlightQuadrant;
-      
+
       const px = x.getPixelForValue(medX);
       const py = y.getPixelForValue(medY);
       const L = x.left, R = x.right, T = y.top, B = y.bottom;
-      
-      let rectX, rectY, rectW, rectH;
-      if (target === 'TR') { rectX = px; rectY = T; rectW = R - px; rectH = py - T; }
-      else if (target === 'TL') { rectX = L; rectY = T; rectW = px - L; rectH = py - T; }
-      else if (target === 'BL') { rectX = L; rectY = py; rectW = px - L; rectH = B - py; }
-      else if (target === 'BR') { rectX = px; rectY = py; rectW = R - px; rectH = B - py; }
-      
+
+      // target is T or B then L or R
+      const [rectX, rectW] = target[1] === 'R' ? [px, R - px] : [L, px - L];
+      const [rectY, rectH] = target[0] === 'T' ? [T, py - T] : [py, B - py];
+
       ctx.save();
       ctx.fillStyle = 'rgba(191, 161, 115, 0.04)';
       ctx.fillRect(rectX, rectY, rectW, rectH);
@@ -1484,12 +1690,12 @@
     lbWrap.innerHTML = `<table><thead><tr>
         <th style="width:30px">#</th><th>player</th><th style="width:50px">elo</th><th style="width:56px">win</th><th class="muted" style="width:80px">W–L</th>
       </tr></thead><tbody>${board.slice(3).map((p, i) => `<tr id="row-${p.id}" data-pid="${p.id}">
-        <td>${i + 4}</td><td class="pname" data-uid="${p.id}">${playerLabel(p.id)}</td><td>${p.elo}</td><td>${p.winrate.toFixed(1)}%</td><td class="muted">${p.wins}–${p.loss}</td>
+        <td>${i + 4}</td><td class="pname"><button type="button" class="row-btn" data-uid="${p.id}">${playerLabel(p.id)}</button></td><td>${p.elo}</td><td>${p.winrate.toFixed(1)}%</td><td class="muted">${p.wins}–${p.loss}</td>
       </tr>`).join('')}</tbody></table>`;
     renderPodium(board.slice(0, 3));
   }
 
-  const CROWN = '<svg class="pod-crown" viewBox="0 0 34 22" aria-hidden="true"><path fill="currentColor" d="M2 5l8 7 7-11 7 11 8-7-3 17H5z"/></svg>';
+  const CROWN = '<svg class="crown" viewBox="0 0 34 22" aria-hidden="true"><path fill="currentColor" d="M2 5l8 7 7-11 7 11 8-7-3 17H5z"/></svg>';
 
   // dom order is 1 2 3 for screen readers, css order puts 2 1 3 on screen
   function renderPodium(top) {
@@ -1516,20 +1722,10 @@
   }
 
   async function load() {
-    lbWrap.innerHTML = '<div class="small muted" style="padding: 10px;">Loading…</div>';
     try {
       const res = await fetch('/api/rowa/all');
       if (!res.ok) throw new Error('fetch failed ' + res.status);
       const list = await res.json();
-
-      players = [];
-      allKeys = new Set();
-      Object.keys(validCounts).forEach(k => delete validCounts[k]);
-      const osCounts = {};
-      const regionPlaytime = {};
-      const regionSet = new Set();
-
-      const palette = ['#bfa173', '#8ca39b', '#a37b69', '#7d8c9e', '#9c8c6d', '#807a6d', '#a89070', '#6b7a8f', '#b89478'];
 
       for (const item of list) {
         const id = (item.id ?? item.userid ?? item.userId ?? 'unknown').toString();
@@ -1543,146 +1739,66 @@
         const meta = v.meta || {};
         const clientInfo = meta.clientInfo || 'Unknown, Unknown';
         const os = clientInfo.split(',')[0].trim();
-        osCounts[os] = (osCounts[os] || 0) + 1;
         const playtimeHrs = (meta.totalPlaytime || 0) / 3600;
 
-        let primaryRegion = 'Unknown';
-        let maxPlayTime = 0;
-        let totalPlayTimeForPing = 0;
-        let weightedPingSum = 0;
-        let hasPingData = false;
+        const regions = Object.entries(meta.regionsData || {}).map(([r, d]) => ({ r, t: d.playTime || 0, ping: d.ping || 0 }));
+        const totalRegionTime = sum(regions.map(x => x.t));
+        // most hours, unless a ping pick below replaces it
+        let primaryRegion = regions.reduce((a, x) => x.t > a.t ? x : a, { r: 'Unknown', t: 0 }).r;
 
-        if (meta.regionsData) {
-          // an Unknown region drags the ping average toward a number that means nothing.
-          // only fall back to it when its all the player has.
-          const named = Object.keys(meta.regionsData).filter(r => !isUnknownSeg(r) && (meta.regionsData[r].ping || 0) > 0);
-          const pingFrom = named.length ? new Set(named) : null;
+        // an Unknown region drags the ping average toward a number that means nothing.
+        // only fall back to it when its all the player has.
+        const withPing = regions.filter(x => x.ping > 0);
+        const known = withPing.filter(x => !isUnknownSeg(x.r));
+        const pingFrom = known.length ? known : withPing;
+        const pingTime = sum(pingFrom.map(x => x.t));
+        const weightedPing = pingTime > 0 ? Math.round(sum(pingFrom.map(x => x.ping * x.t)) / pingTime) : 0;
 
-          const totalRegionTime = Object.keys(meta.regionsData)
-            .reduce((s, r) => s + (meta.regionsData[r].playTime || 0), 0);
-
-          for (const r in meta.regionsData) {
-            const playTime = meta.regionsData[r].playTime || 0;
-            const ping = meta.regionsData[r].ping || 0;
-
-            regionPlaytime[r] = (regionPlaytime[r] || 0) + playTime;
-
-            if (playTime > maxPlayTime) {
-              maxPlayTime = playTime;
-              primaryRegion = r;      // provisional, replaced by the ping pick below
-            }
-
-            if (ping > 0 && (!pingFrom || pingFrom.has(r))) {
-              totalPlayTimeForPing += playTime;
-              weightedPingSum += ping * playTime;
-              hasPingData = true;
-            }
-          }
-
-          // home region is the best ping, not the most hours. the 10% floor stops one brief session deciding it
-          let bestPing = Infinity, bestPingTime = 0;
-          for (const r in meta.regionsData) {
-            const playTime = meta.regionsData[r].playTime || 0;
-            const ping = meta.regionsData[r].ping || 0;
-            if (!ping || isUnknownSeg(r)) continue;
-            if (totalRegionTime && playTime < totalRegionTime * 0.10) continue;
-            if (ping < bestPing) {
-              bestPing = ping;
-              bestPingTime = playTime;
-              primaryRegion = r;
-            }
-          }
-
+        // home region is the best ping, not the most hours. the 10% floor stops one brief session deciding it
+        const best = known.filter(x => !totalRegionTime || x.t >= totalRegionTime * 0.10)
+          .reduce((a, x) => !a || x.ping < a.ping ? x : a, null);
+        if (best) {
+          primaryRegion = best.r;
           // nobody feels 10ms, so hours break a near tie
-          if (isFinite(bestPing)) {
-            let alt = null;
-            for (const r in meta.regionsData) {
-              if (r === primaryRegion || isUnknownSeg(r)) continue;
-              const ping = meta.regionsData[r].ping || 0;
-              const playTime = meta.regionsData[r].playTime || 0;
-              if (!ping) continue;
-              if (ping - bestPing <= 10 && playTime > bestPingTime * 2 && (!alt || playTime > alt.t)) {
-                alt = { r, t: playTime };
-              }
-            }
-            if (alt) primaryRegion = alt.r;
-          }
-        }
-        regionSet.add(primaryRegion);
-
-        let weightedPing = 0;
-        if (hasPingData && totalPlayTimeForPing > 0) {
-          weightedPing = Math.round(weightedPingSum / totalPlayTimeForPing);
+          const alt = known.filter(x => x !== best && x.ping - best.ping <= 10 && x.t > best.t * 2)
+            .reduce((a, x) => !a || x.t > a.t ? x : a, null);
+          if (alt) primaryRegion = alt.r;
         }
 
-        let hasValidCombatData = false;
-        if (v.plrStats) {
-          const sum = v.plrStats.reduce((acc, stat) => {
-            if (Array.isArray(stat)) return acc + (stat[0] || 0) + (stat[1] || 0);
-            if (typeof stat === 'number') return acc + stat;
-            return acc;
-          }, 0);
-          hasValidCombatData = sum > 0;
-        }
+        const hasValidCombatData = Array.isArray(v.plrStats) && v.plrStats.flat().some(x => x > 0);
 
         const flatData = flattenObject(v);
-        flatData['_calcWinrate'] = winrate;
-        flatData['_calcTotalGames'] = games;
-        
-        if (weightedPing > 0) {
-          flatData['_calcWeightedPing'] = weightedPing;
-          validCounts['_calcWeightedPing'] = (validCounts['_calcWeightedPing'] || 0) + 1;
-        }
-
-        validCounts['_calcWinrate'] = (validCounts['_calcWinrate'] || 0) + 1;
-        validCounts['_calcTotalGames'] = (validCounts['_calcTotalGames'] || 0) + 1;
+        flatData._calcWinrate = winrate;
+        flatData._calcTotalGames = games;
+        if (weightedPing > 0) flatData._calcWeightedPing = weightedPing;
 
         // raw FeintedBasic/FeintedAbility track games played at r=0.99, so on their own
         // they rank playtime. per 100 attacks thrown drops that correlation to 0.04.
-        if (Array.isArray(v.plrStats)) {
-          const fBasic = typeof v.plrStats[8] === 'number' ? v.plrStats[8] : 0;
-          const fAbility = typeof v.plrStats[9] === 'number' ? v.plrStats[9] : 0;
-          const feints = fBasic + fAbility;
-
-          // [i][0] is the event count, [i][1] is damage. counts are the denominator here.
-          let attacksThrown = 0;
-          for (let i = 4; i < 8; i++) {
-            if (Array.isArray(v.plrStats[i])) attacksThrown += v.plrStats[i][0] || 0;
-          }
-
-          // under 50 attacks the rate is noise
-          if (feints > 0 && attacksThrown >= 50) {
-            flatData['_calcFeintRate'] = feints / attacksThrown * 100;
-            validCounts['_calcFeintRate'] = (validCounts['_calcFeintRate'] || 0) + 1;
-
-            flatData['_calcFeintBasicPct'] = fBasic / feints * 100;
-            validCounts['_calcFeintBasicPct'] = (validCounts['_calcFeintBasicPct'] || 0) + 1;
-          }
+        // under 50 attacks the rate is noise
+        const feints = feintCounts(v.plrStats);
+        if (feints.total && feints.attacks >= 50) {
+          flatData._calcFeintRate = feints.total / feints.attacks * 100;
+          flatData._calcFeintBasicPct = feints.fb / feints.total * 100;
         }
 
         // raw first/last timestamps plot as unix seconds, the day counts say the same thing readably
-        if (meta.first) {
-          const ageDays = Math.max(0, Math.floor((nowSecs - meta.first) / 86400));
-          flatData['_calcAccountAgeDays'] = ageDays;
-          validCounts['_calcAccountAgeDays'] = (validCounts['_calcAccountAgeDays'] || 0) + 1;
-        }
-        if (meta.last) {
-          const lastSeenDays = Math.max(0, Math.floor((nowSecs - meta.last) / 86400));
-          flatData['_calcDaysSinceLastSeen'] = lastSeenDays;
-          validCounts['_calcDaysSinceLastSeen'] = (validCounts['_calcDaysSinceLastSeen'] || 0) + 1;
-        }
+        if (meta.first) flatData._calcAccountAgeDays = daysAgo(meta.first);
+        if (meta.last) flatData._calcDaysSinceLastSeen = daysAgo(meta.last);
 
         if (!isFinite(elo)) continue;
 
         players.push({
           id, elo, winrate, wins, loss, clientInfo, os, primaryRegion, weightedPing, playtimeHrs, hasValidCombatData,
+          dmg: Array.isArray(v.plrStats) ? combatDmg(v.plrStats) : null, feints,
           decodedSlots: decodeBuffer(v.slots),
-          decodedFlags: decodeBuffer(v.flags),
+          decodedFlags: decodeBitSet(v.flags),
           flatData, raw: v, synthesized: []
         });
       }
 
       synthesizeMissingData();
+      players.sort((a, b) => b.elo - a.elo);
+      ranked = players.filter(p => p.wins + p.loss >= MIN_RANKED_GAMES);
 
       const synthUsers = players.filter(p => p.synthesized.length > 0);
       if (synthUsers.length > 0) {
@@ -1690,20 +1806,13 @@
         console.table(synthUsers.map(p => ({ id: p.id, synthesized: p.synthesized.join(', '), guessedPing: p.weightedPing })));
       }
 
-      uniqueRegions = Array.from(regionSet).sort();
-      uniqueRegions.forEach((region, i) => {
-        regionColors[region] = palette[i % palette.length];
-      });
-
-      const minRequired = Math.max(1, Math.floor(players.length * 0.1));
-      for (const key in validCounts) {
-        if (validCounts[key] >= minRequired) {
-          allKeys.add(key);
-        }
-      }
-
+      // a metric needs to be on a tenth of the players to make the axis lists,
       // alphabetical by what people read, not the datastore key
-      const sortedKeys = Array.from(allKeys).sort((a, b) => metricLabel(a).localeCompare(metricLabel(b)));
+      const counts = {};
+      for (const p of players) for (const k in p.flatData) counts[k] = (counts[k] || 0) + 1;
+      const minRequired = Math.max(1, Math.floor(players.length * 0.1));
+      const sortedKeys = Object.keys(counts).filter(k => counts[k] >= minRequired)
+        .sort((a, b) => metricLabel(a).localeCompare(metricLabel(b)));
 
       // defaults may not exist in the data, fall back so no axis is left empty
       const pick = (want, fallbacks) =>
@@ -1717,10 +1826,8 @@
         }
       }
 
-      // rebuilt every load, a sparse first fetch would lock in a bad metric list
       for (const axis of ['x', 'y']) {
         const list = document.getElementById(`${axis}AxisList`);
-        list.innerHTML = '';
         for (const key of sortedKeys) {
           const item = document.createElement('div');
           item.className = 'metric-item';
@@ -1739,27 +1846,22 @@
         }
       }
 
-      for (const key in charts) {
-        if (charts[key]) charts[key].destroy();
-      }
-
       const c1ctx = document.getElementById('chart1').getContext('2d');
-      
-      const initialDatasets = uniqueRegions.map(region => ({
-        label: region,
-        data: [],
-        backgroundColor: regionColors[region],
-        pointRadius: 4,
-        pointHoverRadius: 6
-      }));
+
+      // the top ten in gold over everyone else. it was coloured by region, eight greys nobody could tell apart.
+      // order puts the gold dots on top
+      const scatterSet = (label, color, order) => ({
+        label, data: [], order, backgroundColor: tok(color),
+        pointRadius: 4, pointHoverRadius: 6, pointBorderWidth: 1, pointBorderColor: tok('--bg')
+      });
 
       charts.c1 = new Chart(c1ctx, {
         type: 'scatter',
-        data: { datasets: initialDatasets },
+        data: { datasets: [scatterSet('Top ten', '--gold', 0), scatterSet('Everyone else', '--context', 1)] },
         plugins: [quadrantPlugin],
         options: {
           responsive: true, maintainAspectRatio: false,
-          animation: { duration: 600, easing: 'easeInOutQuart' },
+          animation: !reduceMotion && { duration: 600, easing: 'easeInOutQuart' },
           onClick: (e, elements) => {
             if (elements.length > 0) {
               const { datasetIndex, index } = elements[0];
@@ -1808,50 +1910,28 @@
       
       updateScatterChart();
 
-      const c4ctx = document.getElementById('chart4').getContext('2d');
-      charts.c4 = new Chart(c4ctx, {
-        type: 'doughnut',
-        data: {
-          labels: Object.keys(osCounts),
-          datasets: [{
-            data: Object.values(osCounts),
-            backgroundColor: palette,
-            borderColor: '#1e1b16', borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } } }
-        }
-      });
-
-      const c5ctx = document.getElementById('chart5').getContext('2d');
-      const regionLabels = Object.keys(regionPlaytime).sort((a, b) => regionPlaytime[b] - regionPlaytime[a]);
-      charts.c5 = new Chart(c5ctx, {
-        type: 'bar',
-        data: {
-          labels: regionLabels,
-          datasets: [{ label: 'Hours', data: regionLabels.map(r => regionPlaytime[r] / 3600), backgroundColor: 'rgba(191, 161, 115, 0.7)', borderColor: 'rgba(191, 161, 115, 1)', borderWidth: 1 }]
-        },
-        options: {
-          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.02)' } },
-            y: { grid: { display: false } }
-          }
-        }
-      });
-
-      players.sort((a, b) => b.elo - a.elo);
+      // before the chapters render, they lay out off their own widths
+      document.querySelector('.wrap').classList.add('ready');
       renderBoard();
       document.getElementById('heroSub').textContent =
         `Every ROWA 2 player ranked by elo, ${players.length} so far, pulled straight from the game.`;
+      renderWhoPlays();
+      renderSpread();
+      renderStyles();
+      renderMeta();
+      vsPair = ranked.slice(0, 2);
+      renderVersus();
+      renderNetwork();
+      renderGrowth();
 
       // rows are already on screen, names swap in when they land
       namesReady = loadNames(players.map(p => p.id)).then(filled => {
         if (!filled) return;
         applyNames();
+        redrawNet();
+        // swarm tooltips and the versus inputs carry names in attributes, so they need a fresh draw
+        renderSpread();
+        renderVersus();
         if (finderInput.value) renderFinder(finderInput.value);
       });
 
@@ -1863,6 +1943,758 @@
     }
   }
 
+  // ---- who plays ----
+  // "UnitedStates" or "bloodChain" from the game into words, anything but letters and digits dropped first
+  const words = s => String(s || '').replace(/\W/g, '').replace(/^./, c => c.toUpperCase()).replace(/([a-z])([A-Z])/g, '$1 $2');
+
+  function renderWhoPlays() {
+    const tally = key => {
+      const m = {};
+      for (const p of players) {
+        const k = key(p);
+        if (k && !isUnknownSeg(k)) m[k] = (m[k] || 0) + 1;
+      }
+      return Object.entries(m).sort((a, b) => b[1] - a[1]);
+    };
+    const bars = rows => rows.map(([k, n]) => `<div class="share-row">
+        <span>${k}</span><span class="reg-bar"><span style="width:${n / rows[0][1] * 100}%"></span></span><span class="muted">${n}</span>
+      </div>`).join('');
+
+    document.getElementById('platformBars').innerHTML = bars(tally(p => p.os.replace(/[^\w ]/g, '')));
+    // clientInfo reads "Windows, UnitedStates / flag"
+    const countries = tally(p => words(p.clientInfo.split(',')[1]?.split('/')[0]));
+    const other = countries.slice(7).reduce((s, [, n]) => s + n, 0);
+    document.getElementById('countryBars').innerHTML = bars(other ? [...countries.slice(0, 7), ['Other', other]] : countries);
+  }
+
+  // ---- elo spread, a beeswarm: one dot per player, each as close to the middle line as it fits ----
+  // the leaderboard is its table. returns the elo to px scale, nothing when there is nothing to draw
+  function eloSwarm(el, pool, { maxH, mark, metals } = {}) {
+    const w = el.clientWidth;
+    el.innerHTML = '';
+    if (!w || pool.length < 2) return;
+    const asc = [...pool].sort((a, b) => a.elo - b.elo);
+    const lo = Math.floor(asc[0].elo / 100) * 100;
+    const hi = Math.ceil((asc.at(-1).elo + 1) / 100) * 100;
+    const at = e => (e - lo) / (hi - lo) * w;
+
+    // the biggest dot that keeps the swarm under maxH
+    let d, dots, top, bottom;
+    for (d = 20; ; d--) {
+      dots = [];
+      top = bottom = 0;
+      for (const p of asc) {
+        const x = at(p.elo);
+        const near = dots.filter(q => Math.abs(q.x - x) < d);
+        const clear = y => near.every(q => (q.x - x) ** 2 + (q.y - y) ** 2 >= d * d - 0.01);
+        // every spot touching a neighbour, nearest the middle first
+        const y = [0, ...near.flatMap(q => { const h = Math.sqrt(d * d - (q.x - x) ** 2); return [q.y - h, q.y + h]; })]
+          .sort((a, b) => Math.abs(a) - Math.abs(b)).find(clear) ?? bottom + d;
+        dots.push({ p, x, y });
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+      if (bottom - top + d <= maxH || d <= 5) break;
+    }
+
+    const metal = new Map(metals ? asc.slice(-3).reverse().map((p, i) => [p, ` r${i + 1}`]) : []);
+    let html = '';
+    for (let e = lo; e <= hi; e += 100) html += `<span class="sw-tick" style="left:${at(e)}px">${e}</span>`;
+    for (const { p, x, y } of dots) {
+      const cls = (metal.get(p) || '') + (p === mark ? ' me' : '') + (x < 90 ? ' tip-l' : x > w - 90 ? ' tip-r' : '');
+      // out of the tab order, 150 stops would bury the page. the leaderboard has every player by keyboard
+      html += `<button type="button" tabindex="-1" class="sw-dot${cls}" data-pid="${p.id}" data-tip="${playerLabel(p.id)}, ${p.elo} elo"
+        style="left:${x}px;top:${y - top + d / 2}px;width:${d}px;height:${d}px"></button>`;
+    }
+    el.style.height = `${bottom - top + d}px`;
+    el.innerHTML = html;
+    return at;
+  }
+
+  function renderSpread() {
+    const board = getFilteredPlayers();
+    // no games yet means still on the 800 everyone starts at, which says nothing about them
+    const pool = board.filter(p => p.wins + p.loss > 0);
+    const el = document.getElementById('spreadChart');
+    spreadW = el.clientWidth;
+    const at = eloSwarm(el, pool, { maxH: 300, metals: true });
+    if (!at) return;
+    const asc = pool.map(p => p.elo).sort((a, b) => a - b);
+    const q = f => asc[Math.floor(f * (asc.length - 1))];
+    const med = Math.round(median(asc));
+    el.insertAdjacentHTML('afterbegin', `<span class="sw-mark" style="left:${at(med)}px"><span>median ${med}</span></span>`);
+
+    const left = board.length - pool.length;
+    document.getElementById('spreadFinding').innerHTML =
+      `Half the players on the board sit between <b>${q(0.25)}</b> and <b>${q(0.75)}</b> elo. Everyone starts at 800, and it takes <b>${asc.at(-Math.min(10, asc.length))}</b> to make the top ten.` +
+      (left ? ` The ${left} who have not played a game yet are left off.` : '');
+  }
+  // the swarm packs to its width, so a resize lays it out again. the width it last laid out
+  // at is skipped, its own height change would otherwise loop back in here
+  let spreadW = 0;
+  new ResizeObserver(([e]) => {
+    if (Math.round(e.contentRect.width) !== spreadW) renderSpread();
+  }).observe(document.getElementById('spreadChart'));
+
+  // ---- playstyles: the top 8 cut in half twice, each time on the combat stat they differ on most ----
+  const STYLE_TOP = 16;
+  // the same numbers "fights most like" matches on. everyone else is sorted by the same cut-offs
+  const STYLE_STATS = [...DEF_LABELS, ...ATK_LABELS, 'Feints'];
+  // what each side of a cut reads as, low then high
+  const STYLE_WORDS = [
+    ['parries little', 'parries a lot'], ['rarely blocks', 'blocks a lot'], ['rarely dodges', 'dodges a lot'],
+    ['takes few hits', 'takes a lot of hits'], ['rarely gets parried', 'gets parried a lot'], ['rarely gets blocked', 'gets blocked a lot'],
+    ['rarely gets dodged', 'gets dodged a lot'], ['lands few clean hits', 'lands a lot of clean hits'], ['rarely feints', 'feints a lot']
+  ];
+  // the cuts move with the data, so a group is named for what it does rather than which cut made it.
+  // a signature is +1 for high, -1 for low, keyed by STYLE_STATS index
+  const ARCHETYPES = {
+    Duelist: { 0: 1, 3: -1 },        // parries, rarely gets hit
+    Phantom: { 2: 1, 3: -1 },        // dodges, rarely gets hit
+    Bulwark: { 1: 1, 3: -1 },        // blocks, rarely gets hit
+    Striker: { 7: 1, 3: -1 },        // lands clean and stays clean
+    Brawler: { 3: 1, 7: 1 },         // trades hits
+    Juggernaut: { 3: 1, 7: -1 },     // eats hits and keeps coming
+    Trickster: { 8: 1 },             // feints
+    Berserker: { 4: 1, 5: 1, 6: 1 }  // swings into guards
+  };
+  const styleVec = p => p.hasValidCombatData ? [...combatVec(p), p.flatData._calcFeintRate] : null;
+  const styleFmt = (i, v) => i === 8 ? `${v.toFixed(1)} per 100 attacks` : `${v.toFixed(1)}%`;
+  // one stat across a list, skipping anyone without a number for it
+  const styleCol = (list, i) => list.map(p => styleVec(p)[i]).filter(x => x != null);
+  const styleAvg = list => STYLE_STATS.map((_, i) => mean(styleCol(list, i)));
+  let styles = null;
+  // the playstyle group a player falls in, undefined when there is none
+  const styleOf = p => styles?.groups[styles.groupOf(p)];
+
+  // each group's average against the whole ranked field in standard deviations, then the
+  // best scoring archetype and group pair takes its name, again until all four are named
+  function nameGroups(pool, groupOf) {
+    const mu = styleAvg(pool);
+    const sd = STYLE_STATS.map((_, i) => Math.sqrt(mean(styleCol(pool, i).map(x => (x - mu[i]) ** 2))) || 1);
+    const z = [0, 1, 2, 3].map(g => styleAvg(pool.filter(p => groupOf(p) === g)).map((x, i) => (x - mu[i]) / sd[i]));
+
+    const pairs = [];
+    for (const [name, sig] of Object.entries(ARCHETYPES)) {
+      const keys = Object.keys(sig);
+      z.forEach((zg, g) => pairs.push({ name, g, score: keys.reduce((s, k) => s + sig[k] * zg[k], 0) / keys.length }));
+    }
+    const names = [], used = new Set();
+    for (const { name, g } of pairs.sort((a, b) => b.score - a.score)) {
+      if (names[g] || used.has(name)) continue;
+      names[g] = name;
+      used.add(name);
+    }
+    return names;
+  }
+
+  function buildStyles() {
+    const pool = ranked.filter(styleVec);
+    const top = pool.slice(0, STYLE_TOP);
+    if (top.length < STYLE_TOP) return null;
+
+    // the stat this list spreads furthest on, cut at its median so each side keeps half
+    const cut = (list, skip) => {
+      const spread = i => {
+        const v = list.map(p => styleVec(p)[i]);
+        const m = mean(v);
+        return sum(v.map(x => (x - m) ** 2));
+      };
+      const i = STYLE_STATS.map((_, i) => i).filter(i => i !== skip && list.every(p => styleVec(p)[i] != null))
+        .sort((x, y) => spread(y) - spread(x))[0];
+      return { i, at: median(list.map(p => styleVec(p)[i])) };
+    };
+    const root = cut(top);
+    const kids = [0, 1].map(side => cut(top.filter(p => (styleVec(p)[root.i] >= root.at) === !!side), root.i));
+
+    // -1 when a cut lands on a stat this player has no number for
+    const groupOf = p => {
+      const v = styleVec(p);
+      if (v?.[root.i] == null) return -1;
+      const side = +(v[root.i] >= root.at), kid = kids[side];
+      return v[kid.i] == null ? -1 : side * 2 + +(v[kid.i] >= kid.at);
+    };
+    // "takes few hits (under 53.5%)"
+    const trait = (i, hi, at) => `${STYLE_WORDS[i][hi]} (${hi ? `${styleFmt(i, at)} or more` : `under ${styleFmt(i, at)}`})`;
+    const names = nameGroups(pool, groupOf);
+    const groups = [0, 1, 2, 3].map(g => {
+      const s = g >> 1, hi = g & 1, kid = kids[s];
+      return {
+        title: names[g],
+        traits: `${STYLE_WORDS[root.i][s]}, ${STYLE_WORDS[kid.i][hi]}`,
+        rule: cap(`${trait(root.i, s, root.at)}, ${trait(kid.i, hi, kid.at)}`),
+        top: top.filter(p => groupOf(p) === g),
+        members: ranked.filter(p => groupOf(p) === g)
+      };
+    });
+    return { root, kids, groupOf, groups };
+  }
+
+  function renderStyles() {
+    styles = buildStyles();
+    document.getElementById('styles').hidden = !styles;
+    if (!styles) return;
+    const { root, kids, groups } = styles;
+    const stat = i => `<b>${STYLE_STATS[i].toLowerCase()}</b>`;
+
+    document.getElementById('styleFinding').innerHTML =
+      `The top ${STYLE_TOP} split four ways on how they fight. The first cut is ${stat(root.i)}, the stat they differ on most, then ` +
+      (kids[0].i === kids[1].i ? `both halves split again on ${stat(kids[0].i)}.` : `one half splits on ${stat(kids[0].i)} and the other on ${stat(kids[1].i)}.`) +
+      ' Everyone else lands wherever those same lines put them.';
+    document.getElementById('styleKey').innerHTML = keyHtml(['Parried', 'Blocked', 'Dodged', 'Landed']);
+
+    const el = document.getElementById('styleGroups');
+    el.innerHTML = groups.map((g, gi) => {
+      const rest = g.members.filter(p => !g.top.includes(p));
+      return `<div class="style">
+        <h3>${g.title}</h3>
+        <div class="small">${g.rule}</div>
+        <div class="cbar-title">On defence</div><div class="cbar" data-g="${gi}"></div>
+        <div class="cbar-title">On attack</div><div class="cbar" data-g="${gi}" data-atk></div>
+        <div class="sim-grid">${g.top.map(p => playerTile(p)).join('')}</div>
+        ${rest.slice(0, 4).map(p => playerRow(p, `${p.elo} elo`)).join('')}
+        ${rest.length > 4 ? `<div class="small chart-note">and ${rest.length - 4} more ranked players</div>` : ''}
+      </div>`;
+    }).join('');
+
+    // the group's average split, every ranked player in it and not just the four shown
+    el.querySelectorAll('.cbar').forEach(bar => {
+      const off = 'atk' in bar.dataset ? 4 : 0;
+      fillCombatBar(bar, styleAvg(groups[bar.dataset.g].members).slice(off, off + 4), off ? ATK_LABELS : DEF_LABELS);
+    });
+    fillWhenNear(el);
+  }
+
+  function renderStyleLine(p) {
+    const el = document.getElementById('styleLine');
+    const s = styleOf(p);
+    el.hidden = !s;
+    if (!s) return;
+    const mates = s.top.filter(q => q !== p).slice(0, 2);
+    el.innerHTML = `Playstyle: <b>${s.title}</b> (${s.traits})` +
+      (mates.length ? `, like ${mates.map(q => `<span data-uid="${q.id}">${playerLabel(q.id)}</span>`).join(' and ')}` : '');
+  }
+
+  // ---- versus, two players side by side ----
+  // win says which way is better, a row without one is style rather than skill
+  const pct = v => v.toFixed(1) + '%';
+  const combat = key => p => p.hasValidCombatData ? p.flatData[`plrStats.${key}.Pct`] : null;
+  // elo is under the avatars and in the odds, how much they play says nothing about a fight
+  const VS_ROWS = [
+    { label: 'win rate', get: p => p.winrate, fmt: pct, win: 1 },
+    { label: 'ping', get: p => p.weightedPing || null, fmt: v => v + 'ms' },
+    { label: 'parried', get: combat('Parried'), fmt: pct, win: 1 },
+    { label: 'blocked', get: combat('Blocked'), fmt: pct, win: 1 },
+    { label: 'dodged', get: combat('Dodged'), fmt: pct, win: 1 },
+    { label: 'hits taken', get: combat('DamageTaken'), fmt: pct, win: -1 },
+    { label: 'hits landed', get: combat('DamageDealt'), fmt: pct, win: 1 },
+    { label: 'feints per 100 attacks', get: p => p.flatData._calcFeintRate ?? null, fmt: v => v.toFixed(1) }
+  ];
+  let vsPair = [];
+  const vsInputs = ['vsA', 'vsB'].map(id => document.getElementById(id));
+
+  function renderVersus() {
+    if (vsPair.length < 2) return;
+    const [a, b] = vsPair;
+    vsInputs.forEach((input, i) => { input.value = playerLabel(vsPair[i].id); });
+    document.getElementById('vsNames').innerHTML = players.map(p => `<option value="${playerLabel(p.id)}"></option>`).join('');
+
+    const score = [0, 0];
+    let counted = 0;
+    const rows = VS_ROWS.map(r => {
+      const v = [r.get(a), r.get(b)];
+      const both = v.every(x => x != null);
+      const best = both && r.win && v[0] !== v[1] ? +((v[1] > v[0]) === (r.win > 0)) : -1;
+      if (both && r.win) {
+        counted++;
+        if (best >= 0) score[best]++;
+      }
+      // a bar is where they sit between the lowest and highest ranked player, so close calls still read
+      const field = [...ranked.map(r.get), ...v].filter(x => x != null);
+      const lo = Math.min(...field), span = Math.max(...field) - lo || 1;
+      const val = i => `<span class="${best === i ? 'win' : ''}">${v[i] == null ? 'n/a' : r.fmt(v[i])}</span>`;
+      const bar = i => `<span class="vs-bar ${i ? 'b' : 'a'}"><span style="width:${v[i] == null ? 0 : Math.max(2, (v[i] - lo) / span * 100)}%"></span></span>`;
+      return `<div class="vs-row">${val(0)}${bar(0)}<span class="vs-label">${r.label}</span>${bar(1)}${val(1)}</div>`;
+    }).join('');
+
+    const side = (p, cls) => playerTile(p, styleOf(p)?.title, `vs-side ${cls}`);
+    // the chance elo itself expects: 400 points apart is 10 to 1
+    const chance = 1 / (1 + 10 ** ((b.elo - a.elo) / 400));
+    const odds = [chance, 1 - chance].map(c => Math.round(c * 100));
+    const oddsHtml = `<div class="vs-odds">
+        <span class="vs-pct">${odds[0]}%</span>
+        <span class="vs-split"><span class="a" style="flex:${chance}"></span><span class="b" style="flex:${1 - chance}"></span></span>
+        <span class="vs-pct">${odds[1]}%</span>
+      </div>
+      <div class="small vs-odds-note">Chance to win a fight, from the gap in elo</div>`;
+
+    const body = document.getElementById('vsBody');
+    body.innerHTML = side(a, 'a') + `<div class="vs-rows">${oddsHtml}${rows}</div>` + side(b, 'b');
+    fillWhenNear(body);
+
+    const fav = chance >= 0.5 ? 0 : 1;
+    const name = p => `<b data-uid="${p.id}">${playerLabel(p.id)}</b>`;
+    const lead = score[0] === score[1] ? null : vsPair[+(score[1] > score[0])];
+    document.getElementById('vsFinding').innerHTML =
+      (odds[0] === odds[1] ? 'A coin flip going by elo.' : `${name(vsPair[fav])} wins ${odds[fav]}% of the time going by elo.`) +
+      (lead ? ` ${name(lead)} is ahead on ${Math.max(...score)} of the ${counted} fight stats below.` : ` The fight stats below split ${score[0]} each.`);
+  }
+
+  vsInputs.forEach((input, i) => {
+    input.addEventListener('focus', () => input.select());
+    input.addEventListener('change', () => {
+      const want = input.value.trim().toLowerCase();
+      const p = players.find(q => playerLabel(q.id).toLowerCase() === want || q.id === want);
+      if (p && p !== vsPair[1 - i]) {
+        vsPair[i] = p;
+        setParam('vs', vsPair.map(q => q.id).join());
+      }
+      // a name that matched nobody puts the old one back
+      renderVersus();
+    });
+  });
+
+  // from a profile: that player on the left, whoever was on the right stays unless it is them
+  document.getElementById('vsFromProfile').addEventListener('click', () => {
+    const p = profilePlayer;
+    vsPair = [p, vsPair[1] && vsPair[1] !== p ? vsPair[1] : players.find(q => q !== p)];
+    modal.close();
+    setParam('vs', vsPair.map(q => q.id).join());
+    renderVersus();
+    document.getElementById('versus').scrollIntoView({ behavior: 'smooth' });
+    vsInputs[1].focus({ preventScroll: true });
+  });
+
+  // ---- what people run, off every character's save: hotbar abilities and talent cards ----
+  // a win rate needs enough games, and enough different people, before it means anything
+  const MIN_GAMES = 100, MIN_USERS = 3;
+  const TIERS = ['common', 'rare', 'ultimate'];
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+
+  // card names come off the game's registry on github, through the server's cache
+  let cardInfo = {};
+  const cardsReady = fetch('/api/rowa/cards').then(r => r.ok ? r.json() : {}).catch(() => ({})).then(c => { cardInfo = c; });
+
+  const LOADOUTS = {
+    abilities: {
+      one: 'ability', many: 'abilities', noun: 'hotbars', axis: 'Hotbars carrying it',
+      // id 3 is an ability, the other hotbar keys hold the weapon
+      items: slot => (slot?.hotbar?.s || []).filter(([, h]) => h?.id === 3 && h.name).map(([, h]) => ({ name: words(h.name) }))
+    },
+    talents: {
+      one: 'talent', many: 'talents', noun: 'characters', axis: 'Characters holding it',
+      // an id the registry no longer has still counts, named the way the game names it
+      items: slot => decodeBitSet(slot?.cards).map(id => ({ name: cardInfo[id]?.name || `unknown #${id}`, tier: cardInfo[id]?.tier || 'common', desc: cardInfo[id]?.desc }))
+    }
+  };
+
+  function loadoutStats(kind) {
+    const out = new Map();
+    let pool = 0;
+    const people = new Set();
+    for (const p of players) {
+      if (!Array.isArray(p.decodedSlots)) continue;
+      for (const slot of p.decodedSlots) {
+        const items = LOADOUTS[kind].items(slot);
+        if (items.length) { pool++; people.add(p); }
+        for (const item of items) {
+          const a = out.get(item.name) || out.set(item.name, { ...item, slots: 0, wins: 0, games: 0, users: new Set() }).get(item.name);
+          a.slots++;
+          a.wins += slot.wins || 0;
+          a.games += (slot.wins || 0) + (slot.loss || 0);
+          a.users.add(p);
+        }
+      }
+    }
+    return { all: [...out.values()].sort((a, b) => b.slots - a.slots), pool, people: people.size };
+  }
+
+  document.getElementById('metaKind').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-kind]');
+    if (!btn || btn.getAttribute('aria-pressed') === 'true') return;
+    document.querySelectorAll('#metaKind [data-kind]').forEach(b => b.setAttribute('aria-pressed', b === btn));
+    await cardsReady;
+    renderMeta(btn.dataset.kind);
+  });
+
+  function renderMeta(kind = 'abilities') {
+    const L = LOADOUTS[kind];
+    const { all, pool, people } = loadoutStats(kind);
+    charts.meta?.destroy();
+    const shown = all.filter(a => a.games >= MIN_GAMES && a.users.size >= MIN_USERS);
+    if (!shown.length) return;
+    const wr = a => a.wins / a.games * 100;
+    const byWr = [...shown].sort((a, b) => wr(b) - wr(a));
+    const top = all[0], best = byWr[0], worst = byWr.at(-1);
+    const tierText = a => a.tier && a.tier !== 'common' ? ` (${a.tier})` : '';
+
+    document.getElementById('metaFinding').innerHTML =
+      `<b>${top.name}</b> is on ${top.slots} of ${pool} ${L.noun}, more than any other ${L.one}. Of the ${L.many} with ${MIN_GAMES}+ games across ${MIN_USERS}+ players, <b>${best.name}</b> wins most often at ${wr(best).toFixed(0)}% and <b>${worst.name}</b> least at ${wr(worst).toFixed(0)}%.` +
+      (kind === 'talents' ? ` Only ${people} players have any talents so far.` : '');
+    document.getElementById('metaTable').innerHTML = tableView([L.one, L.noun, 'players', 'games', 'win rate'],
+      all.map(a => [a.name + tierText(a), a.slots, a.users.size, a.games.toLocaleString(), a.games ? wr(a).toFixed(1) + '%' : '']));
+
+    // talents split by draft tier, one colour each. abilities have no tier, so one series
+    const groups = kind === 'talents'
+      ? TIERS.map((t, i) => ({ label: cap(t), color: tok(`--series-${i + 1}`), items: shown.filter(a => a.tier === t) })).filter(g => g.items.length)
+      : [{ label: cap(L.many), color: tok('--series-1'), items: shown }];
+    const datasets = groups.map(g => ({
+      label: g.label, items: g.items, data: g.items.map(a => ({ x: a.slots, y: wr(a), a })),
+      backgroundColor: g.color, pointBorderWidth: 2, pointHoverRadius: 8
+    }));
+
+    // the picked dot keeps its tier colour and grows a light ring, so colour stays identity
+    let picked = top;
+    const paint = () => datasets.forEach(ds => {
+      ds.pointBorderColor = ds.items.map(a => a === picked ? tok('--text') : tok('--bg'));
+      ds.pointRadius = ds.items.map(a => a === picked ? 8 : 5);
+      ds.pointLabels = Object.fromEntries([top, best, worst, picked].filter(a => ds.items.includes(a)).map(a => [ds.items.indexOf(a), a.name]));
+    });
+    paint();
+
+    const pick = a => {
+      picked = a;
+      paint();
+      charts.meta.update('none');
+      const users = [...a.users].sort((x, y) => y.elo - x.elo);
+      const el = document.getElementById('metaPick');
+      el.innerHTML = `<h3>${a.name}</h3>
+        ${a.desc ? `<p>${a.desc}</p>` : ''}
+        <div class="small">${tierText(a) ? `${cap(a.tier)} ${L.one}. ` : ''}On ${a.slots} ${L.noun} across ${users.length} players, ${a.games ? `${wr(a).toFixed(1)}% wins over ${a.games.toLocaleString()} games` : 'no games yet'}</div>
+        <div class="sim-grid">${users.slice(0, 4).map(p => playerTile(p)).join('')}</div>
+        ${users.slice(4, 10).map(p => playerRow(p, `${p.elo} elo`)).join('')}
+        ${users.length > 10 ? `<div class="small chart-note">and ${users.length - 10} more</div>` : ''}`;
+      fillFigures(el);
+    };
+
+    const grid = { color: 'rgba(255,255,255,0.03)' };
+    charts.meta = new Chart(document.getElementById('metaChart'), {
+      type: 'scatter',
+      data: { datasets },
+      plugins: [pointLabels],
+      options: {
+        // built at load, off screen, so an entrance would play to nobody
+        responsive: true, maintainAspectRatio: false, animation: false,
+        // nearest, so the pointer only has to be closest to a dot and not on it
+        interaction: { mode: 'nearest', intersect: false },
+        onClick: (e, els) => els[0] && pick(datasets[els[0].datasetIndex].items[els[0].index]),
+        onHover: (e, els) => { e.native.target.style.cursor = els.length ? 'pointer' : ''; },
+        plugins: {
+          // built off the groups, the default reads the first dot and that one may be the picked ring
+          legend: {
+            display: groups.length > 1, position: 'bottom',
+            labels: {
+              usePointStyle: true, padding: 16,
+              generateLabels: c => groups.map((g, i) => ({
+                text: g.label, fillStyle: g.color, strokeStyle: g.color, pointStyle: 'circle',
+                datasetIndex: i, hidden: !c.isDatasetVisible(i), fontColor: tok('--muted')
+              }))
+            }
+          },
+          tooltip: {
+            displayColors: false,
+            callbacks: {
+              title: items => items[0].raw.a.name + tierText(items[0].raw.a),
+              label: ({ raw: { a } }) => [`${wr(a).toFixed(1)}% wins over ${a.games.toLocaleString()} games`, `on ${a.slots} ${L.noun}, ${a.users.size} players`]
+            }
+          }
+        },
+        scales: {
+          x: { title: { display: true, text: L.axis }, grid },
+          // the 50% gridline is drawn brighter, above it a pick wins more than it loses.
+          // a step of 5 means every step chart.js picks lands on 50.
+          // avy: the '80' alpha only works while --muted is a 6 digit hex
+          y: {
+            title: { display: true, text: 'Win rate' }, ticks: { stepSize: 5, callback: v => v + '%' },
+            grid: { color: c => c.tick.value === 50 ? tok('--muted') + '80' : grid.color }
+          }
+        }
+      }
+    });
+    pick(top);
+  }
+
+  // ---- follow network, a small force layout drawn on a canvas ----
+  let redrawNet = () => {};
+
+  function renderNetwork() {
+    const canvas = document.getElementById('netCanvas');
+    const tip = document.getElementById('netTip');
+    const byId = new Map(players.map(p => [p.id, p]));
+    const nodes = new Map();
+    const node = p => nodes.get(p.id) || nodes.set(p.id, { p, x: 0, y: 0, vx: 0, vy: 0, inn: 0, out: 0, nb: new Set() }).get(p.id);
+    const links = [];
+    for (const p of players) {
+      for (const f of p.raw.meta?.followedIds || []) {
+        const t = byId.get(String(f));
+        if (!t || t === p) continue;
+        const a = node(p), b = node(t);
+        a.out++;
+        b.inn++;
+        a.nb.add(b);
+        b.nb.add(a);
+        links.push([a, b]);
+      }
+    }
+    const list = [...nodes.values()];
+    if (!list.length) return;
+
+    const top = [...list].sort((a, b) => b.inn - a.inn);
+    document.getElementById('netTop').innerHTML = top.slice(0, 8).map(n => playerRow(n.p, `${n.inn}`)).join('');
+    document.getElementById('netFinding').innerHTML =
+      `<b>${list.filter(n => n.out).length}</b> players here follow someone else on the board. <b data-uid="${top[0].p.id}">${playerLabel(top[0].p.id)}</b> is followed by ${top[0].inn} of them.`;
+
+    // a seeded spiral to start from, so the layout settles the same way every load
+    list.forEach((n, i) => {
+      const r = 12 * Math.sqrt(i + 1);
+      n.x = r * Math.cos(i * 2.4);
+      n.y = r * Math.sin(i * 2.4);
+    });
+    const radius = n => 4 + Math.sqrt(n.inn) * 2.2;
+    const C = { gold: tok('--gold'), series: tok('--series-1'), context: tok('--context'), bg: tok('--bg'), text: tok('--text') };
+
+    let alpha = 1, drag = null, hover = null, moved = false, downAt = null, raf = 0;
+    // ponytail: all pairs repulsion is O(n^2), fine for a few hundred nodes, a quadtree past that
+    function tick() {
+      // gravity is weaker sideways on a wide canvas, so the graph spreads to its shape
+      const aspect = canvas.clientHeight / (canvas.clientWidth || 1);
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const a = list[i], b = list[j];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          // bigger dots push harder, so the well followed ones do not pile up on each other
+          const f = 150 * radius(a) * radius(b) * alpha / (dx * dx + dy * dy || 1);
+          a.vx -= dx * f; a.vy -= dy * f;
+          b.vx += dx * f; b.vy += dy * f;
+        }
+      }
+      for (const [a, b] of links) {
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+        const f = (d - 75) / d * 0.05 * alpha;
+        a.vx += dx * f; a.vy += dy * f;
+        b.vx -= dx * f; b.vy -= dy * f;
+      }
+      for (const n of list) {
+        if (n === drag) { n.vx = n.vy = 0; continue; }
+        n.vx = (n.vx - n.x * 0.02 * aspect * alpha) * 0.6;
+        n.vy = (n.vy - n.y * 0.02 * alpha) * 0.6;
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+      alpha *= 0.985;
+    }
+
+    // fit the graph to the canvas, held still while dragging so the node stays under the pointer
+    let view = { s: 1, ox: 0, oy: 0 };
+    function fit() {
+      const w = canvas.clientWidth, h = canvas.clientHeight, pad = 36;
+      const xs = list.map(n => n.x), ys = list.map(n => n.y);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const s = Math.min(2, (w - pad * 2) / (x1 - x0 || 1), (h - pad * 2) / (y1 - y0 || 1));
+      view = { s, ox: w / 2 - (x0 + x1) / 2 * s, oy: h / 2 - (y0 + y1) / 2 * s };
+    }
+    const sx = n => n.x * view.s + view.ox;
+    const sy = n => n.y * view.s + view.oy;
+
+    function draw() {
+      const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const lit = hover && new Set([hover, ...hover.nb]);
+      const edge = ([a, b]) => { ctx.beginPath(); ctx.moveTo(sx(a), sy(a)); ctx.lineTo(sx(b), sy(b)); ctx.stroke(); };
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = lit ? 'rgba(176, 168, 150, 0.06)' : 'rgba(176, 168, 150, 0.2)';
+      links.forEach(edge);
+      if (hover) {
+        ctx.strokeStyle = C.gold;
+        links.filter(l => l.includes(hover)).forEach(edge);
+      }
+
+      for (const n of list) {
+        ctx.globalAlpha = lit && !lit.has(n) ? 0.25 : 1;
+        ctx.beginPath();
+        ctx.arc(sx(n), sy(n), radius(n), 0, Math.PI * 2);
+        ctx.fillStyle = lit && lit.has(n) ? C.gold : n.inn >= 5 ? C.series : C.context;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = C.bg;
+        ctx.stroke();
+      }
+
+      // names on the well followed and the hovered, with a halo so edges never cut through them.
+      // most followed first, and a name that would land on one already drawn is skipped
+      ctx.font = '600 12px Archivo, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineJoin = 'round';
+      const placed = [];
+      for (const n of [hover, ...top].filter(Boolean)) {
+        if (n.inn < 4 && n !== hover) break;
+        const label = playerLabel(n.p.id), x = sx(n), y = sy(n) - radius(n) - 7;
+        const half = ctx.measureText(label).width / 2 + 3;
+        if (placed.some(r => Math.abs(r.x - x) < r.half + half && Math.abs(r.y - y) < 15)) continue;
+        placed.push({ x, y, half });
+        ctx.globalAlpha = lit && !lit.has(n) ? 0.3 : 1;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = C.bg;
+        ctx.strokeText(label, x, y);
+        ctx.fillStyle = C.text;
+        ctx.fillText(label, x, y);
+      }
+      ctx.globalAlpha = 1;
+    }
+    redrawNet = draw;
+
+    function frame() {
+      tick();
+      if (!drag) fit();
+      draw();
+      raf = alpha > 0.02 || drag ? requestAnimationFrame(frame) : 0;
+    }
+    const wake = a => {
+      alpha = Math.max(alpha, a);
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+
+    // settles in once it is scrolled to, or already settled for reduced motion
+    if (reduceMotion) {
+      while (alpha > 0.02) tick();
+      fit();
+      draw();
+    } else {
+      onceVisible(canvas, () => wake(1), { threshold: 0.3 });
+    }
+    new ResizeObserver(() => { if (!raf) { fit(); draw(); } }).observe(canvas);
+
+    const pointer = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    // the hit area is 10px past the dot, nobody lands dead centre on a small circle
+    const nearest = ([x, y]) => {
+      let best = null, bestD = Infinity;
+      for (const n of list) {
+        const d = Math.hypot(sx(n) - x, sy(n) - y);
+        if (d < radius(n) + 10 && d < bestD) { best = n; bestD = d; }
+      }
+      return best;
+    };
+
+    canvas.addEventListener('pointermove', e => {
+      const [x, y] = pointer(e);
+      // a few pixels of wobble on a click is not a drag
+      if (drag && (moved ||= Math.hypot(x - downAt[0], y - downAt[1]) > 4)) {
+        drag.x = (x - view.ox) / view.s;
+        drag.y = (y - view.oy) / view.s;
+        wake(0.3);
+      }
+      const n = drag || nearest([x, y]);
+      canvas.style.cursor = n ? (drag ? 'grabbing' : 'grab') : '';
+      if (n !== hover) {
+        hover = n;
+        if (!raf) draw();
+      }
+      tip.hidden = !n;
+      if (!n) return;
+      tip.innerHTML = `<b>${playerLabel(n.p.id)}</b>${n.p.elo} elo, followed by ${n.inn}, follows ${n.out}`;
+      tip.style.left = sx(n) + 'px';
+      tip.style.top = sy(n) + 'px';
+      tip.style.transform = sx(n) > canvas.clientWidth / 2 ? 'translate(calc(-100% - 14px), 14px)' : 'translate(14px, 14px)';
+    });
+    canvas.addEventListener('pointerleave', () => {
+      if (drag) return;
+      hover = null;
+      tip.hidden = true;
+      if (!raf) draw();
+    });
+    canvas.addEventListener('pointerdown', e => {
+      downAt = pointer(e);
+      drag = nearest(downAt);
+      if (!drag) return;
+      moved = false;
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointerup', () => {
+      // a press that never moved is a click
+      if (drag && !moved) openPlayerModal(drag.p);
+      drag = null;
+    });
+    // a touch that turns into a page scroll cancels the drag, nothing is left stuck
+    canvas.addEventListener('lostpointercapture', () => { drag = null; });
+  }
+
+  // ---- growth over time, from everyone's first and last game ----
+  function renderGrowth() {
+    // no last means they never played once last seen tracking began, so first is the best guess
+    const spans = players.map(p => p.raw.meta || {}).filter(m => m.first)
+      .map(m => [Math.floor(m.first / DAY), Math.floor((m.last || m.first) / DAY)]);
+    if (!spans.length) return;
+    const start = Math.min(...spans.map(s => s[0])), end = Math.floor(nowSecs / DAY);
+    const dayDate = d => new Date(d * DAY * 1000);
+    const toDay = date => Math.floor(date / 1000 / DAY);
+
+    const joined = [], active = [];
+    for (let d = start; d <= end; d++) {
+      joined.push({ x: d, y: spans.filter(([f]) => f <= d).length });
+      // active means their first to last game overlaps the 30 days before
+      active.push({ x: d, y: spans.filter(([f, l]) => f <= d && l >= d - 30).length });
+    }
+
+    const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short', year: '2-digit' });
+    const longFmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+    const dayFmt = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const months = [];
+    for (let t = dayDate(start); toDay(t) <= end; t = new Date(t.getFullYear(), t.getMonth() + 1, 1)) {
+      months.push(toDay(new Date(t.getFullYear(), t.getMonth(), 1)));
+    }
+
+    const perMonth = months.map((m, i) => {
+      const last = Math.min(end, (months[i + 1] ?? Infinity) - 1);
+      return { m, n: spans.filter(([f]) => f >= m && f <= last).length, total: joined[last - start].y, active: active[last - start].y };
+    });
+    const busiest = perMonth.reduce((a, b) => b.n > a.n ? b : a);
+
+    document.getElementById('growthFinding').innerHTML =
+      `<b>${spans.length}</b> players have shown up since ${longFmt.format(dayDate(start))}, and <b>${active.at(-1).y}</b> of them played in the last 30 days. ${longFmt.format(dayDate(busiest.m))} was the busiest month, with ${busiest.n} new players.`;
+    document.getElementById('growthTable').innerHTML = tableView(['month', 'new players', 'total by the end', 'active at the end'],
+      perMonth.map(r => [longFmt.format(dayDate(r.m)), r.n, r.total, r.active]));
+
+    const series = (label, data, color, tag) => ({
+      label, data, borderColor: color, backgroundColor: color, pointLabels: { [data.length - 1]: tag }
+    });
+    charts.growth = new Chart(document.getElementById('growthChart'), {
+      type: 'line',
+      data: { datasets: [series('Joined so far', joined, tok('--series-1'), 'joined'), series('Active in the last 30 days', active, tok('--series-2'), 'active')] },
+      plugins: [pointLabels, crosshair],
+      options: {
+        // built at load, off screen, so an entrance would play to nobody
+        responsive: true, maintainAspectRatio: false, animation: false,
+        // room past the last point for the end labels
+        layout: { padding: { right: 56 } },
+        elements: { point: { radius: 0, hoverRadius: 4, hoverBorderWidth: 2, hoverBorderColor: tok('--bg') }, line: { borderWidth: 2, borderCapStyle: 'round', borderJoinStyle: 'round' } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', padding: 16 } },
+          tooltip: {
+            usePointStyle: true,
+            callbacks: {
+              title: items => dayFmt.format(dayDate(items[0].raw.x)),
+              label: c => ` ${c.raw.y} ${c.dataset.label.toLowerCase()}`,
+              labelPointStyle: () => ({ pointStyle: 'line', rotation: 0 })
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear', min: start, max: end, grid: { display: false },
+            afterBuildTicks: axis => { axis.ticks = months.filter(m => m >= start).map(value => ({ value })); },
+            ticks: { callback: v => monthFmt.format(dayDate(v)), maxRotation: 0, autoSkipPadding: 12 }
+          },
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.03)' } }
+        }
+      }
+    });
+  }
+
   function updateScatterChart() {
     if (!charts.c1) return;
     const filteredPlayers = getFilteredPlayers();
@@ -1870,60 +2702,33 @@
     const usesPlrStats = currentXKey.startsWith('plrStats.') || currentYKey.startsWith('plrStats.');
     
     const validPoints = [];
-    
-    uniqueRegions.forEach((region, i) => {
-      if (!charts.c1.data.datasets[i]) {
-        charts.c1.data.datasets[i] = {
-          label: region,
-          pointRadius: 4,
-          pointHoverRadius: 6
-        };
-      }
-      charts.c1.data.datasets[i].label = region;
-      charts.c1.data.datasets[i].backgroundColor = regionColors[region];
-      
-      charts.c1.data.datasets[i].data = filteredPlayers
-        .filter(p => p.primaryRegion === region)
-        .map(p => {
-          if (usesPlrStats && !p.hasValidCombatData) return null;
-          
-          const x = p.flatData[currentXKey];
-          const y = p.flatData[currentYKey];
-          if (typeof x === 'number' && typeof y === 'number' && isFinite(x) && isFinite(y)) {
-            validPoints.push({ x, y, elo: p.elo });
-            return { x, y, id: p.id, region: p.primaryRegion, ping: p.weightedPing, xKey: currentXKey, yKey: currentYKey };
-          }
-          return null;
-        })
-        .filter(p => p !== null);
-    });
-    
-    charts.c1.data.datasets.length = uniqueRegions.length;
+    const topTen = new Set(filteredPlayers.slice(0, 10));
+    const points = list => list
+      .map(p => {
+        if (usesPlrStats && !p.hasValidCombatData) return null;
+
+        const x = p.flatData[currentXKey];
+        const y = p.flatData[currentYKey];
+        if (typeof x === 'number' && typeof y === 'number' && isFinite(x) && isFinite(y)) {
+          validPoints.push({ x, y, elo: p.elo });
+          return { x, y, id: p.id, region: p.primaryRegion, ping: p.weightedPing, xKey: currentXKey, yKey: currentYKey };
+        }
+        return null;
+      })
+      .filter(p => p !== null);
+
+    charts.c1.data.datasets[0].data = points(filteredPlayers.filter(p => topTen.has(p)));
+    charts.c1.data.datasets[1].data = points(filteredPlayers.filter(p => !topTen.has(p)));
 
     if (validPoints.length > 4) {
       const medX = median(validPoints.map(p => p.x));
       const medY = median(validPoints.map(p => p.y));
       
-      const quads = { TR: [], TL: [], BL: [], BR: [] };
-      validPoints.forEach(p => {
-        if (p.x >= medX && p.y >= medY) quads.TR.push(p.elo);
-        else if (p.x < medX && p.y >= medY) quads.TL.push(p.elo);
-        else if (p.x < medX && p.y < medY) quads.BL.push(p.elo);
-        else if (p.x >= medX && p.y < medY) quads.BR.push(p.elo);
-      });
-      
-      let bestQ = null;
-      let maxAvgElo = -Infinity;
-      for (const q in quads) {
-        if (quads[q].length > 0) {
-          const avg = quads[q].reduce((a, b) => a + b, 0) / quads[q].length;
-          if (avg > maxAvgElo) {
-            maxAvgElo = avg;
-            bestQ = q;
-          }
-        }
-      }
-      highlightQuadrant = { medX, medY, target: bestQ };
+      // elos per quarter, keyed T or B then L or R, and the one with the best average wins
+      const quads = {};
+      for (const p of validPoints) (quads[(p.y >= medY ? 'T' : 'B') + (p.x >= medX ? 'R' : 'L')] ??= []).push(p.elo);
+      const target = Object.keys(quads).sort((a, b) => mean(quads[b]) - mean(quads[a]))[0];
+      highlightQuadrant = { medX, medY, target };
     } else {
       highlightQuadrant = null;
     }
@@ -1945,10 +2750,7 @@
     updateAverageCombat(parseInt(eloSlider.value));
   });
 
-  function createCombatItem(label, dmg, pct, color, idx) {
-    const item = document.createElement('div');
-    item.className = 'combat-item';
-    item.innerHTML = `
+  const combatItem = (label, dmg, pct, color, idx) => `<div class="combat-item">
       <div class="k">${label}</div>
       <div class="v">
         <span>${Math.round(dmg).toLocaleString()} dmg</span>
@@ -1958,99 +2760,48 @@
         <div class="bar-fill" style="width:${pct}%; background:${color}"></div>
         <input type="range" class="bar-scroll" min="0" max="100" value="${pct.toFixed(2)}" step="0.1" data-idx="${idx}" aria-label="${label} %">
       </div>
-    `;
-    return item;
-  }
+    </div>`;
 
   function updateAverageCombat(targetElo) {
-    if (players.length === 0) return;
+    const top = getFilteredPlayers().filter(p => p.hasValidCombatData)
+      .sort((a, b) => Math.abs(a.elo - targetElo) - Math.abs(b.elo - targetElo))
+      .slice(0, 16);
+    if (!top.length) return;
 
-    const filteredPlayers = getFilteredPlayers().filter(p => p.hasValidCombatData);
-    const sorted = [...filteredPlayers].sort((a, b) => Math.abs(a.elo - targetElo) - Math.abs(b.elo - targetElo));
-    const top = sorted.slice(0, 16);
-    if (top.length === 0) return;
-
-    const avgs = Array(8).fill(0);
-    const totalWeight = Array(8).fill(0);
-    
-    top.forEach(p => {
-      const dist = Math.abs(p.elo - targetElo);
-      const weight = 1 / (dist + 1);
-      
-      if (p.raw.plrStats) {
-        for (let i = 0; i < 8; i++) {
-          if (Array.isArray(p.raw.plrStats[i])) {
-            const dmg = p.raw.plrStats[i][1] || 0;
-            avgs[i] += weight * dmg;
-            totalWeight[i] += weight;
-          }
-        }
-      }
+    // closer elo weighs more
+    const weight = p => 1 / (Math.abs(p.elo - targetElo) + 1);
+    const totalWeight = sum(top.map(weight));
+    const avgs = statLabels.map((_, i) => sum(top.map(p => weight(p) * p.dmg[i])) / totalWeight);
+    const totals = [sum(avgs.slice(0, 4)), sum(avgs.slice(4))];
+    targetProfile = avgs.map((a, i) => {
+      const total = totals[i < 4 ? 0 : 1];
+      return total ? a / total * 100 : 0;
     });
-    
-    for (let i = 0; i < 8; i++) {
-      avgs[i] = totalWeight[i] > 0 ? avgs[i] / totalWeight[i] : 0;
-    }
 
-    const incomingTotal = avgs[0] + avgs[1] + avgs[2] + avgs[3];
-    const outgoingTotal = avgs[4] + avgs[5] + avgs[6] + avgs[7];
-
-    combatGrid.innerHTML = '';
-    for (let i = 0; i < 4; i++) {
-      const incDmg = avgs[i];
-      const incPct = incomingTotal ? (incDmg / incomingTotal * 100) : 0;
-      targetProfile[i] = incPct;
-      combatGrid.appendChild(createCombatItem(DEF_LABELS[i], incDmg, incPct, STAT_COLORS[i], i));
-
-      const outDmg = avgs[i + 4];
-      const outPct = outgoingTotal ? (outDmg / outgoingTotal * 100) : 0;
-      targetProfile[i + 4] = outPct;
-      combatGrid.appendChild(createCombatItem(ATK_LABELS[i], outDmg, outPct, STAT_COLORS[i], i + 4));
-    }
+    // defending on the left, attacking on the right
+    combatGrid.innerHTML = [0, 1, 2, 3].map(i =>
+      combatItem(DEF_LABELS[i], avgs[i], targetProfile[i], STAT_COLORS[i], i) +
+      combatItem(ATK_LABELS[i], avgs[i + 4], targetProfile[i + 4], STAT_COLORS[i], i + 4)).join('');
 
     updateCombatSidePanel();
   }
 
   function updateCombatSidePanel() {
-    const validPlayers = getFilteredPlayers().filter(p => p.hasValidCombatData);
-    
-    validPlayers.forEach(p => {
-      let maxDelta = 0;
-      statLabels.forEach((k, i) => {
-        const pVal = p.flatData[`plrStats.${k}.Pct`] || 0;
-        const delta = Math.abs(pVal - targetProfile[i]);
-        if (delta > maxDelta) maxDelta = delta;
-      });
-      p._combatDist = maxDelta;
-    });
-
-    validPlayers.sort((a, b) => a._combatDist - b._combatDist);
-    const top10 = validPlayers.slice(0, 10);
-
-    document.getElementById('sidePanelContent').innerHTML = top10.map(p =>
-      `<button type="button" class="side-player" data-pid="${p.id}"><span class="muted" data-uid="${p.id}">${playerLabel(p.id)}</span><span>within ${p._combatDist.toFixed(1)}%</span></button>`
-    ).join('');
-
+    const top10 = getFilteredPlayers().filter(p => p.hasValidCombatData)
+      .map(p => ({ p, d: maxDelta(combatVec(p), targetProfile) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 10);
+    document.getElementById('sidePanelContent').innerHTML = top10.map(({ p, d }) => playerRow(p, `within ${d.toFixed(1)}%`)).join('');
     document.getElementById('combatSidePanel').classList.add('active');
   }
 
   combatGrid.addEventListener('input', (e) => {
-    if (e.target.classList.contains('bar-scroll')) {
-      const val = parseFloat(e.target.value);
-      const idx = +e.target.dataset.idx;
-
-      const barFill = e.target.previousElementSibling;
-      if (barFill) barFill.style.width = val + '%';
-      
-      const parentV = e.target.parentElement.previousElementSibling;
-      if (parentV) {
-        const span = parentV.querySelector('.pct-val');
-        if (span) span.textContent = val.toFixed(2) + '%';
-      }
-      
-      targetProfile[idx] = val;
-      updateCombatSidePanel();
-    }
+    if (!e.target.classList.contains('bar-scroll')) return;
+    const val = parseFloat(e.target.value);
+    e.target.previousElementSibling.style.width = val + '%';
+    e.target.closest('.combat-item').querySelector('.pct-val').textContent = val.toFixed(2) + '%';
+    targetProfile[+e.target.dataset.idx] = val;
+    updateCombatSidePanel();
   });
 
   // ---- find yourself ----
@@ -2063,7 +2814,7 @@
     if (!q) return;
 
     const hits = players
-      .filter(p => String(nameMap[p.id] || p.id).toLowerCase().includes(q))
+      .filter(p => playerLabel(p.id).toLowerCase().includes(q))
       .slice(0, 25);
 
     finderResults.innerHTML = hits.length
@@ -2091,26 +2842,31 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    finderResults.hidden = true;
-    if (modal.style.display === 'block') closeModal();
+    if (e.key === 'Escape') finderResults.hidden = true;
   });
 
-  document.getElementById('toggleJson').addEventListener('click', () => {
-    const pre = modalContent;
-    pre.hidden = !pre.hidden;
-    document.getElementById('toggleJson').textContent = pre.hidden ? 'show json' : 'hide json';
+  document.getElementById('toggleJson').addEventListener('click', (e) => {
+    modalContent.hidden = !modalContent.hidden;
+    e.currentTarget.textContent = modalContent.hidden ? 'show json' : 'hide json';
   });
 
   await load();
 
+  const params = new URLSearchParams(location.search);
   // /rowa2?id=123 opens straight to that profile, so a link can be shared
-  const wantId = new URLSearchParams(location.search).get('id');
-  const linked = wantId && players.find(x => String(x.id) === String(wantId));
+  const linked = players.find(x => x.id === params.get('id'));
 
   if (linked) {
     await namesReady;           // otherwise the title says the raw id for a moment
     openPlayerModal(linked);
+  }
+
+  // /rowa2?vs=123,456 opens with those two side by side
+  const wantVs = (params.get('vs') || '').split(',').map(id => players.find(p => p.id === id)).filter(Boolean);
+  if (wantVs.length === 2 && wantVs[0] !== wantVs[1]) {
+    vsPair = wantVs;
+    renderVersus();
+    if (!linked) document.getElementById('versus').scrollIntoView();
   }
 </script>
 </body>
