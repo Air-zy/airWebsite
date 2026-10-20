@@ -1237,7 +1237,7 @@
   const figures = {};
   const figure = (id, look = 'tile') => (figures[`${id}:${look}`] ??= loadR6()
     .then(m => m.renderR6(id, LOOKS[look]))
-    .catch(err => { console.warn('r6 fell back to png', id, err.message); return null; })
+    .catch(err => { console.warn('r6 fell back to png', id, err); return null; })
     .then(src => src || flatFigure(id)));
 
   // runs fn the first time el comes into view
