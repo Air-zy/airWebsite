@@ -1,6 +1,6 @@
-// rowa2 3d podium figures. builds an r6 rig from /api/rowa-rig out of roblox's own r6
-// meshes, poses it, renders it once with three.js and hands back an image url, so the page
-// treats it like any other picture.
+// rowa2 3d figures. builds an r6 rig from /api/rowa-rig out of roblox's own r6 meshes, poses
+// it, renders it once with three.js and hands back an image url, so the page treats it like
+// any other picture. the profile one stays live on a canvas so it can spin.
 
 // only pulled in when a figure is actually wanted. the posing page loads its controls off
 // the same version through these
@@ -253,8 +253,8 @@ export function setPose(joints, pose) {
 }
 
 // the smallest canvas holding every visible pixel, so a figure always stands on the
-// bottom edge whatever the pose or padding
-function crop(src) {
+// bottom edge whatever the pose or padding. keepWidth only trims rows
+function crop(src, keepWidth) {
   const { width: w, height: h } = src;
   const px = src.getContext('2d').getImageData(0, 0, w, h).data;
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
@@ -266,6 +266,7 @@ function crop(src) {
     }
   }
   if (x1 < 0) return src;
+  if (keepWidth) [x0, x1] = [0, w - 1];
   const out = canvas(x1 - x0 + 1, y1 - y0 + 1);
   out.getContext('2d').drawImage(src, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
   return out;
@@ -276,7 +277,7 @@ const toUrl = c => new Promise(ok => c.toBlob(b => ok(b && URL.createObjectURL(b
 // lit the way roblox's avatar thumbnails are: one strong key from above on the character's
 // left and a little in front, a weak fill from the other side, so fronts stay readable and
 // the sides fall into shade. small figures get no cast shadows, roblox's thumbnails dont have
-// them either, the big ones get floorPass. tuned side by side against roblox's own renders
+// them either, the big ones get them. tuned side by side against roblox's own renders
 const KEY = [-8, 7, -1.5];
 const FILL = [5, 2, -5];
 
@@ -289,10 +290,10 @@ export function addLights(T, scene) {
   return key;
 }
 
-// perspective from a little above, framing whatever is in box. positive az swings round
-// to the character's left, the side roblox shoots from
-export function podiumCamera(T, box, az, camera = new T.PerspectiveCamera(45, 1)) {
-  const sphere = box.getBoundingSphere(new T.Sphere()), el = 0.28;
+// perspective from a little above, framing whatever is in box, or sphere when given. positive
+// az swings round to the character's left, the side roblox shoots from
+export function podiumCamera(T, box, az, camera = new T.PerspectiveCamera(45, 1), sphere = box.getBoundingSphere(new T.Sphere())) {
+  const el = 0.28;
   const dist = sphere.radius / Math.sin(camera.fov * Math.PI / 360);
   camera.near = dist / 10;
   camera.far = dist * 3;
@@ -318,19 +319,19 @@ function fitShadow(T, light, box, mapSize, radius) {
   return r;
 }
 
-// real shadows for the big figures, two passes onto the same canvas. first a soft light from
-// overhead drops a pool round the feet onto an invisible floor, the figure drawn invisibly so
-// only its shadow lands. then shot() again by the caller for the figure itself, the key
-// throwing shadows across the body (arms on the chest, a hat brim on the face). the key never
-// gets the floor, its long low shadow would run off across the frame
-function floorPass(T, scene, box, key, shot) {
+// the key throws shadows across the body, arms on the chest, a hat brim on the face
+function bodyShadows(T, scene, key, box) {
+  scene.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  fitShadow(T, key, box, 1024, 4);
+}
+
+// a pool of shadow round the feet. a soft light from overhead drops it onto an invisible floor
+// with the figure drawn invisibly, so only its shadow lands. hands back that pass, the caller
+// draws the figure over it after, and where a point's shadow lands. the key is off for it,
+// its long low shadow would run off across the frame
+function floorPass(T, scene, box, key) {
   const mats = [];
-  scene.traverse(o => {
-    if (!o.isMesh) return;
-    o.castShadow = o.receiveShadow = true;
-    mats.push(o.material);
-  });
-  const ghost = on => mats.forEach(m => { m.colorWrite = m.depthWrite = !on; });
+  scene.traverse(o => { if (o.isMesh) mats.push(o.material); });
 
   const c = box.getCenter(new T.Vector3());
   const top = new T.DirectionalLight('#ffffff', 1);
@@ -344,48 +345,196 @@ function floorPass(T, scene, box, key, shot) {
   floor.receiveShadow = true;
   scene.add(top, top.target, floor);
 
-  ghost(true);
-  shot();
-  ghost(false);
-  floor.visible = top.visible = false;
-  fitShadow(T, key, box, 1024, 4);
+  const pooling = on => {
+    mats.forEach(m => { m.colorWrite = m.depthWrite = !on; });
+    floor.visible = top.visible = on;
+    key.castShadow = !on;
+  };
+  pooling(false);
+  const dir = top.target.position.clone().sub(top.position);
+  return {
+    pass: shot => {
+      pooling(true);
+      shot();
+      pooling(false);
+    },
+    shadowOf: v => v.addScaledVector(dir, (v.y - box.min.y) / -dir.y)
+  };
 }
 
-function draw(a, pose, size, shadows) {
+// a posed rig under the thumbnail lights. the box is taken before any floor goes in, it would blow it up
+function stage(a, pose) {
   const { T } = a;
   const { root, joints } = buildRig(a);
   setPose(joints, pose);
-
   const scene = new T.Scene();
   scene.add(root);
   const key = addLights(T, scene);
   scene.updateMatrixWorld(true);
-  // framed before any floor goes in, it would blow the box up
-  const box = new T.Box3().setFromObject(root);
-  const camera = podiumCamera(T, box, pose.az);
-
-  gl(T).setSize(size, size, false);
-  renderer.shadowMap.enabled = shadows;
-  // vsm blurs the map, so the edges go soft like a real light
-  renderer.shadowMap.type = T.VSMShadowMap;
-  const full = canvas(size, size);
-  const shot = () => {
-    renderer.render(scene, camera);
-    full.getContext('2d').drawImage(renderer.domElement, 0, 0);
-  };
-  if (shadows) floorPass(T, scene, box, key, shot);
-  shot();
-  dispose(scene);
-  return toUrl(crop(full));
+  return { scene, root, joints, key, box: new T.Box3().setFromObject(root) };
 }
 
-// image url of the player in their pose, rejects if the rig route is off or broken
-export function renderR6(userId, size = 640, shadows = false) {
+// studs wide and tall. a stud render frames this round the feet instead of fitting the figure,
+// so every one comes out at the same px per stud and they can stand side by side
+const STAND = [8, 12];
+
+function draw(a, pose, { size = 640, stud, shadows }) {
+  const { T } = a;
+  const { scene, joints, key, box } = stage(a, pose);
+  const [w, h] = stud ? STAND.map(s => s * stud) : [size, size];
+  // a 45 degree camera frames a sphere 2r / cos(22.5) tall, so this spans exactly STAND[1].
+  // its middle on the torso, so the body sits over the block whatever the arms or a held item
+  // do, and 4 up from the feet, from 2 below them to 10 above
+  const frame = stud ? new T.Sphere(joints.torso.getWorldPosition(new T.Vector3()).setY(box.min.y + 4), STAND[1] / 2 * Math.cos(Math.PI / 8)) : undefined;
+  const camera = podiumCamera(T, box, pose.az, new T.PerspectiveCamera(45, w / h), frame);
+
+  gl(T).setSize(w, h, false);
+  renderer.shadowMap.enabled = !!shadows;
+  // vsm blurs the map, so the edges go soft like a real light
+  renderer.shadowMap.type = T.VSMShadowMap;
+  if (shadows) bodyShadows(T, scene, key, box);
+  renderer.render(scene, camera);
+  const full = canvas(w, h);
+  full.getContext('2d').drawImage(renderer.domElement, 0, 0);
+  dispose(scene);
+  // a stud frame keeps its width so the scale survives, only the empty rows go
+  return toUrl(crop(full, !!stud));
+}
+
+// image url of the player in their pose, rejects if the rig route is off or broken.
+// size is the square canvas, or stud gives the STAND frame at that many px per stud.
+// shadows puts the key's shadows across the figure
+export function renderR6(userId, opts = {}) {
   return loadAvatar(userId).then(a => {
-    const job = queue.then(() => draw(a, POSES[Number(userId) % POSES.length], size, shadows));
+    const job = queue.then(() => draw(a, POSES[Number(userId) % POSES.length], opts));
     queue = job.catch(() => {});
     return job;
   });
+}
+
+// the player live on canvas, turning slowly like on a microwave plate. drag spins it and a
+// flick keeps going, easing back to the slow turn. its own webgl context, the shared one is
+// busy with the stills. resolves to a stop() that frees the scene, rejects like renderR6
+const spinners = new WeakMap();
+export async function turntable(userId, canvas) {
+  const a = await loadAvatar(userId), { T } = a, pose = POSES[Number(userId) % POSES.length];
+  let r = spinners.get(canvas);
+  if (!r) {
+    r = new T.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    r.autoClear = false;
+    r.shadowMap.enabled = true;
+    r.shadowMap.type = T.VSMShadowMap;
+    spinners.set(canvas, r);
+  }
+  const { scene, root, key } = stage(a, pose);
+
+  // every corner of every part. it turns on the root, which sits on the torso, so turned through
+  // a full circle these bound the figure at any angle
+  const pts = [];
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    o.geometry.computeBoundingBox();
+    const b = o.geometry.boundingBox;
+    for (let i = 0; i < 8; i++) pts.push(new T.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(o.matrixWorld));
+  });
+  const reach = Math.max(...pts.map(p => Math.hypot(p.x, p.z))), ys = pts.map(p => p.y);
+  const swept = new T.Box3(new T.Vector3(-reach, Math.min(...ys), -reach), new T.Vector3(reach, Math.max(...ys), reach));
+  bodyShadows(T, scene, key, swept);
+  const pool = floorPass(T, scene, swept, key);
+
+  // cropped round the figure and its pool like the stills are, over every angle it turns
+  // through, by zooming and shifting in screen space
+  const camera = new T.PerspectiveCamera(45, 1);
+  function fit() {
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    podiumCamera(T, swept, pose.az, camera).updateMatrixWorld();
+    const v = new T.Vector3();
+    let x = 0, y0 = Infinity, y1 = -Infinity;
+    const see = q => {
+      q.project(camera);
+      x = Math.max(x, Math.abs(q.x));
+      y0 = Math.min(y0, q.y);
+      y1 = Math.max(y1, q.y);
+    };
+    for (let s = 0; s < 24; s++) {
+      const c = Math.cos(s * Math.PI / 12), n = Math.sin(s * Math.PI / 12);
+      const turn = p => v.set(p.x * c + p.z * n, p.y, p.z * c - p.x * n);
+      for (const p of pts) {
+        see(turn(p));
+        see(pool.shadowOf(turn(p)));
+      }
+    }
+    // the pool's blur runs about 0.1 past its hard edge
+    const k = Math.min(1.88 / (y1 - y0), 0.98 / x);
+    camera.projectionMatrix.premultiply(new T.Matrix4().set(k, 0, 0, 0, 0, k, 0, -0.9 - k * y0, 0, 0, 1, 0, 0, 0, 0, 1));
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+  }
+
+  // radians a second, a turn every 25s
+  const idle = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.25;
+  let speed = idle, drag = null, raf = 0, last = 0, seen = true;
+  function frame(t) {
+    const dt = last ? Math.min(0.05, (t - last) / 1000) : 0;
+    last = t;
+    if (!drag) {
+      root.rotation.y += speed * dt;
+      speed += (idle - speed) * Math.min(1, dt * 1.5);
+    }
+    r.clear();
+    pool.pass(() => r.render(scene, camera));
+    r.clearDepth();
+    r.render(scene, camera);
+    raf = seen && (drag || Math.abs(speed) > 0.01) ? requestAnimationFrame(frame) : 0;
+    if (!raf) last = 0;
+  }
+  const wake = () => { if (!raf) raf = requestAnimationFrame(frame); };
+
+  const ro = new ResizeObserver(() => {
+    if (!canvas.clientWidth) return;
+    r.setPixelRatio(devicePixelRatio);
+    r.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    fit();
+    wake();
+  });
+  ro.observe(canvas);
+  // no frames for a figure scrolled out of sight
+  const io = new IntersectionObserver(([e]) => {
+    seen = e.isIntersecting;
+    if (seen) wake();
+  });
+  io.observe(canvas);
+
+  const ac = new AbortController(), on = (type, fn) => canvas.addEventListener(type, fn, { signal: ac.signal });
+  on('pointerdown', e => {
+    e.preventDefault();
+    drag = { x: e.clientX, t: e.timeStamp };
+    canvas.setPointerCapture(e.pointerId);
+    wake();
+  });
+  on('pointermove', e => {
+    if (!drag) return;
+    // the canvas width is half a turn
+    const turn = (e.clientX - drag.x) / canvas.clientWidth * Math.PI;
+    root.rotation.y += turn;
+    speed = Math.max(-12, Math.min(12, turn / Math.max(0.001, (e.timeStamp - drag.t) / 1000)));
+    drag = { x: e.clientX, t: e.timeStamp };
+  });
+  // held still before letting go is a stop, not a flick
+  const release = e => {
+    if (drag && e.timeStamp - drag.t > 80) speed = 0;
+    drag = null;
+  };
+  on('pointerup', release);
+  on('pointercancel', release);
+
+  return () => {
+    cancelAnimationFrame(raf);
+    ro.disconnect();
+    io.disconnect();
+    ac.abort();
+    dispose(scene);
+    r.clear();
+  };
 }
 
 // any picture cropped to its visible pixels, for the flat png fallback. shows it uncropped

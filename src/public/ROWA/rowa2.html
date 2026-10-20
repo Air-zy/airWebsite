@@ -69,28 +69,37 @@
     user-select: none;
     opacity: 0.03;
   }
+  /* max-content so -50% is exactly one copy of the text. as a full width box it was half the
+     square instead, and every band jumped sideways when its loop restarted.
+     a loop is a whole copy, a few screens wide, hence the long durations. it moves in whole
+     px steps, --steps is a copy's width. drifting this slowly but smoothly redrew the screen
+     every frame for shifts too small to see, 2 to 5x the gpu time */
   .bg-row {
     display: flex;
+    width: max-content;
     white-space: nowrap;
     height: var(--band-h);
-    animation: bg-drift 90s linear infinite;
+    animation: bg-drift 330s steps(var(--steps, 4000)) infinite;
     will-change: transform;   /* transform only, so it lives on the compositor */
   }
   /* every other band runs backwards, so the texture cuts across itself */
   .bg-row:nth-child(even) {
     animation-direction: reverse;
-    animation-duration: 116s;
+    animation-duration: 430s;
   }
-  .bg-row:nth-child(4n+1) { animation-duration: 104s; }
-  .bg-row:nth-child(4n)   { animation-duration: 132s; }
+  .bg-row:nth-child(4n+1) { animation-duration: 385s; }
+  .bg-row:nth-child(4n)   { animation-duration: 490s; }
 
   .bg-row span {
     font-family: var(--display);
     font-size: var(--band-fs);
     line-height: var(--band-h);
     letter-spacing: 0.04em;
-    color: var(--text);
     padding-right: 0.35em;
+    /* soft focus through the shadow, so the blur is drawn once with the text. a filter on the
+       texture worked it out again every frame, 3 to 5x the gpu time */
+    color: transparent;
+    text-shadow: 0 0 0.17em var(--text);
   }
   /* each band holds the text twice, so shifting exactly one copy loops seamlessly */
   @keyframes bg-drift {
@@ -190,7 +199,21 @@
   /* Elo Slider & Combat Stats Styling */
   .slider-container { margin-bottom: 20px; }
   input[type=range] { width: 100%; }
-  input[type=checkbox], input[type=range] { accent-color: var(--accent); }
+  input[type=checkbox] { accent-color: var(--accent); }
+  /* drawn by hand, chrome rims its own track in grey on a dark page. no fill, it picks a spot
+     rather than an amount. the prefixed rules cant share a selector, one bad one drops the lot */
+  #eloSlider { appearance: none; height: 24px; margin: 2px 0; background: none; cursor: pointer; }
+  #eloSlider:hover, #eloSlider:active { --halo: 0 0 0 6px rgba(232, 199, 113, 0.15); }
+  #eloSlider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); }
+  #eloSlider::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); }
+  #eloSlider::-webkit-slider-thumb {
+    appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+    background: var(--gold); box-shadow: var(--halo, none); transition: box-shadow 0.15s;
+  }
+  #eloSlider::-moz-range-thumb {
+    width: 16px; height: 16px; border: 0; border-radius: 50%;
+    background: var(--gold); box-shadow: var(--halo, none); transition: box-shadow 0.15s;
+  }
   .combat-flex { display: flex; gap: 15px; align-items: flex-start; }
   .combat-main { flex: 1; }
   .combat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -270,17 +293,22 @@
 
   /* ---- podium ---- */
   .podium {
-    --pod-w: clamp(100px, 22vw, 230px); --pod-gap: clamp(8px, 2.4vw, 28px);
+    --pod-w: clamp(100px, 20vw, 290px); --pod-gap: clamp(8px, 2.4vw, 28px);
+    /* one scale for all three figures, 1st stands taller on its block and not in its body */
+    --stud: calc(var(--pod-w) * 0.17);
     position: relative; display: flex; justify-content: center; align-items: flex-end;
     gap: var(--pod-gap); margin-top: 26px; border-bottom: 1px solid var(--border);
   }
   /* one wreath round all three spots, growing as the blocks rise. the art has empty margin
      inside its box, hence pulling it in. clipped so it never makes a phone scroll sideways */
   .podium-laurel {
-    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none; container-type: size;
     --lgap: calc(1.5 * var(--pod-w) + var(--pod-gap) - 40px);
   }
-  .podium .podium-laurel::before, .podium .podium-laurel::after { content: ''; animation-delay: 0.5s; }
+  /* full height when there is room beside the spots, narrower on a laptop instead of running off the edge */
+  .podium .podium-laurel::before, .podium .podium-laurel::after {
+    content: ''; animation-delay: 0.5s; height: auto; width: min(50cqw - var(--lgap), 90cqh * 442 / 703);
+  }
   /* stage light on first place, white so it reads as light and not a coloured glow */
   .podium::before {
     content: ''; position: absolute; left: 50%; top: -30px; width: min(620px, 100%); height: 100%;
@@ -292,9 +320,9 @@
   .pod-2, .rank-2 { --metal: var(--silver); --tint: grayscale(1) brightness(1.35); }
   .pod-3, .rank-3 { --metal: var(--bronze); --tint: sepia(0.6) saturate(1.3) hue-rotate(-18deg) brightness(0.85); }
   /* the shortest block still has to fit the numeral, elo and W-L, the rise clips anything past it */
-  .pod-1 { --fig: clamp(104px, 14vw, 200px); --h: clamp(124px, 12.5vw, 176px); order: 1; }
-  .pod-2 { --fig: clamp(84px, 11vw, 160px); --h: clamp(104px, 10vw, 146px); order: 0; }
-  .pod-3 { --fig: clamp(84px, 11vw, 160px); --h: clamp(88px, 8vw, 120px); order: 2; }
+  .pod-1 { --h: clamp(124px, 12.5vw, 176px); order: 1; }
+  .pod-2 { --h: clamp(104px, 10vw, 146px); order: 0; }
+  .pod-3 { --h: clamp(88px, 8vw, 120px); order: 2; }
 
   .pod {
     position: relative; display: flex; flex-direction: column; align-items: center;
@@ -311,8 +339,15 @@
     text-shadow: 0 1px 2px #000, 0 0 8px rgba(0, 0, 0, 0.8);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .pod .fig { width: 100%; height: var(--fig); margin-top: 4px; }
-  .pod .fig img { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)); }
+  /* the render is a frame 8 studs wide with only the empty rows trimmed, so a set width puts all
+     three at one scale. mostly empty, so it runs past the spot and lets clicks through to it.
+     avy: the 8 is STAND in r6.js */
+  .pod .fig {
+    display: flex; align-items: flex-end; justify-content: center;
+    width: calc(8 * var(--stud)); min-height: calc(6 * var(--stud)); margin-top: 4px; pointer-events: none;
+  }
+  /* max-height is for the flat png fallback, it has no frame and would grow to the full width */
+  .pod .fig img { height: auto; max-height: calc(7.5 * var(--stud)); filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)); }
 
   .pod-block {
     position: relative; width: 100%; height: var(--h); box-sizing: border-box; padding-top: 10px;
@@ -368,27 +403,30 @@
   @media (prefers-reduced-motion: reduce) {
     .finder-rim::after { animation: none; }
     .bg-row { animation: none; }
-    .podium.rise .pod-block, .podium.rise .pod-top, .fig img, .laurel::before, .laurel::after { animation: none; }
+    .podium.rise .pod-block, .podium.rise .pod-top, .fig img, .pf-fig canvas, .laurel::before, .laurel::after { animation: none; }
     .cbar span { transition: none; }
   }
 
   /* ---- profile, their figure on the left and the stats beside it ---- */
-  .pf { display: grid; grid-template-columns: minmax(240px, 360px) minmax(0, 1fr); gap: 12px 30px; }
+  .pf { display: grid; grid-template-columns: minmax(240px, min(440px, 40%)) minmax(0, 1fr); gap: 12px 30px; }
   /* a little stage that stays put while the stats scroll, lit like a photo backdrop. the
      render brings its own floor shadow */
   .pf-side {
     position: sticky; top: 0; align-self: start; padding: 40px 0 14px;
     background: radial-gradient(ellipse 60% 45% at 50% 42%, rgba(255, 255, 255, 0.06), transparent 75%);
   }
-  .pf-fig { position: relative; width: 100%; aspect-ratio: 1.15; --lgap: 6%; }
-  /* a top three wreath round the figure, once it has shown up */
-  .pf-fig.laurel:has(> img:not([hidden]))::before,
-  .pf-fig.laurel:has(> img:not([hidden]))::after { content: ''; }
+  .pf-fig { position: relative; width: 100%; aspect-ratio: 0.95; --lgap: 6%; }
+  /* a top three wreath round the figure, once it has shown up. sized off the width, a taller
+     box would otherwise push it out the sides */
+  .pf-fig.laurel:has(> :not([hidden]))::before,
+  .pf-fig.laurel:has(> :not([hidden]))::after { content: ''; width: 49%; height: auto; }
+  /* the live one, sideways drags spin it and up and down still scrolls a phone */
+  .pf-fig canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; animation: fade-in 0.4s ease-out; }
+  .pf-fig canvas:active { cursor: grabbing; }
   .modal-head { padding-right: 40px; margin-bottom: 16px; }
   .modal-head h2 { margin: 0; font-size: 26px; }
   .pf-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
   .pf-sub b { color: var(--metal); }
-  .pf-sub span { white-space: nowrap; }
   .pf-stats {
     display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-end;
     padding: 4px 0 16px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
@@ -425,6 +463,7 @@
   /* highlights */
   .hl-group { margin-bottom: 18px; }
   .hl-group h3 { font-size: 15px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; }
+  .hl-lead { margin-bottom: 8px; }
   .hl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .hl-row .rank { color: var(--muted); white-space: nowrap; }
   .hl-row.sole { color: #f0d089; font-weight: 600; }
@@ -452,7 +491,8 @@
   .ping-ok { color: #d8b877; }
   .ping-bad { color: #e07a6a; }
 
-  .json-toggle { display: block; margin: 18px 0 0 auto; font-size: 11px; padding: 4px 8px; }
+  .pf-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 18px; }
+  .json-toggle { font-size: 11px; padding: 4px 8px; }
 
   /* who plays, plain bars reusing the region track */
   .share-h { font-size: 13px; font-weight: 600; color: var(--accent); margin: 18px 0 6px; }
@@ -471,9 +511,8 @@
   /* notes and subtitles stop where a line is still easy to follow */
   .chart-note, .topbar .small { max-width: 80ch; }
 
-  /* elo beeswarm, a dot per player. plain html so the profile reuses it with their dot lit */
+  /* elo beeswarm, a dot per player. plain html buttons so a dot opens their profile */
   .swarm { position: relative; margin: 34px 0 36px; border-bottom: 1px solid var(--border); }
-  .swarm.mini { margin: 4px 0 30px; }
   .sw-dot {
     position: absolute; transform: translate(-50%, -50%); padding: 0; font: inherit; cursor: pointer;
     border-radius: 50%; border: 1.5px solid var(--bg); background: var(--series-1);
@@ -481,8 +520,6 @@
   .sw-dot.r1 { background: var(--gold); }
   .sw-dot.r2 { background: var(--silver); }
   .sw-dot.r3 { background: var(--bronze); }
-  .mini .sw-dot { background: var(--context); }
-  .mini .sw-dot.me { background: var(--gold); z-index: 1; }
   .sw-dot:hover { z-index: 2; border-color: var(--text); }
   /* packed dots get small on a phone, the tap area stays 5px wider all round */
   .sw-dot::before { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
@@ -540,7 +577,6 @@
   .vs-bar { display: flex; height: 8px; }
   .vs-bar.a { justify-content: flex-end; }
   .vs-bar span { height: 100%; }
-  .vs-btn { margin-top: 10px; }
   /* the headline, one bar split by the odds with a 2px gap */
   .vs-odds { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; }
   .vs-pct { font-family: var(--display); font-size: clamp(28px, 4vw, 44px); line-height: 1; }
@@ -614,6 +650,7 @@
     .pf-stat.elo b { font-size: 26px; }
 
     /* the spots take the whole width, no room left either side for the wreath */
+    .podium { --pod-w: 28vw; }
     .podium-laurel { display: none; }
 
     .finder-hit { padding: 13px 4px; }
@@ -621,7 +658,7 @@
     .hl-row { flex-wrap: wrap; gap: 2px 10px; }
     .hl-row .rank { font-size: 12px; }
     .sim-grid { grid-template-columns: repeat(2, 1fr); }
-    .json-toggle { width: 100%; padding: 10px; }
+    .pf-foot .btn { flex: 1; padding: 10px; }
     pre { font-size: 11px; }
 
     .chapter { margin-top: 16px; padding-top: 28px; }
@@ -646,14 +683,21 @@
     // bare corners on tall screens once the whole thing is rotated
     (function () {
       var el = document.getElementById('bgTexture');
+      var builtFs, builtSide = 0;
 
       function build() {
         var w = window.innerWidth;
         var fs = w <= 420 ? 44 : w <= 780 ? 58 : 92;
         var bandH = Math.round(fs * 1.12);
 
-        // a square of the viewport diagonal covers the screen at any rotation
-        var side = Math.ceil(Math.hypot(w, window.innerHeight) * 1.15);
+        // a square of the viewport diagonal covers the screen at any rotation.
+        // phones fire resize as the address bar slides, and a rebuild restarts every band,
+        // so it only happens when the text size steps or the screen outgrows the square
+        var diag = Math.hypot(w, window.innerHeight);
+        if (fs === builtFs && diag <= builtSide) return;
+        var side = Math.ceil(diag * 1.15);
+        builtFs = fs;
+        builtSide = side;
         var bands = Math.ceil(side / bandH);
         // 4em is a deliberate underestimate of "ROWA 2 " in archivo black, so the
         // repeat count always overshoots the band width rather than leaving a gap
@@ -668,6 +712,10 @@
         el.style.setProperty('--band-h', bandH + 'px');
         el.style.setProperty('--band-fs', fs + 'px');
         el.innerHTML = html;
+        // a step per px of one copy, measured once the font is in so it is the real width
+        document.fonts.ready.then(function () {
+          el.style.setProperty('--steps', Math.round(el.querySelector('span').offsetWidth));
+        });
       }
 
       build();
@@ -838,12 +886,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <div class="pf">
-        <div class="pf-side"><span class="fig pf-fig"><img id="modalFigure" alt="" hidden></span></div>
+        <div class="pf-side"><span class="fig pf-fig"><img id="modalFigure" alt="" hidden><canvas id="modalSpin" role="img" hidden></canvas></span></div>
         <div class="pf-main">
           <div class="modal-head">
             <h2 id="modalTitle"></h2>
             <div id="modalSub" class="pf-sub"></div>
-            <button type="button" id="vsFromProfile" class="btn vs-btn">Compare with someone</button>
           </div>
           <div id="modalStats" class="pf-stats"></div>
           <div id="highlights"></div>
@@ -867,13 +914,11 @@
             <div id="similarList"></div>
           </div>
 
-          <div class="hl-group">
-            <h3>Among ranked players</h3>
-            <div id="modalSpread" class="swarm mini"></div>
-          </div>
-
           <pre id="modalContent" hidden></pre>
-          <button id="toggleJson" class="btn json-toggle">show json</button>
+          <div class="pf-foot">
+            <button type="button" id="vsFromProfile" class="btn">Compare with someone</button>
+            <button type="button" id="toggleJson" class="btn json-toggle">show json</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1184,10 +1229,14 @@
     .then(m => m[id] || thumbUrl(id))
     .then(src => loadR6().then(m => m.trimmed(src), () => src)));
 
+  // how each place renders a body. the podium shares one scale so a big hat stands taller
+  // instead of shrinking the body, 100px a stud covers its ~50 css px on a 2x screen
+  const LOOKS = { tile: {}, podium: { stud: 100, shadows: true } };
+
   // posed 3d r6 first, the flat png if the rig route is off or anything in it breaks
   const figures = {};
-  const figure = (id, size = 640, shadows = false) => (figures[`${id}:${size}:${shadows}`] ??= loadR6()
-    .then(m => m.renderR6(id, size, shadows))
+  const figure = (id, look = 'tile') => (figures[`${id}:${look}`] ??= loadR6()
+    .then(m => m.renderR6(id, LOOKS[look]))
     .catch(err => { console.warn('r6 fell back to png', id, err.message); return null; })
     .then(src => src || flatFigure(id)));
 
@@ -1202,8 +1251,8 @@
   const fillWhenNear = el => onceVisible(el, () => fillFigures(el), { rootMargin: '400px' });
 
   // every img[data-body] under root
-  function fillFigures(root) {
-    root.querySelectorAll('img[data-body]').forEach(img => figure(img.dataset.body).then(src => {
+  function fillFigures(root, look) {
+    root.querySelectorAll('img[data-body]').forEach(img => figure(img.dataset.body, look).then(src => {
       if (!src) return;
       img.src = src;
       img.hidden = false;
@@ -1447,20 +1496,23 @@
   const isUnknownSeg = s => !s || /^unknown$/i.test(String(s).trim());
 
   function regionTable(p) {
-    const rd = p.raw && p.raw.meta && p.raw.meta.regionsData;
-    if (!rd || typeof rd !== 'object') return '';
-
+    const rd = p.raw?.meta?.regionsData || {};
     const rows = Object.keys(rd)
       .filter(name => !isUnknownSeg(name))
       .map(name => ({ name, hrs: (rd[name].playTime || 0) / 3600, ping: rd[name].ping || 0 }))
       .filter(r => r.hrs > 0 || r.ping > 0)
       .sort((a, b) => b.hrs - a.hrs);
+    // home is the best ping and not the most hours, so it is not always the top row
+    const where = [
+      !isUnknownSeg(p.primaryRegion) && `plays from ${p.primaryRegion}`,
+      !isUnknownSeg(p.os) && `on ${p.os}`
+    ].filter(Boolean).join(' ');
 
-    if (!rows.length) return '';
-    const most = rows[0].hrs || 1;
+    if (!rows.length && !where) return '';
+    const most = rows[0]?.hrs || 1;
     const pingClass = ms => ms <= 80 ? 'ping-good' : ms <= 150 ? 'ping-ok' : 'ping-bad';
 
-    return `<div class="hl-group"><h3>Regions</h3>${rows.map(r => `
+    return `<div class="hl-group"><h3>Regions</h3>${where && `<div class="small hl-lead">${cap(where)}</div>`}${rows.map(r => `
       <div class="reg-row">
         <span>${r.name}</span>
         <span class="reg-bar"><span style="width:${r.hrs / most * 100}%"></span></span>
@@ -1556,7 +1608,7 @@
       : '';
     const group = (title, rows, intro = '') => rows.length ? `<div class="hl-group"><h3>${title}</h3>${intro}${rows.join('')}</div>` : '';
 
-    let html = group('Highlights', best.map(topRow), lead && `<div class="small" style="margin-bottom:8px">${lead}</div>`) +
+    let html = group('Highlights', best.map(topRow), lead && `<div class="small hl-lead">${lead}</div>`) +
       group('Not so much', worst.map(bottomRow)) +
       group('Better than average', okay.map(okayRow));
 
@@ -1572,25 +1624,41 @@
     return html;
   }
 
-  let modalToken = 0;
+  let modalToken = 0, stopSpin = null;
+  const spin = document.getElementById('modalSpin');
+  // a closed profile stops turning, and one still loading never starts
+  modal.addEventListener('close', () => {
+    modalToken++;
+    stopSpin?.();
+    stopSpin = null;
+  });
 
-  // stands a lot taller than the podium ones, so it gets a bigger render and real shadows
-  function loadFigure(p) {
+  // the biggest figure on the page, live so it can spin. the flat png when there is no rig.
+  // decoration, never block the modal on it
+  async function loadFigure(p) {
     const fig = document.getElementById('modalFigure');
     const mine = ++modalToken;
-
-    fig.hidden = true;
+    stopSpin?.();
+    stopSpin = null;
+    fig.hidden = spin.hidden = true;
     fig.removeAttribute('src');
 
-    // decoration, never block the modal on it
-    figure(p.id, 1024, true).then(src => {
-      // jumping between players fires several of these, only the newest may paint
+    try {
+      const stop = await (await loadR6()).turntable(p.id, spin);
+      // jumping between players starts several of these, only the newest may show
+      if (mine !== modalToken) return stop();
+      stopSpin = stop;
+      spin.setAttribute('aria-label', playerLabel(p.id));
+      spin.hidden = false;
+    } catch (err) {
+      console.warn('turntable fell back to png', p.id, err.message);
+      const src = await flatFigure(p.id);
       if (mine !== modalToken || !src) return;
       fig.onerror = () => { fig.hidden = true; };
       fig.src = src;
       fig.alt = playerLabel(p.id);
       fig.hidden = false;
-    });
+    }
   }
 
   // board position and the basics, so nobody has to dig through highlights for their elo
@@ -1604,12 +1672,9 @@
     if (top) box.classList.add(`rank-${rank}`);
     document.getElementById('modalFigure').parentElement.classList.toggle('laurel', !!top);
 
-    const where = [
-      !isUnknownSeg(p.primaryRegion) && `plays from <span>${p.primaryRegion}</span>`,
-      !isUnknownSeg(p.os) && `on <span>${p.os}</span>`
-    ].filter(Boolean).join(' ');
-    const pos = rank ? `<b>${ordinal(rank)}</b> of ${ranked.length} ranked players` : `Unranked, ${games} of ${MIN_RANKED_GAMES} games played`;
-    document.getElementById('modalSub').innerHTML = where ? `${pos}, ${where}` : pos;
+    document.getElementById('modalSub').innerHTML = rank
+      ? `<b>${ordinal(rank)}</b> of ${ranked.length} ranked players`
+      : `Unranked, ${games} of ${MIN_RANKED_GAMES} games played`;
 
     const stat = (v, label, cls = '') => `<div class="pf-stat ${cls}"><b>${v}</b><span>${label}</span></div>`;
     const guessedPing = p.synthesized.includes('weightedPing');
@@ -1645,9 +1710,6 @@
     modalContent.hidden = true;
     document.getElementById('toggleJson').textContent = 'show json';
     if (!modal.open) modal.showModal();
-
-    // after showModal, the swarm lays out off its own width. an unranked player is added in to show where they would land
-    eloSwarm(document.getElementById('modalSpread'), ranked.includes(p) ? ranked : [...ranked, p], { maxH: 90, mark: p });
   }
 
   const quadrantPlugin = {
@@ -1718,7 +1780,7 @@
           <span class="pod-wl">${p.wins}–${p.loss}</span>
         </span>
       </button>`).join('');
-    fillFigures(el);
+    fillFigures(el, 'podium');
   }
 
   async function load() {
@@ -1969,7 +2031,7 @@
 
   // ---- elo spread, a beeswarm: one dot per player, each as close to the middle line as it fits ----
   // the leaderboard is its table. returns the elo to px scale, nothing when there is nothing to draw
-  function eloSwarm(el, pool, { maxH, mark, metals } = {}) {
+  function eloSwarm(el, pool) {
     const w = el.clientWidth;
     el.innerHTML = '';
     if (!w || pool.length < 2) return;
@@ -1978,7 +2040,7 @@
     const hi = Math.ceil((asc.at(-1).elo + 1) / 100) * 100;
     const at = e => (e - lo) / (hi - lo) * w;
 
-    // the biggest dot that keeps the swarm under maxH
+    // the biggest dot that keeps the swarm under 300px
     let d, dots, top, bottom;
     for (d = 20; ; d--) {
       dots = [];
@@ -1994,14 +2056,14 @@
         top = Math.min(top, y);
         bottom = Math.max(bottom, y);
       }
-      if (bottom - top + d <= maxH || d <= 5) break;
+      if (bottom - top + d <= 300 || d <= 5) break;
     }
 
-    const metal = new Map(metals ? asc.slice(-3).reverse().map((p, i) => [p, ` r${i + 1}`]) : []);
+    const metal = new Map(asc.slice(-3).reverse().map((p, i) => [p, ` r${i + 1}`]));
     let html = '';
     for (let e = lo; e <= hi; e += 100) html += `<span class="sw-tick" style="left:${at(e)}px">${e}</span>`;
     for (const { p, x, y } of dots) {
-      const cls = (metal.get(p) || '') + (p === mark ? ' me' : '') + (x < 90 ? ' tip-l' : x > w - 90 ? ' tip-r' : '');
+      const cls = (metal.get(p) || '') + (x < 90 ? ' tip-l' : x > w - 90 ? ' tip-r' : '');
       // out of the tab order, 150 stops would bury the page. the leaderboard has every player by keyboard
       html += `<button type="button" tabindex="-1" class="sw-dot${cls}" data-pid="${p.id}" data-tip="${playerLabel(p.id)}, ${p.elo} elo"
         style="left:${x}px;top:${y - top + d / 2}px;width:${d}px;height:${d}px"></button>`;
@@ -2017,7 +2079,7 @@
     const pool = board.filter(p => p.wins + p.loss > 0);
     const el = document.getElementById('spreadChart');
     spreadW = el.clientWidth;
-    const at = eloSwarm(el, pool, { maxH: 300, metals: true });
+    const at = eloSwarm(el, pool);
     if (!at) return;
     const asc = pool.map(p => p.elo).sort((a, b) => a - b);
     const q = f => asc[Math.floor(f * (asc.length - 1))];

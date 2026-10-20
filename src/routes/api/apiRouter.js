@@ -18,9 +18,10 @@ router.post('/roblox-users', require('../rblxapp/routes/usersLookup.js'));
 router.get('/roblox-thumb/:userId', require('../rblxapp/routes/thumbLookup.js'));
 router.get('/roblox-avatars', require('../rblxapp/routes/avatarLookup.js'));
 router.get('/roblox-id/:name', require('../rblxapp/routes/nameLookup.js'));
-// rowa2 3d podium, a recipe per player and the asset files it names
+// rowa2 3d figures, a recipe per player and the asset files it names. a page full of figures
+// asks for a few dozen rigs, so these get their own budgets off the 30 a page shares
 const rowaRig = require('../rblxapp/routes/rowaRig.js');
-router.get('/rowa-rig/:userId', rowaRig.rig);
+router.get('/rowa-rig/:userId', limiter({ windowMs: 30 * 1000, max: 120 }), rowaRig.rig);
 router.get('/rowa-asset/:assetId', limiter({ windowMs: 30 * 1000, max: 300 }), rowaRig.asset);
 
 router.get('/anime3/data',         require('./anime3/data.js')             );

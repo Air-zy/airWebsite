@@ -43,14 +43,22 @@ async function load() {
 // the promise is the cache, so two people loading at once share one run against roblox.
 // a failed run is dropped, unless a newer one already took its place
 let cache = null;
+function players() {
+  if (!cache || Date.now() - cache.at > TTL) {
+    const data = load();
+    cache = { at: Date.now(), data };
+    data.catch(() => { if (cache?.data === data) cache = null; });
+  }
+  return cache.data;
+}
+
 module.exports = async (req, res) => {
-  if (!cache || Date.now() - cache.at > TTL) cache = { at: Date.now(), data: load() };
-  const { data } = cache;
   try {
-    res.json(await data);
+    res.json(await players());
   } catch (err) {
-    if (cache?.data === data) cache = null;
     console.error(err);
     res.status(500).json({ error: 'plr data request err' });
   }
 };
+// the rig route only builds avatars for players on the board
+module.exports.players = players;

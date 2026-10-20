@@ -1,5 +1,7 @@
 const zlib = require('zlib');
 const { assetKey, getAsset } = require('../rowautils.js');
+const { players } = require('../../api/rowa2/allPlrData.js');
+const { ADMIN_UID } = require('../../middleware/auth.js');
 const { parse } = require('../rbxm.js');
 
 // what an r6 rig in rowa2 can wear. layered clothing and r15 body parts dont exist on r6,
@@ -173,6 +175,13 @@ async function rig(req, res) {
   const uid = Number(req.params.userId);
   if (!Number.isInteger(uid) || uid <= 0) return res.status(400).json({ error: 'bad id' });
   if (!assetKey) return res.status(503).json({ error: 'no asset key' });
+  // board players only, so the route's loose rate limit cant be turned into building every
+  // avatar on roblox against the asset key. at most one build per player an hour. i can still
+  // load anyone into /posing
+  if (req.user?.uid !== ADMIN_UID) {
+    const board = await players().catch(() => []);
+    if (!board.some(p => String(p.id) === String(uid))) return res.status(404).json({ error: 'not a rowa player' });
+  }
 
   let hit = rigs.get(uid);
   if (!hit || Date.now() - hit.at > RIG_TTL) {
