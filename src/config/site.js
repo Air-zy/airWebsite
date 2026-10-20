@@ -78,8 +78,9 @@ module.exports = {
     // built once at boot, a server left running over new years eve keeps the old year until it restarts
     copyright: `© ${new Date().getFullYear()} Airzy`,
 
-    // ?v for main.css, main.js and dither.js, only changes when one of them does
-    v: ['css/main.css', 'js/main.js', 'js/dither.js'].reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8),
+    // ?v for main.css, main.js, dither.js and r6.js, only changes when one of them does.
+    // cloudflare holds js for 4h whatever we send, so a page and an older r6.js can meet
+    v: ['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js'].reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8),
   },
 };
 
