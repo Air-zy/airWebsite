@@ -186,7 +186,7 @@
     margin: 0; padding: 0; border: 0; overflow: auto; background: rgba(0,0,0,0.8); color: inherit;
   }
   .modal::backdrop { background: transparent; }
-  .modal-content { --metal: var(--accent); position: relative; background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 1120px; max-height: 80vh; overflow: auto; border: 1px solid var(--border); }
+  .modal-content { --metal: var(--accent); position: relative; background: var(--panel); margin: 5% auto; padding: 36px; width: 80%; max-width: 1120px; max-height: 80vh; overflow: auto; border: 1px solid var(--border); }
   .modal-content:focus-visible { outline: none; }
   .close {
     position: absolute; top: 10px; right: 10px; z-index: 2; display: grid; place-items: center;
@@ -297,7 +297,7 @@
     /* one scale for all three figures, 1st stands taller on its block and not in its body */
     --stud: calc(var(--pod-w) * 0.17);
     position: relative; display: flex; justify-content: center; align-items: flex-end;
-    gap: var(--pod-gap); margin-top: 26px; border-bottom: 1px solid var(--border);
+    gap: var(--pod-gap); margin-top: clamp(48px, 7vw, 100px); border-bottom: 1px solid var(--border);
   }
   /* one wreath round all three spots, growing as the blocks rise. the art has empty margin
      inside its box, hence pulling it in. clipped so it never makes a phone scroll sideways */
@@ -417,9 +417,9 @@
   }
   .pf-fig { position: relative; width: 100%; aspect-ratio: 0.95; --lgap: 6%; }
   /* a top three wreath round the figure, once it has shown up. sized off the width, a taller
-     box would otherwise push it out the sides */
+     box would otherwise push it out the sides. centred on the box so it rings the body, not the feet */
   .pf-fig.laurel:has(> :not([hidden]))::before,
-  .pf-fig.laurel:has(> :not([hidden]))::after { content: ''; width: 49%; height: auto; }
+  .pf-fig.laurel:has(> :not([hidden]))::after { content: ''; width: 49%; height: auto; top: 50%; bottom: auto; translate: 0 -50%; }
   /* the live one, sideways drags spin it and up and down still scrolls a phone */
   .pf-fig canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; cursor: grab; animation: fade-in 0.4s ease-out; }
   .pf-fig canvas:active { cursor: grabbing; }
@@ -429,20 +429,20 @@
   .pf-sub b { color: var(--metal); }
   .pf-stats {
     display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-end;
-    padding: 4px 0 16px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+    padding: 4px 0 20px; margin-bottom: 30px; border-bottom: 1px solid var(--border);
   }
   .pf-stat b { display: block; font-size: 18px; font-weight: 600; }
   .pf-stat span { font-size: 12px; color: var(--muted); }
   .pf-stat.elo b { font-family: var(--display); font-weight: 400; font-size: 32px; line-height: 1; color: var(--metal); }
 
-  .feints { margin-top: 14px; font-size: 12px; }
+  .feints { margin-top: 22px; font-size: 12px; }
   .feint-head { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 5px; }
   .feint-head b { color: var(--text); font-weight: 600; }
   .fs-bar { display: flex; height: 8px; width: 100%; overflow: hidden; background: rgba(255,255,255,0.05); }
   .fs-bar span { display: block; height: 100%; }
   .fs-key { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
 
-  .similar { margin-top: 14px; }
+  .similar { margin-top: 26px; }
   .similar-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
   .sim-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .sim {
@@ -461,8 +461,8 @@
   .small-p a { color: var(--accent); }
 
   /* highlights */
-  .hl-group { margin-bottom: 18px; }
-  .hl-group h3 { font-size: 15px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; }
+  .hl-group { margin-bottom: 36px; }
+  .hl-group h3 { font-size: 15px; margin: 0 0 10px 0; color: var(--accent); font-weight: 600; }
   .hl-lead { margin-bottom: 8px; }
   .hl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .hl-row .rank { color: var(--muted); white-space: nowrap; }
@@ -471,6 +471,11 @@
   .hl-row.sole .rank { color: #d8b877; font-weight: 400; }
   .hl-row .crown { width: 15px; height: 10px; margin-right: 3px; vertical-align: -1px; color: var(--gold); }
   .hl-empty { font-size: 12px; color: var(--muted); }
+  /* label then the picks, a tag each */
+  .fav-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: baseline; gap: 10px; margin-top: 10px; }
+  .fav-row .cbar-title { margin: 0; }
+  .fav-row > div { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fav { padding: 5px 10px; border: 1px solid var(--border); font-size: 13px; cursor: help; }
 
   /* combat share bars, plain flex so widths tween between players */
   .cbar-title { font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
@@ -641,7 +646,7 @@
     .modal-content {
       width: auto; max-width: none; margin: 0;
       min-height: 100vh; max-height: none;
-      padding: 18px; border: none;
+      padding: 24px; border: none;
     }
     .pf { grid-template-columns: minmax(0, 1fr); }
     .pf-side { position: static; padding-top: 10px; }
@@ -855,7 +860,7 @@
     <section class="chapter" id="styles">
       <h2>Playstyles</h2>
       <p class="finding" id="styleFinding"></p>
-      <div class="ckey" id="styleKey"></div>
+      <div class="ckey split-key"></div>
       <div id="styleGroups" class="style-grid"></div>
     </section>
 
@@ -900,12 +905,11 @@
           <div id="combatSection" class="hl-group" hidden>
             <h3>Combat breakdown</h3>
             <div id="styleLine" class="small" hidden></div>
-            <div class="cbar-title">Defending, how hits on them ended</div>
+            <div class="ckey split-key"></div>
+            <div class="cbar-title">On defence</div>
             <div id="cbarDef" class="cbar"></div>
-            <div id="ckeyDef" class="ckey"></div>
-            <div class="cbar-title">Attacking, how their hits ended</div>
+            <div class="cbar-title">On attack</div>
             <div id="cbarAtk" class="cbar"></div>
-            <div id="ckeyAtk" class="ckey"></div>
 
             <!-- feints are bare counts with no damage attached, so they cannot join the
                  composition above. separate line, separately normalised. -->
@@ -913,6 +917,7 @@
 
             <div id="similarList"></div>
           </div>
+          <div id="favorites" class="hl-group" hidden></div>
 
           <pre id="modalContent" hidden></pre>
           <div class="pf-foot">
@@ -1402,10 +1407,10 @@
       </div>`;
   }
 
-  // keys are static, the bars keep their spans so widths slide between players
+  // one key reads for both sides of a split, hovering a segment gives its exact name.
+  // the bars keep their spans so widths slide between players
   const keyHtml = labels => labels.map((l, i) => `<span><i style="background:${STAT_COLORS[i]}"></i>${l}</span>`).join('');
-  document.getElementById('ckeyDef').innerHTML = keyHtml(DEF_LABELS);
-  document.getElementById('ckeyAtk').innerHTML = keyHtml(ATK_LABELS);
+  document.querySelectorAll('.split-key').forEach(el => { el.innerHTML = keyHtml(['Parried', 'Blocked', 'Dodged', 'Landed']); });
 
   function fillCombatBar(el, vals, labels) {
     if (!el.children.length) el.innerHTML = labels.map((_, i) => `<span style="background:${STAT_COLORS[i]}"></span>`).join('');
@@ -1697,6 +1702,7 @@
     document.getElementById('highlights').innerHTML = buildHighlights(p);
     renderCombat(p);
     renderStyleLine(p);
+    renderFavorites(p);
     loadFigure(p);
 
     const displayObj = {
@@ -2203,23 +2209,23 @@
       `The top ${STYLE_TOP} split four ways on how they fight. The first cut is ${stat(root.i)}, the stat they differ on most, then ` +
       (kids[0].i === kids[1].i ? `both halves split again on ${stat(kids[0].i)}.` : `one half splits on ${stat(kids[0].i)} and the other on ${stat(kids[1].i)}.`) +
       ' Everyone else lands wherever those same lines put them.';
-    document.getElementById('styleKey').innerHTML = keyHtml(['Parried', 'Blocked', 'Dodged', 'Landed']);
 
     const el = document.getElementById('styleGroups');
     el.innerHTML = groups.map((g, gi) => {
-      const rest = g.members.filter(p => !g.top.includes(p));
+      // two figures a group, the rest of its top players lead the list
+      const faces = g.top.slice(0, 2), rest = g.members.filter(p => !faces.includes(p));
       return `<div class="style">
         <h3>${g.title}</h3>
         <div class="small">${g.rule}</div>
         <div class="cbar-title">On defence</div><div class="cbar" data-g="${gi}"></div>
         <div class="cbar-title">On attack</div><div class="cbar" data-g="${gi}" data-atk></div>
-        <div class="sim-grid">${g.top.map(p => playerTile(p)).join('')}</div>
+        <div class="sim-grid">${faces.map(p => playerTile(p)).join('')}</div>
         ${rest.slice(0, 4).map(p => playerRow(p, `${p.elo} elo`)).join('')}
         ${rest.length > 4 ? `<div class="small chart-note">and ${rest.length - 4} more ranked players</div>` : ''}
       </div>`;
     }).join('');
 
-    // the group's average split, every ranked player in it and not just the four shown
+    // the group's average split, every ranked player in it and not just the ones shown
     el.querySelectorAll('.cbar').forEach(bar => {
       const off = 'atk' in bar.dataset ? 4 : 0;
       fillCombatBar(bar, styleAvg(groups[bar.dataset.g].members).slice(off, off + 4), off ? ATK_LABELS : DEF_LABELS);
@@ -2337,14 +2343,15 @@
   let cardInfo = {};
   const cardsReady = fetch('/api/rowa/cards').then(r => r.ok ? r.json() : {}).catch(() => ({})).then(c => { cardInfo = c; });
 
+  // fav is [power on their share, floor under everyone else's] for favorites, see there
   const LOADOUTS = {
     abilities: {
-      one: 'ability', many: 'abilities', noun: 'hotbars', axis: 'Hotbars carrying it',
+      one: 'ability', many: 'abilities', noun: 'hotbars', axis: 'Hotbars carrying it', fav: [0.25, 0.3],
       // id 3 is an ability, the other hotbar keys hold the weapon
       items: slot => (slot?.hotbar?.s || []).filter(([, h]) => h?.id === 3 && h.name).map(([, h]) => ({ name: words(h.name) }))
     },
     talents: {
-      one: 'talent', many: 'talents', noun: 'characters', axis: 'Characters holding it',
+      one: 'talent', many: 'talents', noun: 'characters', axis: 'Characters holding it', fav: [1, 0.5],
       // an id the registry no longer has still counts, named the way the game names it
       items: slot => decodeBitSet(slot?.cards).map(id => ({ name: cardInfo[id]?.name || `unknown #${id}`, tier: cardInfo[id]?.tier || 'common', desc: cardInfo[id]?.desc }))
     }
@@ -2369,6 +2376,70 @@
       }
     }
     return { all: [...out.values()].sort((a, b) => b.slots - a.slots), pool, people: people.size };
+  }
+
+  // ---- favorites, what a player runs more than everyone else does ----
+  // share of their characters with each item, each counted by the elo it climbed from the 800
+  // every character starts on, so the builds they actually win with lead
+  function loadoutShares(p, kind) {
+    const built = (Array.isArray(p.decodedSlots) ? p.decodedSlots : [])
+      .map(s => ({ items: LOADOUTS[kind].items(s), w: Math.max(0, (s.elo || 800) - 800) + 1, games: (s.wins || 0) + (s.loss || 0) }))
+      .filter(c => c.items.length);
+    const total = sum(built.map(c => c.w)), out = new Map();
+    for (const c of built) {
+      for (const item of c.items) {
+        const a = out.get(item.name) || out.set(item.name, { ...item, share: 0, games: 0 }).get(item.name);
+        a.share += c.w / total;
+        a.games += c.games;
+      }
+    }
+    return out;
+  }
+
+  // every share summed over everyone who has any, so a player can be held against the rest
+  const pooled = {};
+  function pooledShares(kind) {
+    if (pooled[kind]) return pooled[kind];
+    const all = players.map(p => loadoutShares(p, kind)).filter(m => m.size), sums = new Map();
+    for (const m of all) for (const [name, a] of m) sums.set(name, (sums.get(name) || 0) + a.share);
+    return (pooled[kind] = { sums, people: all.length });
+  }
+
+  // plain frequency hands everyone the same staples, so it is their share over everyone else's.
+  // the power on their share stops a pick they barely run winning on rarity alone, the floor
+  // caps how much rarity counts. abilities lean on rarity, talents barely, half the players
+  // hold haki. avy: fitted by hand on ~30 players so ballistic gets prediction and toshi
+  // counter, blaze blood chain and andrik haki and frontliner, with the fewest one off picks.
+  // refit as it grows
+  function favorites(p, kind, n = 4) {
+    const { sums, people } = pooledShares(kind), [power, floor] = LOADOUTS[kind].fav;
+    return [...loadoutShares(p, kind).values()]
+      .map(a => {
+        const others = (sums.get(a.name) - a.share) / Math.max(1, people - 1);
+        return { ...a, others, score: a.share ** power / (others + floor) };
+      })
+      .sort((x, y) => y.score - x.score)
+      .slice(0, n);
+  }
+
+  async function renderFavorites(p) {
+    await cardsReady;
+    if (profilePlayer !== p) return;
+    const pct = v => Math.round(v * 100) + '%';
+    // just the names, the why behind each is on hover. rare and ultimate keep their chart colour
+    const tag = a => {
+      const tier = a.tier && a.tier !== 'common';
+      const why = [tier && `${cap(a.tier)} talent`, a.desc, `${pct(a.share)} of their builds, ${pct(a.others)} for everyone else`];
+      return `<span class="fav"${tier ? ` style="border-color:var(--series-${TIERS.indexOf(a.tier) + 1})"` : ''} title="${why.filter(Boolean).join('\n')}">${a.name}</span>`;
+    };
+    const row = (kind, title) => {
+      const f = favorites(p, kind);
+      return f.length ? `<div class="fav-row"><span class="cbar-title">${title}</span><div>${f.map(tag).join('')}</div></div>` : '';
+    };
+    const rows = row('talents', 'Talents') + row('abilities', 'Abilities');
+    const el = document.getElementById('favorites');
+    el.hidden = !rows;
+    el.innerHTML = rows && `<h3>Favorites</h3>${rows}`;
   }
 
   document.getElementById('metaKind').addEventListener('click', async e => {
@@ -2418,14 +2489,18 @@
       picked = a;
       paint();
       charts.meta.update('none');
-      const users = [...a.users].sort((x, y) => y.elo - x.elo);
+      // whoever leans on it most first, their share of builds like favorites times the root of
+      // games with it, so one character tried three times does not top someone with hundreds
+      const lean = f => f.share * Math.sqrt(f.games + 1);
+      const users = [...a.users].map(p => ({ p, f: loadoutShares(p, kind).get(a.name) }))
+        .sort((x, y) => lean(y.f) - lean(x.f) || y.p.elo - x.p.elo);
       const el = document.getElementById('metaPick');
       el.innerHTML = `<h3>${a.name}</h3>
         ${a.desc ? `<p>${a.desc}</p>` : ''}
         <div class="small">${tierText(a) ? `${cap(a.tier)} ${L.one}. ` : ''}On ${a.slots} ${L.noun} across ${users.length} players, ${a.games ? `${wr(a).toFixed(1)}% wins over ${a.games.toLocaleString()} games` : 'no games yet'}</div>
-        <div class="sim-grid">${users.slice(0, 4).map(p => playerTile(p)).join('')}</div>
-        ${users.slice(4, 10).map(p => playerRow(p, `${p.elo} elo`)).join('')}
-        ${users.length > 10 ? `<div class="small chart-note">and ${users.length - 10} more</div>` : ''}`;
+        <div class="sim-grid">${users.slice(0, 2).map(u => playerTile(u.p)).join('')}</div>
+        ${users.slice(2, 8).map(u => playerRow(u.p, `${u.f.games.toLocaleString()} games`)).join('')}
+        ${users.length > 8 ? `<div class="small chart-note">and ${users.length - 8} more</div>` : ''}`;
       fillFigures(el);
     };
 

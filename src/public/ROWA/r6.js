@@ -413,12 +413,14 @@ export function renderR6(userId, opts = {}) {
 }
 
 // the player live on canvas, turning slowly like on a microwave plate. drag spins it and a
-// flick keeps going, easing back to the slow turn. its own webgl context, the shared one is
-// busy with the stills. resolves to a stop() that frees the scene, rejects like renderR6
+// flick keeps going, easing back to the slow turn. a tap moves it into the next pose. its own
+// webgl context, the shared one is busy with the stills. resolves to a stop() that frees the
+// scene, rejects like renderR6
 const spinners = new WeakMap();
 export async function turntable(userId, canvas) {
-  const a = await loadAvatar(userId), { T } = a, pose = POSES[Number(userId) % POSES.length];
-  let r = spinners.get(canvas);
+  const a = await loadAvatar(userId), { T } = a;
+  let at = Number(userId) % POSES.length;
+  let az = POSES[at].az, r = spinners.get(canvas);
   if (!r) {
     r = new T.WebGLRenderer({ canvas, antialias: true, alpha: true });
     r.autoClear = false;
@@ -426,29 +428,42 @@ export async function turntable(userId, canvas) {
     r.shadowMap.type = T.VSMShadowMap;
     spinners.set(canvas, r);
   }
-  const { scene, root, key } = stage(a, pose);
+  const { scene, root, joints, key } = stage(a, POSES[at]);
+  const parts = Object.values(joints);
 
-  // every corner of every part. it turns on the root, which sits on the torso, so turned through
-  // a full circle these bound the figure at any angle
-  const pts = [];
-  root.traverse(o => {
-    if (!o.isMesh) return;
-    o.geometry.computeBoundingBox();
-    const b = o.geometry.boundingBox;
-    for (let i = 0; i < 8; i++) pts.push(new T.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(o.matrixWorld));
+  // every pose up front, its joints to tween to and every corner of every part. it turns on the
+  // root, which sits on the torso, so turned through a full circle these bound it at any angle
+  const looks = POSES.map(pose => {
+    setPose(joints, pose);
+    root.updateMatrixWorld(true);
+    const pts = [];
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      o.geometry.computeBoundingBox();
+      const b = o.geometry.boundingBox;
+      for (let i = 0; i < 8; i++) pts.push(new T.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(o.matrixWorld));
+    });
+    return { pts, joints: parts.map(j => [j.quaternion.clone(), j.position.clone()]), low: Math.min(...pts.map(p => p.y)) };
   });
-  const reach = Math.max(...pts.map(p => Math.hypot(p.x, p.z))), ys = pts.map(p => p.y);
+  // each one lifted so its lowest point stands where the players own pose does
+  for (const l of looks) {
+    l.lift = looks[at].low - l.low;
+    l.pts.forEach(p => { p.y += l.lift; });
+  }
+  setPose(joints, POSES[at]);
+  root.updateMatrixWorld(true);
+
+  const all = looks.flatMap(l => l.pts);
+  const reach = Math.max(...all.map(p => Math.hypot(p.x, p.z))), ys = all.map(p => p.y);
   const swept = new T.Box3(new T.Vector3(-reach, Math.min(...ys), -reach), new T.Vector3(reach, Math.max(...ys), reach));
   bodyShadows(T, scene, key, swept);
   const pool = floorPass(T, scene, swept, key);
 
-  // cropped round the figure and its pool like the stills are, over every angle it turns
-  // through, by zooming and shifting in screen space
-  const camera = new T.PerspectiveCamera(45, 1);
-  function fit() {
-    camera.aspect = canvas.clientWidth / canvas.clientHeight;
-    podiumCamera(T, swept, pose.az, camera).updateMatrixWorld();
-    const v = new T.Vector3();
+  // cropped round the pose and its pool like the stills are, over every angle it turns
+  // through, by zooming and shifting in screen space. one zoom per pose so a tap can ease between
+  const camera = new T.PerspectiveCamera(45, 1), base = new T.Matrix4(), zoom = new T.Matrix4(), v = new T.Vector3();
+  let frames = [], view;
+  function framing(pts) {
     let x = 0, y0 = Infinity, y1 = -Infinity;
     const see = q => {
       q.project(camera);
@@ -466,13 +481,25 @@ export async function turntable(userId, canvas) {
     }
     // the pool's blur runs about 0.1 past its hard edge
     const k = Math.min(1.88 / (y1 - y0), 0.98 / x);
-    camera.projectionMatrix.premultiply(new T.Matrix4().set(k, 0, 0, 0, 0, k, 0, -0.9 - k * y0, 0, 0, 1, 0, 0, 0, 0, 1));
+    return [k, -0.9 - k * y0];
+  }
+  function look([k, y]) {
+    view = [k, y];
+    camera.projectionMatrix.copy(base).premultiply(zoom.set(k, 0, 0, 0, 0, k, 0, y, 0, 0, 1, 0, 0, 0, 0, 1));
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
+  function fit() {
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    podiumCamera(T, swept, az, camera).updateMatrixWorld();
+    base.copy(camera.projectionMatrix);
+    frames = looks.map(l => framing(l.pts));
+    look(tween ? view : frames[at]);
+  }
 
-  // radians a second, a turn every 25s
-  const idle = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.25;
-  let speed = idle, drag = null, raf = 0, last = 0, seen = true;
+  // radians a second, a turn every 25s. a pose change takes MORPH ms
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const idle = still ? 0 : 0.25, MORPH = still ? 0 : 360;
+  let speed = idle, drag = null, raf = 0, last = 0, seen = true, tween = null;
   function frame(t) {
     const dt = last ? Math.min(0.05, (t - last) / 1000) : 0;
     last = t;
@@ -480,12 +507,41 @@ export async function turntable(userId, canvas) {
       root.rotation.y += speed * dt;
       speed += (idle - speed) * Math.min(1, dt * 1.5);
     }
+    if (tween) {
+      // slerped so a limb takes the short way round, not every euler angle at once. limbs swing a
+      // touch past and settle so it lands like a hit. the feet, zoom and camera just ease out, the
+      // spin unwinds while the camera swings to where the pose was shot from, under the same lights
+      tween.start ??= t;
+      const e = MORPH ? Math.min(1, (t - tween.start) / MORPH) : 1, u = e - 1, to = looks[at];
+      const s = 1 + 2.5 * u ** 3 + 1.5 * u ** 2, o = 1 + u ** 3;
+      parts.forEach((j, i) => {
+        j.quaternion.slerpQuaternions(tween.joints[i][0], to.joints[i][0], s);
+        j.position.lerpVectors(tween.joints[i][1], to.joints[i][1], s);
+      });
+      root.position.y = tween.lift + (to.lift - tween.lift) * o;
+      root.rotation.y = tween.spin * (1 - o);
+      az = tween.az + (POSES[at].az - tween.az) * o;
+      podiumCamera(T, swept, az, camera);
+      look(tween.view.map((w, i) => w + (frames[at][i] - w) * o));
+      if (e === 1) tween = null;
+    }
     r.clear();
     pool.pass(() => r.render(scene, camera));
     r.clearDepth();
     r.render(scene, camera);
-    raf = seen && (drag || Math.abs(speed) > 0.01) ? requestAnimationFrame(frame) : 0;
+    raf = seen && (drag || tween || Math.abs(speed) > 0.01) ? requestAnimationFrame(frame) : 0;
     if (!raf) last = 0;
+  }
+
+  // from wherever it is now, so tapping mid change just heads somewhere new
+  function nextPose() {
+    at = (at + 1) % POSES.length;
+    // whole turns off the spin so far, then the swing round to the new camera is at most half a turn
+    const daz = POSES[at].az - az, TAU = 2 * Math.PI;
+    root.rotation.y -= TAU * Math.round((root.rotation.y + daz) / TAU);
+    speed = idle;
+    tween = { joints: parts.map(j => [j.quaternion.clone(), j.position.clone()]), lift: root.position.y, view, spin: root.rotation.y, az };
+    wake();
   }
   const wake = () => { if (!raf) raf = requestAnimationFrame(frame); };
 
@@ -507,7 +563,7 @@ export async function turntable(userId, canvas) {
   const ac = new AbortController(), on = (type, fn) => canvas.addEventListener(type, fn, { signal: ac.signal });
   on('pointerdown', e => {
     e.preventDefault();
-    drag = { x: e.clientX, t: e.timeStamp };
+    drag = { x: e.clientX, t: e.timeStamp, down: e.timeStamp, moved: 0 };
     canvas.setPointerCapture(e.pointerId);
     wake();
   });
@@ -517,11 +573,15 @@ export async function turntable(userId, canvas) {
     const turn = (e.clientX - drag.x) / canvas.clientWidth * Math.PI;
     root.rotation.y += turn;
     speed = Math.max(-12, Math.min(12, turn / Math.max(0.001, (e.timeStamp - drag.t) / 1000)));
-    drag = { x: e.clientX, t: e.timeStamp };
+    drag.moved += Math.abs(e.clientX - drag.x);
+    drag.x = e.clientX;
+    drag.t = e.timeStamp;
   });
-  // held still before letting go is a stop, not a flick
+  // a quick tap that barely moved is a pose change. held still before letting go is a stop, not a flick
   const release = e => {
-    if (drag && e.timeStamp - drag.t > 80) speed = 0;
+    if (!drag) return;
+    if (e.type === 'pointerup' && drag.moved < 6 && e.timeStamp - drag.down < 300) nextPose();
+    else if (e.timeStamp - drag.t > 80) speed = 0;
     drag = null;
   };
   on('pointerup', release);
