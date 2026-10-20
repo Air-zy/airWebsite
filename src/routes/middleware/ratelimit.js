@@ -12,7 +12,7 @@ const limiter = opts => rateLimit({
   ...opts,
 });
 
-// 30 reqs per 30s per ip
-const clientLimiter = limiter({ windowMs: 30 * 1000, max: 30 });
+// 30 reqs per 30s per ip. rowa figures pull a dozen asset files each, that route has its own budget
+const clientLimiter = limiter({ windowMs: 30 * 1000, max: 30, skip: req => req.path.startsWith('/api/rowa-asset/') });
 
 module.exports = { clientLimiter, limiter };

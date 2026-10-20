@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ROWA 2 Posing</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #121110;
+    --panel: #191816;
+    --raise: #25231f;
+    --muted: #8f8a82;
+    --text: #ece8e1;
+    --line: #2a2825;
+    --accent: #bfa173;
+    /* same red green blue as the rotate gizmo rings */
+    --x: #e0605a;
+    --y: #74b86f;
+    --z: #5f9be0;
+    --display: 'Archivo Black', Impact, 'Arial Black', sans-serif;
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: minmax(0, 1fr);
+    background: var(--bg);
+    color: var(--text);
+    font: 13px Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  [hidden] { display: none !important; }
+  * { scrollbar-width: thin; scrollbar-color: #3a3733 transparent; }
+
+  .panel {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .panel header a { color: var(--muted); text-decoration: none; font-size: 12px; }
+  .panel header a:hover { color: var(--text); }
+  h1 { font: 30px/1 var(--display); margin: 10px 0 0; letter-spacing: 0.02em; }
+  h2 { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 10px; }
+  h2 output, h2 span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  h2 output { color: var(--text); }
+
+  input, textarea, select, button { font: inherit; color: inherit; }
+  .field, textarea { background: var(--bg); border: 1px solid var(--line); padding: 7px 9px; box-sizing: border-box; width: 100%; }
+  .field:focus, textarea:focus { outline: none; border-color: var(--muted); }
+  select.field { cursor: pointer; margin-bottom: 6px; }
+  .btn { background: transparent; border: 1px solid var(--line); padding: 6px 10px; color: var(--muted); cursor: pointer; transition: 0.15s; }
+  .btn:hover:not(:disabled) { color: var(--text); border-color: #46423c; }
+  .btn[aria-pressed="true"] { background: var(--raise); border-color: var(--muted); color: var(--text); }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  /* the one accent on the page, the button you came here for */
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; padding: 6px 18px; }
+  .btn.primary:hover { color: var(--bg); filter: brightness(1.1); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  form.row .field { flex: 1; width: auto; }
+  #parts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  input[type=range] { width: 100%; margin: 0; accent-color: var(--muted); }
+
+  #axes { margin: 14px 0; }
+  .axis { display: grid; grid-template-columns: 12px 1fr 64px; align-items: center; gap: 10px; margin-top: 8px; }
+  .axis b { color: var(--c); text-transform: uppercase; font-size: 12px; }
+  .axis input[type=range] { accent-color: var(--c); }
+  .axis .field { padding: 4px 6px; }
+  .x { --c: var(--x); }
+  .y { --c: var(--y); }
+  .z { --c: var(--z); }
+
+  #code { display: block; height: 92px; margin-bottom: 8px; resize: vertical; font: 12px/1.5 ui-monospace, Consolas, monospace; }
+  #code.bad { border-color: var(--x); }
+  .keys { margin-top: auto; color: var(--muted); font-size: 12px; }
+  .keys summary { cursor: pointer; width: max-content; }
+  .keys summary:hover { color: var(--text); }
+  .keys p { line-height: 2; margin: 10px 0 0; }
+  kbd { border: 1px solid var(--line); padding: 0 4px; font: inherit; color: var(--text); }
+
+  .viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .toolbar { position: absolute; top: 14px; left: 14px; max-width: calc(100% - 28px); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .toolbar .row { gap: 4px; }
+  .toolbar .btn { background: rgba(25, 24, 22, 0.85); }
+  .toolbar .btn[aria-pressed="true"] { background: var(--raise); }
+  #status {
+    position: absolute; left: 14px; bottom: 16px; margin: 0;
+    background: var(--panel); border: 1px solid var(--line); padding: 6px 12px; color: var(--muted); white-space: nowrap;
+  }
+  /* the podium shot gets drawn into this box, it stays see through */
+  #pip {
+    position: absolute; right: 16px; bottom: 16px; width: clamp(150px, 28%, 320px); aspect-ratio: 1;
+    outline: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+  }
+  #pip span { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    html, body { height: auto; }
+    body { grid-template-columns: 1fr; grid-template-rows: auto; }
+    .viewport { order: -1; height: 62vh; }
+    .panel { border-right: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<aside class="panel">
+  <header>
+    <a href="/rowa2">&larr; rowa2</a>
+    <h1>POSING</h1>
+  </header>
+
+  <form id="who" class="row">
+    <input id="whoInput" class="field" placeholder="roblox username or id" autocomplete="off" spellcheck="false" aria-label="roblox username or user id">
+    <button class="btn">load</button>
+  </form>
+
+  <section>
+    <h2>part <span id="unit"></span></h2>
+    <div id="parts"></div>
+    <div id="axes"></div>
+    <div class="row">
+      <button type="button" class="btn" id="resetPart">reset</button>
+      <button type="button" class="btn" id="other">copy to other side</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>podium camera <output id="azOut"></output></h2>
+    <input id="az" type="range" min="-180" max="180" step="1" aria-label="podium camera angle">
+  </section>
+
+  <section>
+    <h2>pose <span>paste into POSES in r6.js</span></h2>
+    <select id="preset" class="field" aria-label="start from a preset"><option value="">start from a preset</option></select>
+    <textarea id="code" spellcheck="false" aria-label="pose, editable"></textarea>
+    <div class="row">
+      <button type="button" class="btn primary" id="copy">copy</button>
+      <button type="button" class="btn" id="mirror">mirror</button>
+      <button type="button" class="btn" id="resetAll">reset all</button>
+    </div>
+  </section>
+
+  <details class="keys">
+    <summary>controls</summary>
+    <p>
+      click a part to grab it, drag the rings to turn it.<br>
+      left drag orbits, right drag pans, scroll zooms.<br>
+      <kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> fly <kbd>q</kbd><kbd>e</kbd> down up <kbd>shift</kbd> slow<br>
+      <kbd>r</kbd> rotate/move <kbd>l</kbd> local/world <kbd>g</kbd> snap<br>
+      <kbd>1</kbd>-<kbd>6</kbd> parts <kbd>esc</kbd> let go <kbd>x</kbd> reset <kbd>o</kbd> other side<br>
+      <kbd>m</kbd> mirror <kbd>p</kbd> podium view<br>
+      <kbd>ctrl z</kbd> undo <kbd>ctrl y</kbd> redo
+    </p>
+  </details>
+</aside>
+
+<div class="viewport">
+  <canvas id="view"></canvas>
+  <div class="toolbar">
+    <div class="row">
+      <button type="button" class="btn" data-view="front">front</button>
+      <button type="button" class="btn" data-view="side">side</button>
+      <button type="button" class="btn" data-view="top">top</button>
+      <button type="button" class="btn" data-view="podium">podium</button>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" id="mode" title="rotate or move the part (r)">rotate</button>
+      <button type="button" class="btn" id="space" title="gizmo follows the part or the world (l)">local</button>
+      <button type="button" class="btn" id="snap" aria-pressed="false" title="15&deg; turns, quarter stud moves (g)">snap</button>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" id="undo">undo</button>
+      <button type="button" class="btn" id="redo">redo</button>
+    </div>
+  </div>
+  <p id="status">loading three</p>
+  <div id="pip"><span>podium cam</span></div>
+</div>
+
+<script type="module">
+  import { THREE_CDN, loadThree, loadAvatar, buildRig, setPose, addLights, podiumCamera, dispose, POSES, PARTS } from '/ROWA/r6.js';
+
+  const JOINTS = ['head', 'torso', 'rightArm', 'leftArm', 'rightLeg', 'leftLeg'];
+  const SIDE = { rightArm: 'leftArm', leftArm: 'rightArm', rightLeg: 'leftLeg', leftLeg: 'rightLeg' };
+  const DEG = Math.PI / 180;
+  // each joint is six numbers, a turn then a stud offset. the sliders edit whichever half the gizmo is on
+  const MODES = {
+    rotate: { label: 'rotate', at: 0, scale: DEG, min: -180, max: 180, step: 0.5, unit: 'degrees' },
+    translate: { label: 'move', at: 3, scale: 1, min: -4, max: 4, step: 0.05, unit: 'studs' }
+  };
+  const $ = id => document.getElementById(id);
+
+  // no top level await, the boot minify runs terser and it cant parse one
+  start().catch(err => { $('status').textContent = "three didn't load, " + err.message; });
+
+  async function start() {
+    const [T, { OrbitControls }, { TransformControls }] = await Promise.all([
+      loadThree(),
+      import(THREE_CDN + 'examples/jsm/controls/OrbitControls.js/+esm'),
+      import(THREE_CDN + 'examples/jsm/controls/TransformControls.js/+esm')
+    ]);
+
+    const BG = new T.Color('#121110'), PANEL = new T.Color('#191816'), MARK = new T.Color('#8f8a82');
+    const canvas = $('view'), pip = $('pip'), code = $('code');
+    const renderer = new T.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(devicePixelRatio);
+
+    const scene = new T.Scene();
+    addLights(T, scene);
+    const fog = scene.fog = new T.Fog(BG, 16, 42);
+
+    // floor bits only the studio camera sees, the podium cam gets the bare figure like draw() does
+    const stage = new T.Group();
+    const glow = document.createElement('canvas');
+    glow.width = glow.height = 128;
+    const g = glow.getContext('2d'), grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    const glowTex = new T.CanvasTexture(glow);
+    glowTex.colorSpace = T.SRGBColorSpace;
+    const pool = new T.Mesh(new T.PlaneGeometry(10, 10), new T.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false }));
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.y = 0.01;
+    stage.add(new T.GridHelper(80, 80, '#3a3733', '#22201e'), pool);
+
+    const cam = new T.PerspectiveCamera(45, 1, 0.1, 200);
+    // front right, so the podium cam on the left shows up as a marker instead of filling the view
+    cam.position.set(7, 3.5, -11);
+    const orbit = new OrbitControls(cam, canvas);
+    // no damping, it slid after letting go. scroll zooms where the mouse is, like studio
+    orbit.zoomToCursor = true;
+
+    // the podium shot, plus a little frustum in the studio showing where it is taken from
+    const podCam = new T.PerspectiveCamera(45, 1);
+    const eye = new T.PerspectiveCamera(45, 1, 0.15, 0.8);
+    const eyeHelper = new T.CameraHelper(eye);
+    eyeHelper.setColors(MARK, MARK, MARK, MARK, MARK);
+    scene.add(stage, eyeHelper);
+
+    const tc = new TransformControls(cam, canvas);
+    tc.setSpace('local');
+    tc.setSize(0.8);
+    tc.addEventListener('dragging-changed', e => {
+      orbit.enabled = !e.value;
+      if (!e.value) commit();
+    });
+    tc.addEventListener('objectChange', () => {
+      const j = tc.object, p = PARTS[sel].pivot;
+      pose[sel] = [...j.rotation.toArray().slice(0, 3), ...j.position.toArray().map((v, i) => v - p[i])];
+      show();
+    });
+    scene.add(tc);
+
+    const ZERO = [0, 0, 0, 0, 0, 0];
+    const blank = () => ({ az: 0.5, ...Object.fromEntries(JOINTS.map(k => [k, [...ZERO]])) });
+    // a mirror across x keeps x turns and negates y and z, and moves the other way along x
+    const flip = ([x, y, z, dx, dy, dz]) => [x, -y, -z, -dx, dy, dz];
+    let pose = blank(), sel = null, hover = null, rig = null;
+
+    const r2 = v => Math.round(v * 100) / 100;
+    // the line that goes in POSES, zeroed joints left out like the hand written ones
+    function format() {
+      const out = [`az: ${r2(pose.az)}`];
+      for (const k of JOINTS) {
+        // the offset half only goes out when the part was actually moved
+        const v = pose[k].map(r2);
+        if (v.some(Boolean)) out.push(`${k}: [${(v.slice(3).some(Boolean) ? v : v.slice(0, 3)).join(', ')}]`);
+      }
+      return `{ ${out.join(', ')} },`;
+    }
+
+    // what format gives out, or a line pasted straight from POSES. throws on anything else
+    function parse(text) {
+      text = text.replace(/\/\/.*$/gm, '');
+      const p = JSON.parse(/\{[\s\S]*\}/.exec(text)[0].replace(/(\w+)\s*:/g, '"$1":'));
+      const out = blank();
+      if (Number.isFinite(p.az)) out.az = p.az;
+      for (const k of JOINTS) {
+        if (!p[k]) continue;
+        if (![3, 6].includes(p[k].length) || !p[k].every(Number.isFinite)) throw new Error('bad ' + k);
+        out[k] = [...p[k], ...ZERO].slice(0, 6);
+      }
+      return out;
+    }
+
+    // last session's pose comes back after a refresh
+    try { pose = parse(localStorage.posing); } catch {}
+    const store = () => { try { localStorage.posing = format(); } catch {} };
+
+    // undo works on whole poses, a snapshot each time an edit lands
+    let saved = JSON.stringify(pose);
+    const undos = [], redos = [];
+    function commit() {
+      store();
+      const now = JSON.stringify(pose);
+      if (now === saved) return;
+      undos.push(saved);
+      redos.length = 0;
+      saved = now;
+    }
+    function step(from, to) {
+      if (!from.length) return;
+      to.push(saved);
+      saved = from.pop();
+      pose = JSON.parse(saved);
+      show();
+      store();
+    }
+
+    const axes = ['x', 'y', 'z'].map((ax, i) => {
+      const row = document.createElement('div');
+      row.className = 'axis ' + ax;
+      row.innerHTML = `<b>${ax}</b><input type="range" aria-label="${ax}"><input class="field" type="number" aria-label="${ax}">`;
+      const [range, num] = row.querySelectorAll('input');
+      range.oninput = num.oninput = e => {
+        const v = Number(e.target.value);
+        if (!sel || e.target.value === '' || !Number.isFinite(v)) return;
+        const m = MODES[tc.mode];
+        pose[sel][m.at + i] = v * m.scale;
+        show();
+      };
+      range.onchange = num.onchange = commit;
+      $('axes').append(row);
+      return { range, num };
+    });
+
+    // pose out to the rig, the sliders and the code box. keepText while the box is being typed in
+    function show(keepText) {
+      if (rig) setPose(rig.joints, pose);
+      const m = MODES[tc.mode];
+      axes.forEach(({ range, num }, i) => {
+        const d = sel ? r2(pose[sel][m.at + i] / m.scale) : 0;
+        range.value = d;
+        if (document.activeElement !== num) num.value = d;
+        range.disabled = num.disabled = !sel;
+      });
+      const az = Math.round(pose.az / DEG);
+      $('az').value = az;
+      $('azOut').textContent = az + '°';
+      if (!keepText) {
+        code.value = format();
+        code.classList.remove('bad');
+      }
+    }
+
+    const preset = $('preset');
+    preset.append(...POSES.map((_, i) => new Option('pose ' + (i + 1), i)));
+    preset.onchange = () => {
+      pose = { ...blank(), ...structuredClone(POSES[preset.value]) };
+      // blurred so typing doesnt jump the list around
+      preset.value = '';
+      preset.blur();
+      show();
+      commit();
+    };
+    const partBtns = JOINTS.map(k => Object.assign(document.createElement('button'), {
+      type: 'button',
+      className: 'btn',
+      textContent: k.replace(/[A-Z]/, c => ' ' + c.toLowerCase()),
+      onclick: () => select(sel === k ? null : k)
+    }));
+    $('parts').append(...partBtns);
+
+    function select(k) {
+      sel = k;
+      if (k && rig) tc.attach(rig.joints[k]);
+      else tc.detach();
+      partBtns.forEach((b, i) => b.setAttribute('aria-pressed', JOINTS[i] === k));
+      $('resetPart').disabled = !k;
+      $('other').disabled = !SIDE[k];
+      show();
+    }
+
+    // every pose edit button, each lands as one undo step
+    const EDITS = {
+      resetPart: () => { pose[sel] = [...ZERO]; },
+      other: () => { pose[SIDE[sel]] = flip(pose[sel]); },
+      resetAll: () => { pose = { ...blank(), az: pose.az }; },
+      // left for right, the camera swings over too
+      mirror: () => { pose = { az: -pose.az, ...Object.fromEntries(JOINTS.map(k => [k, flip(pose[SIDE[k] || k])])) }; }
+    };
+    for (const [id, edit] of Object.entries(EDITS)) {
+      $(id).onclick = () => {
+        edit();
+        show();
+        commit();
+      };
+    }
+    $('undo').onclick = () => step(undos, redos);
+    $('redo').onclick = () => step(redos, undos);
+    $('space').onclick = () => { tc.setSpace(tc.space === 'local' ? 'world' : 'local'); $('space').textContent = tc.space; };
+    $('snap').onclick = () => {
+      const on = !tc.rotationSnap;
+      tc.setRotationSnap(on ? 15 * DEG : null);
+      tc.setTranslationSnap(on ? 0.25 : null);
+      $('snap').setAttribute('aria-pressed', on);
+    };
+    function setMode(mode) {
+      const m = MODES[mode];
+      tc.setMode(mode);
+      $('mode').textContent = m.label;
+      $('unit').textContent = m.unit;
+      for (const { range, num } of axes) for (const el of [range, num]) Object.assign(el, { min: m.min, max: m.max, step: m.step });
+      show();
+    }
+    $('mode').onclick = () => setMode(tc.mode === 'rotate' ? 'translate' : 'rotate');
+    setMode('rotate');
+    $('az').oninput = e => { pose.az = e.target.value * DEG; show(); };
+    $('az').onchange = commit;
+
+    code.oninput = () => {
+      try {
+        pose = parse(code.value);
+        code.classList.remove('bad');
+        show(true);
+      } catch {
+        code.classList.add('bad');
+      }
+    };
+    code.onchange = () => { commit(); show(); };
+
+    $('copy').onclick = () => {
+      const btn = $('copy');
+      navigator.clipboard.writeText(code.value).then(() => { btn.textContent = 'copied'; }, () => {
+        code.select();
+        btn.textContent = 'ctrl c it';
+      });
+      setTimeout(() => { btn.textContent = 'copy'; }, 1400);
+    };
+
+    // eased camera moves for the view buttons, any drag cancels one
+    let fly = null;
+    const center = new T.Vector3();
+    const VIEWS = { front: [0, 0.2, -1], side: [-1, 0.2, 0], top: [0, 1, -0.01] };
+    function view(name) {
+      if (!rig) return;
+      const to = name === 'podium' ? podCam.position.clone() : new T.Vector3(...VIEWS[name]).setLength(12).add(center);
+      fly = { to, target: center.clone() };
+    }
+    orbit.addEventListener('start', () => { fly = null; });
+    document.querySelectorAll('[data-view]').forEach(b => { b.onclick = () => view(b.dataset.view); });
+
+    const KEYS = { r: '#mode', x: '#resetPart', o: '#other', m: '#mirror', l: '#space', g: '#snap', p: '[data-view=podium]' };
+    // held keys for flying the camera, studio style
+    const MOVE = new Set(['w', 'a', 's', 'd', 'q', 'e', 'shift']), held = new Set();
+    addEventListener('keyup', e => held.delete(e.key.toLowerCase()));
+    addEventListener('blur', () => held.clear());
+    addEventListener('keydown', e => {
+      if (e.target.closest('textarea, input:not([type=range])')) return;
+      const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+      if (mod && (k === 'z' || k === 'y')) {
+        e.preventDefault();
+        return k === 'y' || e.shiftKey ? step(redos, undos) : step(undos, redos);
+      }
+      if (mod || e.altKey) return;
+      if (MOVE.has(k)) held.add(k);
+      else if (k >= '1' && k <= '6') select(JOINTS[k - 1]);
+      else if (k === 'escape') select(null);
+      else if (KEYS[k]) document.querySelector(KEYS[k]).click();
+    });
+
+    // click a part to grab it. a press that starts on the gizmo or turns into an orbit drag isnt a click
+    const ray = new T.Raycaster(), ndc = new T.Vector2();
+    function partAt(e) {
+      if (!rig) return null;
+      const r = canvas.getBoundingClientRect();
+      ndc.set((e.clientX - r.left) / r.width * 2 - 1, (r.top - e.clientY) / r.height * 2 + 1);
+      ray.setFromCamera(ndc, cam);
+      for (let o = ray.intersectObject(rig.root)[0]?.object; o; o = o.parent) if (o.userData.part) return o.userData.part;
+      return null;
+    }
+    let down = null;
+    canvas.addEventListener('pointerdown', e => {
+      // so the number keys go back to picking parts after typing in a box
+      document.activeElement.blur();
+      down = tc.axis ? null : [e.clientX, e.clientY];
+    });
+    canvas.addEventListener('pointerup', e => {
+      if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5) select(partAt(e));
+      down = null;
+    });
+    canvas.addEventListener('pointermove', e => {
+      hover = e.buttons || tc.axis ? null : partAt(e);
+      canvas.style.cursor = hover ? 'pointer' : '';
+    });
+    canvas.addEventListener('pointerleave', () => { hover = null; });
+
+    const TINT = { sel: new T.Color('#3a3a3a'), hover: new T.Color('#1c1c1c'), none: new T.Color(0) };
+    function tint(on) {
+      for (const [k, frame] of Object.entries(rig.frames)) {
+        const c = !on ? TINT.none : k === sel ? TINT.sel : k === hover ? TINT.hover : TINT.none;
+        frame.traverse(o => o.isMesh && o.material.emissive.copy(c));
+      }
+    }
+
+    function status(msg) {
+      $('status').textContent = msg;
+      $('status').hidden = !msg;
+    }
+
+    // a newer pick wins if an older avatar is still building
+    let ticket = 0;
+    async function loadWho(who) {
+      const mine = ++ticket;
+      who = who.trim();
+      try {
+        let id = who;
+        if (!/^\d+$/.test(who)) {
+          status('finding ' + who);
+          const r = await fetch('/api/roblox-id/' + encodeURIComponent(who));
+          if (!r.ok) throw new Error(r.status === 404 ? 'no roblox user called ' + who : 'username lookup failed');
+          id = (await r.json()).id;
+        }
+        status('building avatar');
+        const a = await loadAvatar(id).catch(err => { throw new Error(`couldn't build avatar ${id}, ${err.message}`); });
+        const next = buildRig(a);
+        if (mine !== ticket) return dispose(next.root);
+        if (rig) {
+          scene.remove(rig.root);
+          dispose(rig.root);
+        }
+        rig = next;
+        for (const [k, frame] of Object.entries(rig.frames)) frame.userData.part = k;
+        scene.add(rig.root);
+        select(sel);
+        history.replaceState(null, '', '?id=' + id);
+        status('');
+      } catch (err) {
+        if (mine === ticket) status(err.message);
+      }
+    }
+    $('who').onsubmit = e => {
+      e.preventDefault();
+      loadWho($('whoInput').value);
+    };
+
+    const box = new T.Box3(), size = new T.Vector2(), clock = new T.Clock();
+    const fwd = new T.Vector3(), side = new T.Vector3(), step3 = new T.Vector3();
+    const axis = (plus, minus) => held.has(plus) - held.has(minus);
+    renderer.setAnimationLoop(() => {
+      // capped so a tab switch doesnt fling the camera
+      const dt = Math.min(clock.getDelta(), 0.1);
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (renderer.getSize(size).x !== w || size.y !== h) {
+        renderer.setSize(w, h, false);
+        cam.aspect = w / h;
+        cam.updateProjectionMatrix();
+      }
+      // w forward along the look, a d strafe, q e down up, shift slows it. target moves too so orbiting still works
+      if (held.size) {
+        cam.getWorldDirection(fwd);
+        side.crossVectors(fwd, cam.up).normalize();
+        step3.set(0, 0, 0)
+          .addScaledVector(fwd, axis('w', 's'))
+          .addScaledVector(side, axis('d', 'a'))
+          .addScaledVector(cam.up, axis('e', 'q'))
+          .multiplyScalar(dt * (held.has('shift') ? 3 : 12));
+        cam.position.add(step3);
+        orbit.target.add(step3);
+        fly = null;
+      }
+      if (fly) {
+        cam.position.lerp(fly.to, 0.16);
+        orbit.target.lerp(fly.target, 0.16);
+        if (cam.position.distanceTo(fly.to) < 0.01) fly = null;
+      }
+      orbit.update();
+
+      if (rig) {
+        // the floor follows the lowest point, so a lean or a kick never sinks through it
+        box.setFromObject(rig.root);
+        box.getCenter(center);
+        stage.position.y = box.min.y;
+        podiumCamera(T, box, pose.az, podCam);
+        eye.position.copy(podCam.position);
+        eye.quaternion.copy(podCam.quaternion);
+        eye.updateMatrixWorld();
+        eyeHelper.update();
+        tint(true);
+      }
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, w, h);
+      renderer.setClearColor(BG);
+      renderer.render(scene, cam);
+      if (!rig) return;
+
+      // the podium shot into the corner box, no floor, gizmo, fog or tint, same as draw()
+      const c = canvas.getBoundingClientRect(), p = pip.getBoundingClientRect();
+      const x = p.left - c.left, y = c.bottom - p.bottom;
+      renderer.setScissorTest(true);
+      renderer.setScissor(x, y, p.width, p.height);
+      renderer.setViewport(x, y, p.width, p.height);
+      renderer.setClearColor(PANEL);
+      stage.visible = eyeHelper.visible = tc.visible = false;
+      scene.fog = null;
+      tint(false);
+      renderer.render(scene, podCam);
+      stage.visible = eyeHelper.visible = true;
+      tc.visible = !!tc.object;
+      scene.fog = fog;
+    });
+
+    select(null);
+    const first = new URLSearchParams(location.search).get('id') || '156';
+    $('whoInput').value = first;
+    loadWho(first);
+  }
+</script>
+</body>
+</html>

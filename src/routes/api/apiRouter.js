@@ -16,6 +16,12 @@ router.use('/gam3DB', require('../rblxapp/routes/gam3DB.js'));
 router.get('/roblox-user/:userId', require('../rblxapp/routes/userlookup.js'));
 router.post('/roblox-users', require('../rblxapp/routes/usersLookup.js'));
 router.get('/roblox-thumb/:userId', require('../rblxapp/routes/thumbLookup.js'));
+router.get('/roblox-avatars', require('../rblxapp/routes/avatarLookup.js'));
+router.get('/roblox-id/:name', require('../rblxapp/routes/nameLookup.js'));
+// rowa2 3d podium, a recipe per player and the asset files it names
+const rowaRig = require('../rblxapp/routes/rowaRig.js');
+router.get('/rowa-rig/:userId', rowaRig.rig);
+router.get('/rowa-asset/:assetId', limiter({ windowMs: 30 * 1000, max: 300 }), rowaRig.asset);
 
 router.get('/anime3/data',         require('./anime3/data.js')             );
 router.get('/anime3/coords',       require('./anime3/coords.js')           );

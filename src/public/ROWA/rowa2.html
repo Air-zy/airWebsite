@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Rowa Dashboard</title>
+<title>ROWA 2 Leaderboard</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Archivo Black for the background wordmark only. anton is heavy but condensed, so at
+<!-- Archivo Black for the wordmarks, podium and elo. anton is heavy but condensed, so at
      3% opacity the narrow letters read thin. this one is heavy AND wide, far more ink. -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap">
 <style>
@@ -18,6 +18,10 @@
     --accent: #bfa173;
     --accent2: #a38350;
     --border: #322d25;
+    --gold: #e8c771;
+    --silver: #cfd3da;
+    --bronze: #c98a5a;
+    --display: 'Archivo Black', Impact, 'Arial Black', sans-serif;
   }
   html {
     background: var(--bg);
@@ -30,6 +34,15 @@
   }
   /* transparent so the fixed texture layer underneath is visible */
   body { background: transparent; }
+  /* a display rule on an img otherwise beats the hidden attribute and draws an empty box while it loads */
+  [hidden] { display: none !important; }
+
+  /* thin scrollbars everywhere. scrollbar-width isnt inherited, so it goes on every element.
+     the webkit rules only matter where scrollbar-width isnt supported yet */
+  * { scrollbar-width: thin; scrollbar-color: rgba(191, 161, 115, 0.35) transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(191, 161, 115, 0.35); border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
 
   /* drifting ROWA2 wordmark texture.
      sized as a square of the viewport diagonal and centred, because a square that big
@@ -62,7 +75,7 @@
   .bg-row:nth-child(4n)   { animation-duration: 132s; }
 
   .bg-row span {
-    font-family: 'Archivo Black', Impact, 'Arial Black', sans-serif;
+    font-family: var(--display);
     font-size: var(--band-fs);
     line-height: var(--band-h);
     letter-spacing: 0.04em;
@@ -77,6 +90,8 @@
 
   /* content sits above the texture */
   .wrap, .page-footer { position: relative; z-index: 1; }
+  /* grid items default to min-width auto, which lets the table push the page wide */
+  .wrap > * { min-width: 0; }
   .wrap {
     max-width: 1400px;
     margin: 20px auto;
@@ -90,7 +105,6 @@
     border: 1px solid var(--border);
     padding: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    min-width: 0;   /* grid items default to min-width auto, which lets the table push the page wide */
   }
   .col-span-2 { grid-column: span 2; }
   .col-span-3 { grid-column: span 3; }
@@ -99,20 +113,6 @@
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 15px; flex-wrap: wrap; }
   .btn { background: transparent; border: 1px solid var(--border); padding: 6px 12px; color: var(--accent); cursor: pointer; font-size: 13px; transition: 0.2s; }
   .btn:hover { background: rgba(191, 161, 115, 0.1); border-color: var(--accent); }
-  /* still an outlined button, just brighter with a faint glow so it reads before the
-     checkbox next to it. a solid fill was far too loud for one control in a topbar. */
-  .btn-primary {
-    color: #e8cd96;
-    border-color: rgba(191, 161, 115, 0.55);
-    background: rgba(191, 161, 115, 0.08);
-    box-shadow: 0 0 9px rgba(191, 161, 115, 0.15);
-  }
-  .btn-primary:hover {
-    color: #f4e0b4;
-    border-color: var(--accent);
-    background: rgba(191, 161, 115, 0.16);
-    box-shadow: 0 0 13px rgba(191, 161, 115, 0.28);
-  }
   .small { font-size: 12px; color: var(--muted); }
   
   .chartWrap { height: 400px; width: 100%; display: block; }
@@ -143,8 +143,12 @@
   .metric-item:hover { background: rgba(191, 161, 115, 0.1); color: var(--text); }
   .metric-item.active { background: rgba(191, 161, 115, 0.2); color: var(--accent); border-left: 2px solid var(--accent); }
 
-  #lbWrap { overflow: auto; max-height: 800px; border: 1px solid var(--border); }
+  /* height 0 + flex so the table never sets the row height, it fills whatever the
+     scatter card next to it is and scrolls the rest */
+  .board { display: flex; flex-direction: column; }
+  #lbWrap { flex: 1 1 0; height: 0; min-height: 360px; overflow: auto; border: 1px solid var(--border); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td.pname { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--panel); z-index: 1; }
   tr { cursor: pointer; transition: 0.1s; }
@@ -157,8 +161,8 @@
   .muted { color: var(--muted); }
   
   .modal { position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background: rgba(0,0,0,0.8); display: none; }
-  .modal-content { background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 900px; max-height: 80vh; overflow: auto; border: 1px solid var(--border); }
-  .close { color: var(--muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+  .modal-content { --metal: var(--accent); position: relative; background: var(--panel); margin: 5% auto; padding: 20px; width: 80%; max-width: 1120px; max-height: 80vh; overflow: auto; border: 1px solid var(--border); }
+  .close { position: absolute; top: 12px; right: 18px; z-index: 2; color: var(--muted); font-size: 28px; font-weight: bold; cursor: pointer; }
   .close:hover { color: var(--text); }
   pre { white-space: pre-wrap; word-wrap: break-word; color: var(--text); font-size: 12px; }
 
@@ -185,12 +189,22 @@
     border-left: 1px solid var(--border); padding-left: 0; height: 100%;
   }
   .combat-side-panel.active { width: 280px; padding-left: 15px; }
-  .side-player { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .side-player {
+    display: flex; justify-content: space-between; width: 100%; padding: 4px 0; font: inherit; font-size: 12px;
+    background: none; border: none; border-bottom: 1px solid var(--border); color: var(--text); cursor: pointer; text-align: left;
+  }
+  .side-player:hover .muted { color: var(--accent); }
 
-  /* find yourself */
-  .finder-modal { max-width: 620px; padding: 28px; }
-  .finder-modal h1 { font-size: 22px; }
-  .finder-blurb { margin-bottom: 18px; font-size: 13px; }
+  /* ---- hero, sits straight on the texture instead of in a card ---- */
+  .hero { grid-column: 1 / -1; padding: 18px 4px 0; }
+  .hero-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px 32px; flex-wrap: wrap; }
+  .wordmark {
+    font-family: var(--display); font-weight: 400; margin: 0;
+    font-size: clamp(52px, 8vw, 96px); line-height: 0.9; letter-spacing: 0.01em;
+  }
+  .hero-sub { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+
+  .finder { position: relative; width: min(440px, 100%); }
 
   /* animated rainbow glow. @property makes the angle a real animatable type, the
      blurred ::before is the glow and the crisp ::after is the border sitting on top.
@@ -220,24 +234,147 @@
   }
   .finder-input::placeholder { color: var(--muted); }
 
-  .finder-results { max-height: 340px; overflow-y: auto; margin-top: 12px; }
-  .finder-hit {
-    padding: 11px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; gap: 10px;
+  .finder-results {
+    position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 20;
+    max-height: 340px; overflow-y: auto; padding: 4px 12px;
+    background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 30px rgba(0,0,0,0.5);
   }
-  .finder-hit:hover { background: rgba(191,161,115,0.1); }
+  .finder-hit {
+    padding: 11px 4px; cursor: pointer; font: inherit; font-size: 14px; color: var(--text);
+    display: flex; justify-content: space-between; gap: 10px; width: 100%;
+    background: none; border: none; border-bottom: 1px solid var(--border); text-align: left;
+  }
+  .finder-hit:hover, .finder-hit:focus-visible { background: rgba(191,161,115,0.1); outline: none; }
+
+  /* ---- podium ---- */
+  .podium {
+    --pod-w: clamp(100px, 22vw, 230px); --pod-gap: clamp(8px, 2.4vw, 28px);
+    position: relative; display: flex; justify-content: center; align-items: flex-end;
+    gap: var(--pod-gap); margin-top: 26px; border-bottom: 1px solid var(--border);
+  }
+  /* one wreath round all three spots, growing as the blocks rise. the art has empty margin
+     inside its box, hence pulling it in. clipped so it never makes a phone scroll sideways */
+  .podium-laurel {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    --lgap: calc(1.5 * var(--pod-w) + var(--pod-gap) - 40px);
+  }
+  .podium .podium-laurel::before, .podium .podium-laurel::after { content: ''; animation-delay: 0.5s; }
+  /* spotlight on first place */
+  .podium::before {
+    content: ''; position: absolute; left: 50%; top: -30px; width: min(620px, 100%); height: 100%;
+    transform: translateX(-50%); pointer-events: none;
+    background: radial-gradient(ellipse 50% 60% at 50% 35%, rgba(232, 199, 113, 0.13), transparent 70%);
+  }
+  /* podium spots and the profile of whoever holds one. the laurel art is gold, the other two are tinted off it */
+  .pod-1, .rank-1 { --metal: var(--gold); }
+  .pod-2, .rank-2 { --metal: var(--silver); --tint: grayscale(1) brightness(1.35); }
+  .pod-3, .rank-3 { --metal: var(--bronze); --tint: sepia(0.6) saturate(1.3) hue-rotate(-18deg) brightness(0.85); }
+  /* the shortest block still has to fit the numeral, elo and W-L, the rise clips anything past it */
+  .pod-1 { --fig: clamp(104px, 14vw, 200px); --h: clamp(124px, 12.5vw, 176px); order: 1; }
+  .pod-2 { --fig: clamp(84px, 11vw, 160px); --h: clamp(104px, 10vw, 146px); order: 0; }
+  .pod-3 { --fig: clamp(84px, 11vw, 160px); --h: clamp(88px, 8vw, 120px); order: 2; }
+
+  .pod {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    width: var(--pod-w); padding: 0; border: none; background: none;
+    color: var(--text); font: inherit; cursor: pointer;
+  }
+  /* above the block so the feet can stand on it */
+  .pod-top { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .pod-crown { width: 34px; height: 22px; color: var(--gold); margin-bottom: 2px; filter: drop-shadow(0 0 8px rgba(232, 199, 113, 0.45)); }
+  /* overhead name tag, the way roblox draws names in game. it sits above the neighbours'
+     tags so it can spill past a narrow pod instead of truncating */
+  .pod-name {
+    max-width: 150%; font-weight: 700; font-size: clamp(13px, 1.1vw, 15px); color: #fff;
+    text-shadow: 0 1px 2px #000, 0 0 8px rgba(0, 0, 0, 0.8);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pod .fig { width: 100%; height: var(--fig); margin-top: 4px; }
+  .pod .fig img { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)); }
+  .pod-1 .fig img { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 18px rgba(232, 199, 113, 0.22)); }
+
+  .pod-block {
+    position: relative; width: 100%; height: var(--h); box-sizing: border-box; padding-top: 10px;
+    display: flex; flex-direction: column; align-items: center;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--metal) 20%, var(--panel)), var(--panel) 75%);
+    border-top: 3px solid var(--metal);
+  }
+  /* contact shadow where the feet land */
+  .pod-block::before {
+    content: ''; position: absolute; top: 0; left: 18%; right: 18%; height: 16px;
+    background: radial-gradient(ellipse 50% 100% at 50% 0%, rgba(0, 0, 0, 0.5), transparent);
+  }
+  .pod-rank { font-family: var(--display); font-size: clamp(30px, 4.6vw, 58px); line-height: 1; color: var(--metal); }
+  .pod-elo { font-family: var(--display); font-size: clamp(14px, 1.7vw, 20px); color: var(--metal); margin-top: 2px; }
+  .pod-wl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .pod:hover .pod-name, .pod:focus-visible .pod-name { color: var(--metal); }
+  .pod:focus-visible { outline: 1px dashed var(--metal); outline-offset: 4px; }
+
+  /* renders arrive trimmed to the body, so contain + bottom puts the feet on the floor of the box */
+  .fig { display: block; flex: none; }
+  .fig img {
+    display: block; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%;
+    animation: fade-in 0.4s ease-out;
+  }
+  @keyframes fade-in { from { opacity: 0; } }
+
+  /* laurel wreath, the art is the right half and the left is it mirrored. --lgap is the
+     room left in the middle, users set content once they want it showing */
+  .laurel { isolation: isolate; }
+  .laurel::before, .laurel::after {
+    position: absolute; z-index: -1; bottom: 0; height: 90%; aspect-ratio: 442 / 703;
+    background: url(/img/laurel.avif) center / contain no-repeat;
+    filter: var(--tint, none);
+    animation: laurel-grow 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
+  }
+  .laurel::before { right: 50%; margin-right: var(--lgap); transform: scaleX(-1); }
+  .laurel::after { left: 50%; margin-left: var(--lgap); }
+  /* up from the stems, the way a branch would grow */
+  @keyframes laurel-grow { from { clip-path: inset(100% 0 0 0); opacity: 0; } }
+
+  /* the one load moment, third rises first and first lands last */
+  .podium.rise .pod-block { animation: pod-rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .podium.rise .pod-top { animation: pod-drop 0.5s ease-out both; }
+  .podium.rise .pod-3 .pod-block { animation-delay: 0.05s; }
+  .podium.rise .pod-2 .pod-block { animation-delay: 0.25s; }
+  .podium.rise .pod-1 .pod-block { animation-delay: 0.45s; }
+  .podium.rise .pod-3 .pod-top { animation-delay: 0.5s; }
+  .podium.rise .pod-2 .pod-top { animation-delay: 0.7s; }
+  .podium.rise .pod-1 .pod-top { animation-delay: 0.95s; }
+  @keyframes pod-rise { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+  @keyframes pod-drop { from { opacity: 0; transform: translateY(-16px); } }
 
   @media (prefers-reduced-motion: reduce) {
     .finder-glow::before, .finder-glow::after { animation: none; }
     .bg-row { animation: none; }
+    .podium.rise .pod-block, .podium.rise .pod-top, .fig img, .laurel::before, .laurel::after { animation: none; }
+    .cbar span { transition: none; }
   }
 
-  .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .modal-head h1 { margin: 0; }
-  .avatar {
-    width: 54px; height: 54px; flex: none; border-radius: 50%;
-    background: var(--bg); border: 1px solid var(--border); object-fit: cover;
+  /* ---- profile, their figure on the left and the stats beside it ---- */
+  .pf { display: grid; grid-template-columns: minmax(240px, 360px) minmax(0, 1fr); gap: 12px 30px; }
+  /* a little stage that stays put while the stats scroll, spotlit in their metal. the
+     render brings its own floor shadow */
+  .pf-side {
+    position: sticky; top: 0; align-self: start; padding: 40px 0 14px;
+    background: radial-gradient(ellipse 60% 45% at 50% 42%, color-mix(in srgb, var(--metal) 16%, transparent), transparent 75%);
   }
+  .pf-fig { position: relative; width: 100%; aspect-ratio: 1.15; --lgap: 6%; }
+  /* a top three wreath round the figure, once it has shown up */
+  .pf-fig.laurel:has(> img:not([hidden]))::before,
+  .pf-fig.laurel:has(> img:not([hidden]))::after { content: ''; }
+  .modal-head { padding-right: 40px; margin-bottom: 16px; }
+  .modal-head h1 { margin: 0; font-size: 26px; }
+  .pf-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
+  .pf-sub b { color: var(--metal); }
+  .pf-sub span { white-space: nowrap; }
+  .pf-stats {
+    display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-end;
+    padding: 4px 0 16px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+  }
+  .pf-stat b { display: block; font-size: 18px; font-weight: 600; }
+  .pf-stat span { font-size: 12px; color: var(--muted); }
+  .pf-stat.elo b { font-family: var(--display); font-weight: 400; font-size: 32px; line-height: 1; color: var(--metal); }
 
   .feints { margin-top: 14px; font-size: 12px; }
   .feint-head { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 5px; }
@@ -247,12 +384,17 @@
   .fs-key { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
 
   .similar { margin-top: 14px; }
-  .similar-title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  .pjump {
-    background: none; border: none; padding: 0; font: inherit; cursor: pointer;
-    color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+  .similar-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .sim-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .sim {
+    display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; padding: 6px 6px 10px;
+    background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border);
+    color: var(--text); font: inherit; font-size: 12px; cursor: pointer;
   }
-  .pjump:hover { color: var(--text); }
+  .sim:hover, .sim:focus-visible { border-color: var(--accent); outline: none; }
+  .sim .fig { width: 100%; height: 96px; margin: 6px 0; }
+  .sim-name { max-width: 100%; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sim-delta { color: var(--accent); font-size: 11px; }
 
   /* rowa2 does not load css/main.css, so small-p is redefined here to match the homepage */
   .page-footer { max-width: 1400px; margin: 0 auto; padding: 10px 20px 30px; }
@@ -264,7 +406,9 @@
   /* tablet, three columns is too tight before it is too narrow */
   @media (max-width: 1150px) {
     .wrap { grid-template-columns: repeat(2, 1fr); }
-    .col-span-2, .col-span-3 { grid-column: span 2; }
+    .col-span-2, .col-span-3, .board { grid-column: span 2; }
+    /* nothing beside it to borrow a height from anymore */
+    #lbWrap { flex: none; height: 520px; }
   }
 
   /* phone */
@@ -273,8 +417,10 @@
       grid-template-columns: 1fr;
       gap: 14px; margin: 10px auto; padding: 12px;
     }
-    .col-span-2, .col-span-3 { grid-column: span 1; }
+    .col-span-2, .col-span-3, .board { grid-column: span 1; }
     .card { padding: 13px; }
+    .hero { padding-top: 10px; }
+    .finder { width: 100%; }
     h1 { font-size: 16px; }
 
     .chartWrap { height: 300px; }
@@ -286,9 +432,8 @@
     .metric-list { max-height: 132px; }
     .metric-item { padding: 9px 10px; }   /* thumbs, not cursors */
 
-    /* six columns will not fit, let the table scroll instead of crushing it */
-    #lbWrap { max-height: 420px; }
-    table { min-width: 460px; }
+    #lbWrap { height: 440px; }
+    td.pname { max-width: 110px; }
 
     .combat-flex { flex-direction: column; }
     .combat-grid { grid-template-columns: 1fr; }
@@ -303,23 +448,27 @@
     }
 
     /* modals become full sheets, a centred 80% box wastes a phone screen */
-    .modal-content, .finder-modal {
+    .modal-content {
       width: auto; max-width: none; margin: 0;
       min-height: 100vh; max-height: none;
       padding: 18px; border: none;
     }
-    .finder-modal h1 { font-size: 19px; }
     .close { font-size: 34px; line-height: 1; padding: 0 4px; }
+    .pf { grid-template-columns: minmax(0, 1fr); }
+    .pf-side { position: static; padding-top: 10px; }
+    .modal-head h1 { font-size: 21px; }
+    .pf-stats { gap: 12px 22px; }
+    .pf-stat.elo b { font-size: 26px; }
 
-    .finder-input { font-size: 16px; }   /* under 16px ios zooms the page on focus */
-    .finder-results { max-height: none; }
-    .finder-hit { padding: 13px 12px; }
+    /* the spots take the whole width, no room left either side for the wreath */
+    .podium-laurel { display: none; }
+
+    .finder-hit { padding: 13px 4px; }
 
     .hl-row { flex-wrap: wrap; gap: 2px 10px; }
     .hl-row .rank { font-size: 12px; }
-    .stack-wrap { gap: 10px; }
-    .stack-chart { height: 120px; }
-    .json-toggle { position: static; float: none; width: 100%; margin-top: 14px; padding: 10px; }
+    .sim-grid { grid-template-columns: repeat(2, 1fr); }
+    .json-toggle { width: 100%; padding: 10px; }
     pre { font-size: 11px; }
   }
 
@@ -333,7 +482,7 @@
 
   /* highlights */
   .hl-group { margin-bottom: 18px; }
-  .hl-group h2 { font-size: 13px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .hl-group h2 { font-size: 14px; margin: 0 0 8px 0; color: var(--accent); font-weight: 600; }
   .hl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .hl-row .rank { color: var(--muted); white-space: nowrap; }
   .hl-row.sole { color: #f0d089; font-weight: 600; }
@@ -342,12 +491,26 @@
   .crown { font-size: 12px; }
   .hl-empty { font-size: 12px; color: var(--muted); }
 
-  /* horizontal bars stacked one above the other so each gets the full width */
-  .stack-wrap { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
-  .stack-col .title { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  .stack-chart { height: 105px; width: 100%; }
+  /* combat share bars, plain flex so widths tween between players */
+  .cbar-title { font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
+  .cbar { display: flex; height: 26px; background: rgba(255,255,255,0.05); overflow: hidden; }
+  .cbar span {
+    display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
+    font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.75); transition: width 0.4s ease;
+  }
+  .ckey { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .ckey i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -1px; }
 
-  .json-toggle { position: sticky; bottom: 0; float: right; margin-top: 10px; font-size: 11px; padding: 4px 8px; }
+  /* region rows, bar is hours relative to their main region */
+  .reg-row { display: grid; grid-template-columns: 96px 1fr 46px 52px; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .reg-bar { height: 6px; background: rgba(255,255,255,0.05); }
+  .reg-bar span { display: block; height: 100%; background: var(--accent); }
+  .reg-row .muted, .reg-ping { text-align: right; }
+  .ping-good { color: #7fc98f; }
+  .ping-ok { color: #d8b877; }
+  .ping-bad { color: #e07a6a; }
+
+  .json-toggle { display: block; margin: 18px 0 0 auto; font-size: 11px; padding: 4px 8px; }
 </style>
 </head>
 <body>
@@ -391,71 +554,83 @@
   </script>
 
   <div class="wrap">
+    <header class="hero">
+      <div class="hero-top">
+        <div>
+          <h1 class="wordmark">ROWA 2</h1>
+          <p class="hero-sub" id="heroSub">Ranked stats for every player, pulled straight from the game.</p>
+        </div>
+        <div class="finder">
+          <div class="finder-glow">
+            <input id="finderInput" class="finder-input" placeholder="Find yourself, type your roblox username" autocomplete="off" aria-label="Search players">
+          </div>
+          <div id="finderResults" class="finder-results" hidden></div>
+        </div>
+      </div>
+      <div id="podium" class="podium rise"></div>
+    </header>
+
+    <div class="card board">
+      <div class="topbar">
+        <div>
+          <h1>Leaderboard</h1>
+          <div class="small">Click a player for their full profile</div>
+        </div>
+        <label class="small" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="minGamesToggle" checked> 10+ games only
+        </label>
+      </div>
+      <div id="lbWrap"><div class="small muted" style="padding: 10px;">Loading…</div></div>
+    </div>
+
     <div class="card col-span-2">
       <div class="topbar">
         <div>
-          <h1>Dynamic Scatter Plot</h1>
-          <div class="small">Color coded by Primary Region. Most attractive quadrant (by avg Elo) is highlighted.</div>
-        </div>
-        <div style="display: flex; gap: 15px; align-items: center;">
-          <label class="small" style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
-            <input type="checkbox" id="minGamesToggle" checked> Min 20 Games
-          </label>
-          <button id="findMe" class="btn btn-primary">Find me</button>
+          <h1>Compare any two stats</h1>
+          <div class="small">Each dot is a player, coloured by home region. The shaded quarter has the highest average elo.</div>
         </div>
       </div>
       <div class="chartWrap"><canvas id="chart1"></canvas></div>
       
       <div class="axis-controls">
         <div class="axis-col">
-          <div class="small">X-Axis Metric <label style="float: right; cursor: pointer; user-select: none;"><input type="checkbox" id="xLogToggle"> Log</label></div>
+          <div class="small">X axis <label style="float: right; cursor: pointer; user-select: none;"><input type="checkbox" id="xLogToggle"> Log</label></div>
           <div id="xAxisList" class="metric-list"></div>
         </div>
         <div class="axis-col">
-          <div class="small">Y-Axis Metric <label style="float: right; cursor: pointer; user-select: none;"><input type="checkbox" id="yLogToggle"> Log</label></div>
+          <div class="small">Y axis <label style="float: right; cursor: pointer; user-select: none;"><input type="checkbox" id="yLogToggle"> Log</label></div>
           <div id="yAxisList" class="metric-list"></div>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="topbar">
-        <div>
-          <h1>Leaderboard</h1>
-          <div class="small">Click row to view fully decompressed data</div>
-        </div>
-      </div>
-      <div id="lbWrap"><div class="small muted" style="padding: 10px;">Loading…</div></div>
-    </div>
-
     <div class="card col-span-2">
-      <h1>Average Combat Stats</h1>
+      <h1>How fights go at each elo</h1>
       <div class="combat-flex">
         <div class="combat-main">
           <div class="slider-container">
-            <div class="small">Target Elo: <span id="eloVal" style="color: var(--accent); font-weight: bold;">1000</span></div>
+            <div class="small">Elo: <span id="eloVal" style="color: var(--accent); font-weight: bold;">1000</span></div>
             <input type="range" id="eloSlider" min="700" max="1300" value="1000" step="10">
-            <div class="small">Weighted average of the 16 nearest players. Drag the bars to find matching profiles!</div>
+            <div class="small">Averaged over the 16 players closest to that elo. Drag a bar to find players who fight like that.</div>
           </div>
           <div id="combatGrid" class="combat-grid"></div>
         </div>
         <div id="combatSidePanel" class="combat-side-panel">
-          <div class="small" id="sidePanelTitle" style="margin-bottom: 8px; color: var(--accent);">Top 10 Matching Profile</div>
+          <div class="small" style="margin-bottom: 8px; color: var(--accent);">Closest fighting styles</div>
           <div id="sidePanelContent"></div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h1>Platform Distribution</h1>
-      <div class="small">Based on clientInfo</div>
+      <h1>Platforms</h1>
+      <div class="small">What people play on</div>
       <div class="chartWrap small"><canvas id="chart4"></canvas></div>
     </div>
 
     <div class="card col-span-3">
-      <h1>Region Playtime (Hours)</h1>
-      <div class="small">Aggregated playtime per region</div>
-      <div class="chartWrap small"><canvas id="chart5"></canvas></div>
+      <h1>Hours played by region</h1>
+      <div class="chartWrap" style="height: 240px"><canvas id="chart5"></canvas></div>
     </div>
   </div>
 
@@ -467,52 +642,41 @@
     <p class="small-p"><!--#copyright--></p>
   </footer>
 
-  <div id="finder" class="modal">
-    <div class="modal-content finder-modal">
-      <span id="closeFinder" class="close">&times;</span>
-      <h1>Find yourself</h1>
-      <div class="small finder-blurb">Search your roblox username to see how you stack up. Skip if you just want the charts.</div>
-      <div class="finder-glow">
-        <input id="finderInput" class="finder-input" placeholder="roblox username" autocomplete="off">
-      </div>
-      <div id="finderResults" class="finder-results"></div>
-    </div>
-  </div>
-
   <div id="modal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" id="modalBox">
       <span id="closeModal" class="close">&times;</span>
-      <div class="modal-head">
-        <img id="modalAvatar" class="avatar" alt="" hidden>
-        <h1 id="modalTitle">Decompressed Data</h1>
-      </div>
-      <div id="highlights"></div>
-
-      <!-- kept out of #highlights on purpose. that div gets innerHTML replaced on every
-           open, which would destroy the canvas and force a rebuild every time. -->
-      <div id="combatSection" class="hl-group" hidden>
-        <h2>Combat breakdown</h2>
-
-        <div class="stack-wrap">
-          <div class="stack-col">
-            <div class="title">What happened to you</div>
-            <div class="stack-chart"><canvas id="combatTaken"></canvas></div>
+      <div class="pf">
+        <div class="pf-side"><span class="fig pf-fig"><img id="modalFigure" alt="" hidden></span></div>
+        <div class="pf-main">
+          <div class="modal-head">
+            <h1 id="modalTitle"></h1>
+            <div id="modalSub" class="pf-sub"></div>
           </div>
-          <div class="stack-col">
-            <div class="title">What you did to them</div>
-            <div class="stack-chart"><canvas id="combatDealt"></canvas></div>
+          <div id="modalStats" class="pf-stats"></div>
+          <div id="highlights"></div>
+
+          <!-- kept out of #highlights on purpose. that div gets innerHTML replaced on every
+               open, which would reset the bars instead of letting them slide to the new player. -->
+          <div id="combatSection" class="hl-group" hidden>
+            <h2>Combat breakdown</h2>
+            <div class="cbar-title">Defending, how hits on them ended</div>
+            <div id="cbarDef" class="cbar"></div>
+            <div id="ckeyDef" class="ckey"></div>
+            <div class="cbar-title">Attacking, how their hits ended</div>
+            <div id="cbarAtk" class="cbar"></div>
+            <div id="ckeyAtk" class="ckey"></div>
+
+            <!-- feints are bare counts with no damage attached, so they cannot join the
+                 composition above. separate line, separately normalised. -->
+            <div id="feintLine" class="feints" hidden></div>
+
+            <div id="similarList"></div>
           </div>
+
+          <pre id="modalContent" hidden></pre>
+          <button id="toggleJson" class="btn json-toggle">show json</button>
         </div>
-
-        <!-- feints are bare counts with no damage attached, so they cannot join the
-             composition above. separate line, separately normalised. -->
-        <div id="feintLine" class="feints" hidden></div>
-
-        <div id="similarList"></div>
       </div>
-
-      <pre id="modalContent" hidden></pre>
-      <button id="toggleJson" class="btn json-toggle">show json</button>
     </div>
   </div>
 
@@ -534,12 +698,12 @@
 
   document.getElementById('closeModal').onclick = closeModal;
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-  window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
 
   const minGamesToggle = document.getElementById('minGamesToggle');
   let filterMinGames = minGamesToggle.checked;
   minGamesToggle.addEventListener('change', () => {
     filterMinGames = minGamesToggle.checked;
+    renderBoard();
     updateScatterChart();
     updateAverageCombat(parseInt(document.getElementById('eloSlider').value));
   });
@@ -555,11 +719,6 @@
   let highlightQuadrant = null;
   const nowSecs = Math.floor(Date.now() / 1000);
 
-  const statMap = {
-    'Parried': 0, 'Blocked': 1, 'Dodged': 2, 'DamageTaken': 3,
-    'ParriedBy': 4, 'BlockedBy': 5, 'DodgedBy': 6, 'DamageDealt': 7
-  };
-
   Chart.defaults.color = '#b0a896';
   Chart.defaults.borderColor = '#322d25';
   Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
@@ -572,15 +731,37 @@
   }
 
   const validCounts = {};
+  // plrStats slots 0-7, the datastore names. 0-3 are hits on this player, 4-7 are their hits
   const statLabels = ['Parried', 'Blocked', 'Dodged', 'DamageTaken', 'ParriedBy', 'BlockedBy', 'DodgedBy', 'DamageDealt'];
+  // what people read for the same slots
+  const DEF_LABELS = ['Parried', 'Blocked', 'Dodged', 'Hits taken'];
+  const ATK_LABELS = ['Got parried', 'Got blocked', 'Got dodged', 'Hits landed'];
 
   // saturated but a bit dark, so they read heavy rather than pastel
   const STAT_COLORS = ['#dcab3c', '#5697e6', '#52c47d', '#de4f4f'];
 
+  const METRIC_LABELS = {
+    elo: 'Elo', wins: 'Wins', loss: 'Losses',
+    _calcWinrate: 'Win rate %',
+    _calcTotalGames: 'Games played',
+    _calcWeightedPing: 'Ping (ms)',
+    _calcAccountAgeDays: 'Days since first game',
+    _calcDaysSinceLastSeen: 'Days since last game',
+    _calcFeintRate: 'Feints per 100 attacks',
+    _calcFeintBasicPct: 'Basic feint share %',
+    'plrStats.FeintedBasic': 'Basic feints',
+    'plrStats.FeintedAbility': 'Ability feints'
+  };
+  [...DEF_LABELS, ...ATK_LABELS].forEach((l, i) => { METRIC_LABELS[`plrStats.${statLabels[i]}.Pct`] = l + ' %'; });
+  const metricLabel = key => METRIC_LABELS[key] || key;
+
+  // emoteData is equipped emote ids, numbers but not stats
+  const SKIP_KEYS = new Set(['slots', 'meta', 'keybindData', 'followedIds', 'touchData', 'extra', 'flags', 'seed', 'version', 'emoteData']);
+
   function flattenObject(obj, prefix = '') {
     const result = {};
     for (const key in obj) {
-      if (key === 'slots' || key === 'meta' || key === 'keybindData' || key === 'followedIds' || key === 'touchData' || key === 'extra' || key === 'flags' || key === 'seed' || key === 'version') continue;
+      if (SKIP_KEYS.has(key)) continue;
 
       const val = obj[key];
       const newKey = prefix ? `${prefix}.${key}` : key;
@@ -648,8 +829,9 @@
   }
 
   function getFilteredPlayers() {
+    // same bar as highlights, so the board position and "of N" in a profile agree
     if (filterMinGames) {
-      return players.filter(p => (p.wins + p.loss) >= 20);
+      return players.filter(p => (p.wins + p.loss) >= MIN_RANKED_GAMES);
     }
     return players;
   }
@@ -735,6 +917,47 @@
 
   function playerLabel(id) {
     return nameMap[id] || id;
+  }
+
+  // anything rendered before names landed carries data-uid, swap the id for the name
+  function applyNames() {
+    document.querySelectorAll('[data-uid]').forEach(el => {
+      if (nameMap[el.dataset.uid]) el.textContent = nameMap[el.dataset.uid];
+    });
+  }
+
+  // stand in when a full body render is missing
+  const thumbs = {};
+  const thumbUrl = id => thumbs[id] ??= fetch(`/api/roblox-thumb/${id}`)
+    .then(r => r.ok ? r.json() : null)
+    .then(d => d && d.imageUri)
+    .catch(() => null);
+
+  let r6;
+  const loadR6 = () => (r6 ??= import('/ROWA/r6.js'));
+
+  // roblox's own full body png, cropped to the figure. a headshot beats an empty block when roproxy is having a moment
+  const flats = {};
+  const flatFigure = id => (flats[id] ??= fetch(`/api/roblox-avatars?ids=${id}`)
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}))
+    .then(m => m[id] || thumbUrl(id))
+    .then(src => loadR6().then(m => m.trimmed(src), () => src)));
+
+  // posed 3d r6 first, the flat png if the rig route is off or anything in it breaks
+  const figures = {};
+  const figure = (id, size = 640, shadows = false) => (figures[`${id}:${size}:${shadows}`] ??= loadR6()
+    .then(m => m.renderR6(id, size, shadows))
+    .catch(err => { console.warn('r6 fell back to png', id, err.message); return null; })
+    .then(src => src || flatFigure(id)));
+
+  // every img[data-body] under root
+  function fillFigures(root) {
+    root.querySelectorAll('img[data-body]').forEach(img => figure(img.dataset.body).then(src => {
+      if (!src) return;
+      img.src = src;
+      img.hidden = false;
+    }));
   }
 
   // one request for the whole page, the server batches upstream and caches
@@ -851,14 +1074,7 @@
     return out;
   }
 
-  const COMBAT_STACKS = [
-    { id: 'combatTaken', from: 0, labels: ['Parried', 'Blocked', 'Dodged', 'Damage Taken'] },
-    { id: 'combatDealt', from: 4, labels: ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'] }
-  ];
 
-  const combatCharts = {};
-
-  // diverging so each pair shares a zero baseline, stacked segments past the first float.
   // plrStats[4..7][0] is a COUNT and [1] is damage, so the counts are the denominator.
   function renderFeints(p) {
     const el = document.getElementById('feintLine');
@@ -902,79 +1118,41 @@
       </div>`;
   }
 
-  function renderCombatCharts(p) {
+  // keys are static, the bars keep their spans so widths slide between players
+  const keyHtml = labels => labels.map((l, i) => `<span><i style="background:${STAT_COLORS[i]}"></i>${l}</span>`).join('');
+  document.getElementById('ckeyDef').innerHTML = keyHtml(DEF_LABELS);
+  document.getElementById('ckeyAtk').innerHTML = keyHtml(ATK_LABELS);
+
+  function fillCombatBar(id, vals, labels) {
+    const el = document.getElementById(id);
+    if (!el.children.length) el.innerHTML = labels.map((_, i) => `<span style="background:${STAT_COLORS[i]}"></span>`).join('');
+    const total = vals.reduce((a, b) => a + b, 0);
+
+    [...el.children].forEach((s, i) => {
+      const pct = total ? vals[i] / total * 100 : 0;
+      s.style.width = pct + '%';
+      s.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
+      s.title = `${labels[i]}: ${Math.round(vals[i]).toLocaleString()} dmg (${pct.toFixed(1)}%)`;
+    });
+  }
+
+  function renderCombat(p) {
     const section = document.getElementById('combatSection');
     const stats = p.raw && p.raw.plrStats;
 
     if (!Array.isArray(stats)) { section.hidden = true; return; }
 
-    const inc = [], out = [];
-    for (let i = 0; i < 4; i++) inc.push(Array.isArray(stats[i]) ? (stats[i][1] || 0) : 0);
-    for (let i = 4; i < 8; i++) out.push(Array.isArray(stats[i]) ? (stats[i][1] || 0) : 0);
-
-    const ti = inc.reduce((a, b) => a + b, 0);
-    const to = out.reduce((a, b) => a + b, 0);
-    if (!ti && !to) { section.hidden = true; return; }
+    // damage share, [i][1] is damage
+    const dmg = statLabels.map((_, i) => Array.isArray(stats[i]) ? (stats[i][1] || 0) : 0);
+    if (!dmg.some(Boolean)) { section.hidden = true; return; }
 
     section.hidden = false;
+    fillCombatBar('cbarDef', dmg.slice(0, 4), DEF_LABELS);
+    fillCombatBar('cbarAtk', dmg.slice(4), ATK_LABELS);
     renderFeints(p);
-    document.getElementById('similarList').innerHTML = similarList(p);
-
-    for (const c of COMBAT_STACKS) {
-      const el = document.getElementById(c.id);
-      if (!el) continue;
-
-      const vals = c.from === 0 ? inc : out;
-      const total = c.from === 0 ? ti : to;
-      const pct = vals.map(v => total ? v / total * 100 : 0);
-
-      // in place update so switching players tweens instead of rebuilding
-      if (combatCharts[c.id]) {
-        const ch = combatCharts[c.id];
-        pct.forEach((v, i) => {
-          ch.data.datasets[i].data = [v];
-          ch.data.datasets[i].raw = vals[i];
-        });
-        ch.update();
-        continue;
-      }
-
-      combatCharts[c.id] = new Chart(el.getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels: [''],
-          // percent on a fixed 0-100 axis, raw damage gives each bar its own axis max
-          datasets: pct.map((v, i) => ({
-            label: c.labels[i],
-            data: [v],
-            raw: vals[i],
-            backgroundColor: STAT_COLORS[i],
-            borderWidth: 0,
-            barThickness: 30
-          }))
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { stacked: true, display: false, min: 0, max: 100, grid: { display: false } },
-            y: { stacked: true, display: false, grid: { display: false } }
-          },
-          plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font: { size: 11 }, color: '#b0a896' } },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => {
-                  const dmg = ctx.dataset.raw || 0;
-                  return `${ctx.dataset.label}: ${Math.round(dmg).toLocaleString()} dmg (${ctx.parsed.x.toFixed(1)}%)`;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
+    const sim = document.getElementById('similarList');
+    sim.innerHTML = similarList(p);
+    fillFigures(sim);
   }
 
   // how often and which kind, both roughly 0-100 so they join the same max delta measure
@@ -997,15 +1175,14 @@
   // instead of the slider profile
   function similarPlayers(me, n = 4) {
     if (!me.hasValidCombatData) return [];
-    const keys = Object.keys(statMap);
-    const mine = keys.map(k => me.flatData[`plrStats.${k}.Pct`] || 0);
+    const mine = statLabels.map(k => me.flatData[`plrStats.${k}.Pct`] || 0);
     const myFeints = feintMetrics(me);
 
     return players
       .filter(p => p.hasValidCombatData && p.id !== me.id)
       .map(p => {
         let maxDelta = 0;
-        keys.forEach((k, i) => {
+        statLabels.forEach((k, i) => {
           const d = Math.abs((p.flatData[`plrStats.${k}.Pct`] || 0) - mine[i]);
           if (d > maxDelta) maxDelta = d;
         });
@@ -1030,11 +1207,13 @@
     if (!hits.length) return '';
 
     return `<div class="similar">
-      <div class="similar-title">Similar to combat styles</div>
-      ${hits.map(h => `<div class="hl-row">
-          <span><button type="button" class="pjump" data-pid="${h.p.id}">${playerLabel(h.p.id)}</button> <span class="muted">${h.p.elo} elo</span></span>
-          <span class="rank">within ${h.delta.toFixed(1)}%</span>
-        </div>`).join('')}
+      <div class="similar-title">Fights most like</div>
+      <div class="sim-grid">${hits.map(h => `<button type="button" class="sim" data-pid="${h.p.id}">
+          <span class="fig"><img alt="" data-body="${h.p.id}" hidden></span>
+          <span class="sim-name" data-uid="${h.p.id}">${playerLabel(h.p.id)}</span>
+          <span class="muted">${h.p.elo} elo</span>
+          <span class="sim-delta">within ${h.delta.toFixed(1)}%</span>
+        </button>`).join('')}</div>
     </div>`;
   }
 
@@ -1049,16 +1228,21 @@
     if (!rd || typeof rd !== 'object') return '';
 
     const rows = Object.keys(rd)
+      .filter(name => !isUnknownSeg(name))
       .map(name => ({ name, hrs: (rd[name].playTime || 0) / 3600, ping: rd[name].ping || 0 }))
       .filter(r => r.hrs > 0 || r.ping > 0)
       .sort((a, b) => b.hrs - a.hrs);
 
     if (!rows.length) return '';
+    const most = rows[0].hrs || 1;
+    const pingClass = ms => ms <= 80 ? 'ping-good' : ms <= 150 ? 'ping-ok' : 'ping-bad';
 
     return `<div class="hl-group"><h2>Regions</h2>${rows.map(r => `
-      <div class="hl-row">
-        <span>${r.name} <span class="muted">${r.hrs.toFixed(1)}h</span></span>
-        <span class="rank">${r.ping ? r.ping + 'ms' : 'no ping'}</span>
+      <div class="reg-row">
+        <span>${r.name}</span>
+        <span class="reg-bar"><span style="width:${r.hrs / most * 100}%"></span></span>
+        <span class="muted">${r.hrs.toFixed(1)}h</span>
+        <span class="reg-ping ${r.ping ? pingClass(r.ping) : 'muted'}">${r.ping ? r.ping + 'ms' : 'n/a'}</span>
       </div>`).join('')}</div>`;
   }
 
@@ -1145,13 +1329,15 @@
 
     if (best.length) {
       const one = best[0];
+      const name = playerLabel(p.id);
+      // "top 60%" off 3rd of 5 reads like a dig, so past a quarter the rows speak for themselves
+      const lead = one.sole ? `${name} has the ${one.top} ${one.label} here, outright. Nobody else even matches it.`
+        : one.rank === 1 ? `${name} is tied for the ${one.top} ${one.label} here.`
+        : one.pct <= 0.25 ? `Top ${Math.max(1, Math.round(one.pct * 100))}% for ${one.top} ${one.label}.`
+        : '';
       html += `<div class="hl-group">
         <h2>Highlights</h2>
-        <div class="small" style="margin-bottom:8px">${one.sole
-          ? `You have the ${one.top} ${one.label} here, outright. Nobody else even matches it.`
-          : one.rank === 1
-            ? `You are tied for the ${one.top} ${one.label} here.`
-            : `Top ${Math.max(1, Math.round(one.pct * 100))}% for ${one.top} ${one.label}.`}</div>
+        ${lead ? `<div class="small" style="margin-bottom:8px">${lead}</div>` : ''}
         ${best.map(topRow).join('')}
       </div>`;
     }
@@ -1178,30 +1364,58 @@
 
     html += regionTable(p);
 
-    // combat chart lives in renderCombatCharts, out of here so its canvas can animate
+    // combat bars live in renderCombat, out of here so they can slide between players
     return html;
   }
 
   let modalToken = 0;
 
-  function loadAvatar(p) {
-    const av = document.getElementById('modalAvatar');
+  // stands a lot taller than the podium ones, so it gets a bigger render and real shadows
+  function loadFigure(p) {
+    const fig = document.getElementById('modalFigure');
     const mine = ++modalToken;
 
-    av.hidden = true;
-    av.removeAttribute('src');
+    fig.hidden = true;
+    fig.removeAttribute('src');
 
-    fetch(`/api/roblox-thumb/${p.id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        // jumping between players fires several of these, only the newest may paint
-        if (mine !== modalToken || !d || !d.imageUri) return;
-        av.onerror = () => { av.hidden = true; };
-        av.src = d.imageUri;
-        av.alt = playerLabel(p.id);
-        av.hidden = false;
-      })
-      .catch(() => {});   // headshot is decoration, never block the modal on it
+    // decoration, never block the modal on it
+    figure(p.id, 1024, true).then(src => {
+      // jumping between players fires several of these, only the newest may paint
+      if (mine !== modalToken || !src) return;
+      fig.onerror = () => { fig.hidden = true; };
+      fig.src = src;
+      fig.alt = playerLabel(p.id);
+      fig.hidden = false;
+    });
+  }
+
+  // board position and the basics, so nobody has to dig through highlights for their elo
+  function renderProfileHead(p) {
+    // the ranked pool, not the toggle, so a profile reads the same either way
+    const games = p.wins + p.loss;
+    const ranked = players.filter(q => q.wins + q.loss >= MIN_RANKED_GAMES);
+    const rank = ranked.indexOf(p) + 1;
+    const box = document.getElementById('modalBox');
+    const top = rank && rank <= 3;
+    box.classList.remove('rank-1', 'rank-2', 'rank-3');
+    if (top) box.classList.add(`rank-${rank}`);
+    document.getElementById('modalFigure').parentElement.classList.toggle('laurel', !!top);
+
+    const where = [
+      !isUnknownSeg(p.primaryRegion) && `plays from <span>${p.primaryRegion}</span>`,
+      !isUnknownSeg(p.os) && `on <span>${p.os}</span>`
+    ].filter(Boolean).join(' ');
+    const pos = rank ? `<b>${ordinal(rank)}</b> of ${ranked.length} ranked players` : `Unranked, ${games} of ${MIN_RANKED_GAMES} games played`;
+    document.getElementById('modalSub').innerHTML = where ? `${pos}, ${where}` : pos;
+
+    const stat = (v, label, cls = '') => `<div class="pf-stat ${cls}"><b>${v}</b><span>${label}</span></div>`;
+    const guessedPing = p.synthesized.includes('weightedPing');
+    document.getElementById('modalStats').innerHTML =
+      stat(p.elo, 'elo', 'elo') +
+      stat(`${p.wins}–${p.loss}`, 'wins–losses') +
+      stat(p.winrate.toFixed(1) + '%', 'win rate') +
+      stat(p.playtimeHrs.toFixed(1) + 'h', 'played') +
+      (p.weightedPing ? stat(p.weightedPing + 'ms', guessedPing ? 'ping, estimated' : 'ping') : '');
   }
 
   function openPlayerModal(p) {
@@ -1209,10 +1423,11 @@
     // walking through every profile you clicked
     history.replaceState(null, '', `${location.pathname}?id=${encodeURIComponent(p.id)}`);
 
-    modalTitle.innerText = `${playerLabel(p.id)}`;
+    modalTitle.textContent = playerLabel(p.id);
+    renderProfileHead(p);
     document.getElementById('highlights').innerHTML = buildHighlights(p);
-    renderCombatCharts(p);
-    loadAvatar(p);
+    renderCombat(p);
+    loadFigure(p);
 
     const displayObj = {
       id: p.id, elo: p.elo, wins: p.wins, loss: p.loss, clientInfo: p.clientInfo,
@@ -1262,6 +1477,44 @@
     }
   };
 
+  // players is already sorted by elo, so the filter keeps board order. the top three
+  // stand on the podium, the table picks up at 4th
+  function renderBoard() {
+    const board = getFilteredPlayers();
+    lbWrap.innerHTML = `<table><thead><tr>
+        <th style="width:30px">#</th><th>player</th><th style="width:50px">elo</th><th style="width:56px">win</th><th class="muted" style="width:80px">W–L</th>
+      </tr></thead><tbody>${board.slice(3).map((p, i) => `<tr id="row-${p.id}" data-pid="${p.id}">
+        <td>${i + 4}</td><td class="pname" data-uid="${p.id}">${playerLabel(p.id)}</td><td>${p.elo}</td><td>${p.winrate.toFixed(1)}%</td><td class="muted">${p.wins}–${p.loss}</td>
+      </tr>`).join('')}</tbody></table>`;
+    renderPodium(board.slice(0, 3));
+  }
+
+  const CROWN = '<svg class="pod-crown" viewBox="0 0 34 22" aria-hidden="true"><path fill="currentColor" d="M2 5l8 7 7-11 7 11 8-7-3 17H5z"/></svg>';
+
+  // dom order is 1 2 3 for screen readers, css order puts 2 1 3 on screen
+  function renderPodium(top) {
+    const el = document.getElementById('podium');
+    const ids = top.map(p => p.id).join();
+    // the toggle usually leaves the top three alone, no point replaying the entrance
+    if (el.dataset.ids === ids) return;
+    el.dataset.ids = ids;
+
+    // wreath first so the spots paint over it
+    el.innerHTML = '<span class="laurel podium-laurel" aria-hidden="true"></span>' + top.map((p, i) => `<button type="button" class="pod pod-${i + 1}" data-pid="${p.id}">
+        <span class="pod-top">
+          ${i === 0 ? CROWN : ''}
+          <span class="pod-name" data-uid="${p.id}">${playerLabel(p.id)}</span>
+          <span class="fig"><img alt="" data-body="${p.id}" hidden></span>
+        </span>
+        <span class="pod-block">
+          <span class="pod-rank">${i + 1}</span>
+          <span class="pod-elo">${p.elo}</span>
+          <span class="pod-wl">${p.wins}–${p.loss}</span>
+        </span>
+      </button>`).join('');
+    fillFigures(el);
+  }
+
   async function load() {
     lbWrap.innerHTML = '<div class="small muted" style="padding: 10px;">Loading…</div>';
     try {
@@ -1300,10 +1553,9 @@
         let hasPingData = false;
 
         if (meta.regionsData) {
-          const isUnknown = r => !r || String(r).toLowerCase() === 'unknown';
           // an Unknown region drags the ping average toward a number that means nothing.
           // only fall back to it when its all the player has.
-          const named = Object.keys(meta.regionsData).filter(r => !isUnknown(r) && (meta.regionsData[r].ping || 0) > 0);
+          const named = Object.keys(meta.regionsData).filter(r => !isUnknownSeg(r) && (meta.regionsData[r].ping || 0) > 0);
           const pingFrom = named.length ? new Set(named) : null;
 
           const totalRegionTime = Object.keys(meta.regionsData)
@@ -1332,7 +1584,7 @@
           for (const r in meta.regionsData) {
             const playTime = meta.regionsData[r].playTime || 0;
             const ping = meta.regionsData[r].ping || 0;
-            if (!ping || isUnknown(r)) continue;
+            if (!ping || isUnknownSeg(r)) continue;
             if (totalRegionTime && playTime < totalRegionTime * 0.10) continue;
             if (ping < bestPing) {
               bestPing = ping;
@@ -1345,7 +1597,7 @@
           if (isFinite(bestPing)) {
             let alt = null;
             for (const r in meta.regionsData) {
-              if (r === primaryRegion || isUnknown(r)) continue;
+              if (r === primaryRegion || isUnknownSeg(r)) continue;
               const ping = meta.regionsData[r].ping || 0;
               const playTime = meta.regionsData[r].playTime || 0;
               if (!ping) continue;
@@ -1408,18 +1660,13 @@
           }
         }
 
+        // raw first/last timestamps plot as unix seconds, the day counts say the same thing readably
         if (meta.first) {
-          flatData['meta.first'] = meta.first;
-          validCounts['meta.first'] = (validCounts['meta.first'] || 0) + 1;
-          
           const ageDays = Math.max(0, Math.floor((nowSecs - meta.first) / 86400));
           flatData['_calcAccountAgeDays'] = ageDays;
           validCounts['_calcAccountAgeDays'] = (validCounts['_calcAccountAgeDays'] || 0) + 1;
         }
         if (meta.last) {
-          flatData['meta.last'] = meta.last;
-          validCounts['meta.last'] = (validCounts['meta.last'] || 0) + 1;
-          
           const lastSeenDays = Math.max(0, Math.floor((nowSecs - meta.last) / 86400));
           flatData['_calcDaysSinceLastSeen'] = lastSeenDays;
           validCounts['_calcDaysSinceLastSeen'] = (validCounts['_calcDaysSinceLastSeen'] || 0) + 1;
@@ -1455,11 +1702,8 @@
         }
       }
 
-      const xAxisList = document.getElementById('xAxisList');
-      const yAxisList = document.getElementById('yAxisList');
-
-      // Reverted to Alphabetical Sorting
-      const sortedKeys = Array.from(allKeys).sort();
+      // alphabetical by what people read, not the datastore key
+      const sortedKeys = Array.from(allKeys).sort((a, b) => metricLabel(a).localeCompare(metricLabel(b)));
 
       // defaults may not exist in the data, fall back so no axis is left empty
       const pick = (want, fallbacks) =>
@@ -1474,41 +1718,24 @@
       }
 
       // rebuilt every load, a sparse first fetch would lock in a bad metric list
-      xAxisList.innerHTML = '';
-      yAxisList.innerHTML = '';
-      {
+      for (const axis of ['x', 'y']) {
+        const list = document.getElementById(`${axis}AxisList`);
+        list.innerHTML = '';
         for (const key of sortedKeys) {
-          const xItem = document.createElement('div');
-          xItem.className = 'metric-item';
-          xItem.textContent = key;
-          xItem.dataset.key = key;
-          xItem.onclick = () => {
-            currentXKey = key;
-            document.querySelectorAll('#xAxisList .metric-item').forEach(el => el.classList.remove('active'));
-            xItem.classList.add('active');
-            
-            const pData = getFilteredPlayers().map(p => p.flatData[currentXKey]);
-            document.getElementById('xLogToggle').checked = getBestScaleType(pData) === 'logarithmic';
-            updateScatterChart();
-          };
-          if (key === currentXKey) xItem.classList.add('active');
-          xAxisList.appendChild(xItem);
+          const item = document.createElement('div');
+          item.className = 'metric-item';
+          item.textContent = metricLabel(key);
+          if (key === (axis === 'x' ? currentXKey : currentYKey)) item.classList.add('active');
+          item.onclick = () => {
+            if (axis === 'x') currentXKey = key; else currentYKey = key;
+            list.querySelectorAll('.metric-item').forEach(el => el.classList.remove('active'));
+            item.classList.add('active');
 
-          const yItem = document.createElement('div');
-          yItem.className = 'metric-item';
-          yItem.textContent = key;
-          yItem.dataset.key = key;
-          yItem.onclick = () => {
-            currentYKey = key;
-            document.querySelectorAll('#yAxisList .metric-item').forEach(el => el.classList.remove('active'));
-            yItem.classList.add('active');
-            
-            const pData = getFilteredPlayers().map(p => p.flatData[currentYKey]);
-            document.getElementById('yLogToggle').checked = getBestScaleType(pData) === 'logarithmic';
+            const pData = getFilteredPlayers().map(p => p.flatData[key]);
+            document.getElementById(`${axis}LogToggle`).checked = getBestScaleType(pData) === 'logarithmic';
             updateScatterChart();
           };
-          if (key === currentYKey) yItem.classList.add('active');
-          yAxisList.appendChild(yItem);
+          list.appendChild(item);
         }
       }
 
@@ -1543,6 +1770,10 @@
                 row.classList.remove('highlight');
                 void row.offsetWidth;
                 row.classList.add('highlight');
+              } else {
+                // podium players have no row, straight to their profile instead
+                const p = players.find(x => x.id === dataPoint.id);
+                if (p) openPlayerModal(p);
               }
             }
           },
@@ -1554,22 +1785,20 @@
             tooltip: {
               callbacks: {
                 label: (ctx) => {
-                  const fmtVal = (val, key) => {
-                    if ((key === 'meta.first' || key === 'meta.last') && typeof val === 'number') {
-                      return new Date(val * 1000).toLocaleDateString();
-                    }
-                    return typeof val === 'number' ? val.toFixed(2) : val;
-                  };
-                  const x = fmtVal(ctx.raw.x, ctx.raw.xKey);
-                  const y = fmtVal(ctx.raw.y, ctx.raw.yKey);
-                  return [`${playerLabel(ctx.raw.id)} (${ctx.raw.region} - ${ctx.raw.ping}ms)`, `${ctx.raw.xKey}: ${x}`, `${ctx.raw.yKey}: ${y}`];
+                  const fmt = v => Number.isInteger(v) ? v : v.toFixed(2);
+                  return [
+                    `${playerLabel(ctx.raw.id)} (${ctx.raw.region}, ${ctx.raw.ping}ms)`,
+                    `${metricLabel(ctx.raw.xKey)}: ${fmt(ctx.raw.x)}`,
+                    `${metricLabel(ctx.raw.yKey)}: ${fmt(ctx.raw.y)}`
+                  ];
                 }
               }
             }
           },
+          // titles get filled by updateScatterChart
           scales: {
-            x: { type: 'linear', title: { display: true, text: currentXKey }, grid: { color: 'rgba(255,255,255,0.02)' } },
-            y: { type: 'linear', title: { display: true, text: currentYKey }, grid: { color: 'rgba(255,255,255,0.02)' } }
+            x: { type: 'linear', title: { display: true }, grid: { color: 'rgba(255,255,255,0.02)' } },
+            y: { type: 'linear', title: { display: true }, grid: { color: 'rgba(255,255,255,0.02)' } }
           }
         }
       });
@@ -1586,7 +1815,7 @@
           labels: Object.keys(osCounts),
           datasets: [{
             data: Object.values(osCounts),
-            backgroundColor: ['#bfa173', '#8ca39b', '#a37b69', '#7d8c9e', '#9c8c6d', '#807a6d'],
+            backgroundColor: palette,
             borderColor: '#1e1b16', borderWidth: 2
           }]
         },
@@ -1597,57 +1826,39 @@
       });
 
       const c5ctx = document.getElementById('chart5').getContext('2d');
-      const regionLabels = Object.keys(regionPlaytime);
-      const regionData = regionLabels.map(r => regionPlaytime[r] / 3600);
+      const regionLabels = Object.keys(regionPlaytime).sort((a, b) => regionPlaytime[b] - regionPlaytime[a]);
       charts.c5 = new Chart(c5ctx, {
         type: 'bar',
         data: {
           labels: regionLabels,
-          datasets: [{ label: 'Hours Played', data: regionData, backgroundColor: 'rgba(191, 161, 115, 0.7)', borderColor: 'rgba(191, 161, 115, 1)', borderWidth: 1 }]
+          datasets: [{ label: 'Hours', data: regionLabels.map(r => regionPlaytime[r] / 3600), backgroundColor: 'rgba(191, 161, 115, 0.7)', borderColor: 'rgba(191, 161, 115, 1)', borderWidth: 1 }]
         },
         options: {
           indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
           scales: {
-            x: { title: { display: true, text: 'Hours' }, grid: { color: 'rgba(255,255,255,0.02)' } },
+            x: { grid: { color: 'rgba(255,255,255,0.02)' } },
             y: { grid: { display: false } }
           }
         }
       });
 
       players.sort((a, b) => b.elo - a.elo);
-      const table = document.createElement('table');
-      table.innerHTML = `<thead><tr>
-        <th style="width:30px">#</th><th>player</th><th style="width:60px">elo</th><th style="width:70px">win%</th><th class="muted" style="width:50px">W</th><th class="muted" style="width:50px">L</th>
-      </tr></thead>`;
-      const body = document.createElement('tbody');
-
-      for (let i = 0; i < players.length; i++) {
-        const p = players[i];
-        const tr = document.createElement('tr');
-        tr.id = `row-${p.id}`;
-        tr.innerHTML = `<td>${i + 1}</td><td class="pname">${playerLabel(p.id)}</td><td>${p.elo}</td><td>${p.winrate.toFixed(2)}%</td><td class="muted">${p.wins}</td><td class="muted">${p.loss}</td>`;
-
-        tr.onclick = () => openPlayerModal(p);
-        body.appendChild(tr);
-      }
-      table.appendChild(body);
-      lbWrap.innerHTML = '';
-      lbWrap.appendChild(table);
+      renderBoard();
+      document.getElementById('heroSub').textContent =
+        `Every ROWA 2 player ranked by elo, ${players.length} so far, pulled straight from the game.`;
 
       // rows are already on screen, names swap in when they land
       namesReady = loadNames(players.map(p => p.id)).then(filled => {
         if (!filled) return;
-        for (const p of players) {
-          if (!nameMap[p.id]) continue;
-          const cell = document.querySelector(`#row-${p.id} .pname`);
-          if (cell) cell.textContent = nameMap[p.id];
-        }
+        applyNames();
+        if (finderInput.value) renderFinder(finderInput.value);
       });
 
       updateAverageCombat(parseInt(document.getElementById('eloSlider').value));
 
     } catch (err) {
-      lbWrap.innerHTML = `<div class="small muted" style="padding: 10px;">Failed to load — ${err.message}</div>`;
+      lbWrap.innerHTML = `<div class="small muted" style="padding: 10px;">Couldn't load the player data (${err.message}). Refresh to try again.</div>`;
       console.error(err);
     }
   }
@@ -1717,8 +1928,8 @@
       highlightQuadrant = null;
     }
 
-    charts.c1.options.scales.x.title.text = currentXKey;
-    charts.c1.options.scales.y.title.text = currentYKey;
+    charts.c1.options.scales.x.title.text = metricLabel(currentXKey);
+    charts.c1.options.scales.y.title.text = metricLabel(currentYKey);
     charts.c1.options.scales.x.type = document.getElementById('xLogToggle').checked ? 'logarithmic' : 'linear';
     charts.c1.options.scales.y.type = document.getElementById('yLogToggle').checked ? 'logarithmic' : 'linear';
     
@@ -1734,10 +1945,9 @@
     updateAverageCombat(parseInt(eloSlider.value));
   });
 
-  function createCombatItem(label, dmg, pct, color) {
+  function createCombatItem(label, dmg, pct, color, idx) {
     const item = document.createElement('div');
     item.className = 'combat-item';
-    const cleanStat = label.replace(/\s/g, '');
     item.innerHTML = `
       <div class="k">${label}</div>
       <div class="v">
@@ -1746,7 +1956,7 @@
       </div>
       <div class="bar-bg">
         <div class="bar-fill" style="width:${pct}%; background:${color}"></div>
-        <input type="range" class="bar-scroll" min="0" max="100" value="${pct.toFixed(2)}" step="0.1" data-stat="${cleanStat}">
+        <input type="range" class="bar-scroll" min="0" max="100" value="${pct.toFixed(2)}" step="0.1" data-idx="${idx}" aria-label="${label} %">
       </div>
     `;
     return item;
@@ -1760,7 +1970,7 @@
     const top = sorted.slice(0, 16);
     if (top.length === 0) return;
 
-    const avgs = Array(8).fill(0).map(() => 0);
+    const avgs = Array(8).fill(0);
     const totalWeight = Array(8).fill(0);
     
     top.forEach(p => {
@@ -1785,21 +1995,17 @@
     const incomingTotal = avgs[0] + avgs[1] + avgs[2] + avgs[3];
     const outgoingTotal = avgs[4] + avgs[5] + avgs[6] + avgs[7];
 
-    const incomingLabels = ['Parried', 'Blocked', 'Dodged', 'Damage Taken'];
-    const outgoingLabels = ['Parried By', 'Blocked By', 'Dodged By', 'Damage Dealt'];
-    const colorMap = STAT_COLORS;
-
     combatGrid.innerHTML = '';
     for (let i = 0; i < 4; i++) {
       const incDmg = avgs[i];
       const incPct = incomingTotal ? (incDmg / incomingTotal * 100) : 0;
       targetProfile[i] = incPct;
-      combatGrid.appendChild(createCombatItem(incomingLabels[i], incDmg, incPct, colorMap[i]));
+      combatGrid.appendChild(createCombatItem(DEF_LABELS[i], incDmg, incPct, STAT_COLORS[i], i));
 
       const outDmg = avgs[i + 4];
       const outPct = outgoingTotal ? (outDmg / outgoingTotal * 100) : 0;
       targetProfile[i + 4] = outPct;
-      combatGrid.appendChild(createCombatItem(outgoingLabels[i], outDmg, outPct, colorMap[i]));
+      combatGrid.appendChild(createCombatItem(ATK_LABELS[i], outDmg, outPct, STAT_COLORS[i], i + 4));
     }
 
     updateCombatSidePanel();
@@ -1810,34 +2016,29 @@
     
     validPlayers.forEach(p => {
       let maxDelta = 0;
-      const keys = Object.keys(statMap);
-      keys.forEach((k, i) => {
+      statLabels.forEach((k, i) => {
         const pVal = p.flatData[`plrStats.${k}.Pct`] || 0;
         const delta = Math.abs(pVal - targetProfile[i]);
         if (delta > maxDelta) maxDelta = delta;
       });
       p._combatDist = maxDelta;
     });
-    
+
     validPlayers.sort((a, b) => a._combatDist - b._combatDist);
     const top10 = validPlayers.slice(0, 10);
-    
-    document.getElementById('sidePanelTitle').innerText = 'Top 10 Matching Profile';
-    const sidePanelContent = document.getElementById('sidePanelContent');
-    sidePanelContent.innerHTML = top10.map(p => {
-      const maxDelta = p._combatDist.toFixed(2);
-      return `<div class="side-player"><span class="muted">${playerLabel(p.id)}</span><span>Δ max ${maxDelta}%</span></div>`;
-    }).join('');
-    
+
+    document.getElementById('sidePanelContent').innerHTML = top10.map(p =>
+      `<button type="button" class="side-player" data-pid="${p.id}"><span class="muted" data-uid="${p.id}">${playerLabel(p.id)}</span><span>within ${p._combatDist.toFixed(1)}%</span></button>`
+    ).join('');
+
     document.getElementById('combatSidePanel').classList.add('active');
   }
 
   combatGrid.addEventListener('input', (e) => {
     if (e.target.classList.contains('bar-scroll')) {
       const val = parseFloat(e.target.value);
-      const stat = e.target.dataset.stat;
-      const idx = statMap[stat];
-      
+      const idx = +e.target.dataset.idx;
+
       const barFill = e.target.previousElementSibling;
       if (barFill) barFill.style.width = val + '%';
       
@@ -1853,67 +2054,47 @@
   });
 
   // ---- find yourself ----
-  const finder = document.getElementById('finder');
   const finderInput = document.getElementById('finderInput');
   const finderResults = document.getElementById('finderResults');
 
-  function closeFinder() { finder.style.display = 'none'; }
-
   function renderFinder(term) {
     const q = term.trim().toLowerCase();
-    if (!q) {
-      finderResults.innerHTML = `<div class="hl-empty" style="padding:8px 0">Type a username to search ${players.length} players.</div>`;
-      return;
-    }
+    finderResults.hidden = !q;
+    if (!q) return;
 
     const hits = players
       .filter(p => String(nameMap[p.id] || p.id).toLowerCase().includes(q))
       .slice(0, 25);
 
-    if (!hits.length) {
-      finderResults.innerHTML = `<div class="hl-empty" style="padding:8px 0">Nobody here matches that. You might not be in this dataset.</div>`;
-      return;
-    }
-
-    finderResults.innerHTML = hits.map(p =>
-      `<div class="finder-hit" data-id="${p.id}">
-        <span>${playerLabel(p.id)}</span>
-        <span class="muted">${p.elo} elo</span>
-      </div>`).join('');
+    finderResults.innerHTML = hits.length
+      ? hits.map(p => `<button type="button" class="finder-hit" data-pid="${p.id}">
+          <span>${playerLabel(p.id)}</span>
+          <span class="muted">${p.elo} elo</span>
+        </button>`).join('')
+      : `<div class="hl-empty" style="padding:10px 0">Nobody here matches that. You might not be in this dataset.</div>`;
   }
 
   finderInput.addEventListener('input', () => renderFinder(finderInput.value));
-  finderResults.addEventListener('click', (e) => {
-    const hit = e.target.closest('.finder-hit');
-    if (!hit) return;
-    const p = players.find(x => String(x.id) === hit.dataset.id);
+  finderInput.addEventListener('focus', () => renderFinder(finderInput.value));
+  finderInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') finderResults.querySelector('.finder-hit')?.click();
+  });
+
+  // one handler for every way of picking a player: rows, podium, search hits, similar lists
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.finder')) finderResults.hidden = true;
+    const el = e.target.closest('[data-pid]');
+    const p = el && players.find(x => x.id === el.dataset.pid);
     if (!p) return;
-    closeFinder();
+    finderResults.hidden = true;
     openPlayerModal(p);
   });
 
-  document.getElementById('closeFinder').addEventListener('click', closeFinder);
-  finder.addEventListener('click', (e) => { if (e.target === finder) closeFinder(); });
-
-  async function openFinder() {
-    finder.style.display = 'block';
-    finderInput.focus();
-    // searching by username is pointless until the names land
-    finderResults.innerHTML = `<div class="hl-empty" style="padding:8px 0">Loading usernames…</div>`;
-    await namesReady;
-    renderFinder(finderInput.value);
-  }
-
-  document.getElementById('findMe').addEventListener('click', openFinder);
-
-  // delegated on the modal, both sections get rebuilt on open
-  modal.addEventListener('click', (e) => {
-    const jump = e.target.closest('.pjump');
-    if (!jump) return;
-    const p = players.find(x => String(x.id) === jump.dataset.pid);
-    if (p) openPlayerModal(p);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    finderResults.hidden = true;
+    if (modal.style.display === 'block') closeModal();
   });
-
 
   document.getElementById('toggleJson').addEventListener('click', () => {
     const pre = modalContent;
@@ -1930,10 +2111,6 @@
   if (linked) {
     await namesReady;           // otherwise the title says the raw id for a moment
     openPlayerModal(linked);
-  } else if (!sessionStorage.getItem('rowaFinderSeen')) {
-    // only on a real first visit, not on every reload of the tab
-    sessionStorage.setItem('rowaFinderSeen', '1');
-    openFinder();
   }
 </script>
 </body>
