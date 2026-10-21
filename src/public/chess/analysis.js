@@ -3,9 +3,10 @@ import { Chess } from './lib/chess.js';
 
 const START = new Chess().fen(), FILES = 'abcdefgh';
 const NAMES = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' };
-// arrow colours like lichess: right drag is green, shift red, alt blue, both yellow. the engine arrow is blue
-const BRUSH = { g: '#15781b', r: '#882020', b: '#003088', y: '#e68f00' };
-const INFO = /^info depth (\d+) score (cp|mate) (-?\d+) .*?nps (\d+) .*?pv ?(.*)/, BEST = /^bestmove (\S+)/;
+// arrow colours like lichess: right drag is green, shift red, alt blue, both yellow. the engine's best line is blue and
+// its other lines grey
+const BRUSH = { g: '#15781b', r: '#882020', b: '#003088', y: '#e68f00', k: '#4a4a4a' };
+const INFO = /^info depth (\d+)(?: multipv (\d+))? score (cp|mate) (-?\d+) .*?nps (\d+) .*?pv ?(.*)/, BEST = /^bestmove (\S+)/;
 // the king and rook squares each castling flag needs
 const CASTLE = { K: ['e1', 'h1'], Q: ['e1', 'a1'], k: ['e8', 'h8'], q: ['e8', 'a8'] };
 // review: how deep each position is searched, the grades and the material values for spotting a sacrifice
@@ -14,7 +15,7 @@ const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 
 const el = Object.fromEntries([...document.querySelectorAll('[id]')].map(e => [e.id, e]));
 let root, cur, game, nodes, flipped = false, sel = null, dests = new Map(), drag = null, draw = null;
-let worker = null, reviewer = null, timer, ev = null, mode = '';  // mode: '', 'fight' or 'edit'
+let worker = null, reviewer = null, timer, pvs = [], mode = '';  // pvs: the engine's lines, best first. mode: '', 'fight' or 'edit'
 // edit mode: the position being edited (it may not be legal yet), the palette tool ('' the hand, 'x' the eraser or a
 // piece like 'wn') and what a held pointer paints (null when nothing, '' when erasing)
 let edit = null, tool = '', brush = null, brushed;
@@ -24,6 +25,8 @@ const you = () => flipped ? 'b' : 'w';
 // the game doesn't make it move. without hints nothing runs on your move and its line and arrow stay hidden
 const blind = () => mode === 'fight' && !el.hints.checked;
 const engineMoves = () => mode === 'fight' && game.turn() !== you() && !cur.children.length;
+// lines the engine searches: one when it plays the move, never more than there are moves (it prints just that many)
+const want = () => engineMoves() ? 1 : Math.min(el.multipv.value, game.moves().length);
 
 // a node is a position: the move that made it, its fen and the lines after it, children[0] is the main one
 function newRoot(fen) {
@@ -114,14 +117,20 @@ function drawSquares() {
 function drawShapes() {
   const list = [...cur.shapes];
   if (draw) list.push(draw);
-  if (ev?.pv[0] && !blind()) list.push({ from: ev.pv[0].slice(0, 2), to: ev.pv[0].slice(2, 4), color: 'b', engine: true });
+  // lichess's engine arrows: the best line's, under it the other lines' that give away less than a fifth of the win
+  // chance, thinner the more they give away. drawn worst first so the best ends on top
+  if (!blind()) for (const [i, l] of [...pvs.entries()].reverse()) {
+    const shift = (game.turn() === 'w' ? 1 : -1) * (chance(pvs[0]) - chance(l)) / 2;
+    if (i && shift >= .2) continue;
+    list.push({ from: l.pv[0].slice(0, 2), to: l.pv[0].slice(2, 4), ...i ? { color: 'k', w: (12 - shift * 50) / 64, o: .35 } : { color: 'b', w: .23, o: .45 } });
+  }
   el.shapes.lastChild.innerHTML = list.map(s => {
     const [x1, y1] = xy(s.from).map(v => v + .5), [x2, y2] = xy(s.to).map(v => v + .5), c = BRUSH[s.color];
     if (s.from === s.to) return `<circle cx="${x1}" cy="${y1}" r=".46" fill="none" stroke="${c}" stroke-width=".0625" opacity=".8"/>`;
     // pulled back by one line width so the head's tip lands on the centre
-    const w = s.engine ? .23 : .16, k = 1 - w / Math.hypot(x2 - x1, y2 - y1);
+    const w = s.w ?? .16, k = 1 - w / Math.hypot(x2 - x1, y2 - y1);
     return `<line x1="${x1}" y1="${y1}" x2="${x1 + (x2 - x1) * k}" y2="${y1 + (y2 - y1) * k}" stroke="${c}" stroke-width="${w}"
-      stroke-linecap="round" marker-end="url(#h-${s.color})" opacity="${s.engine ? .45 : .8}"/>`;
+      stroke-linecap="round" marker-end="url(#h-${s.color})" opacity="${s.o ?? .8}"/>`;
   }).join('');
 }
 
@@ -204,37 +213,46 @@ function pgn() {
 }
 
 const winning = cp => 2 / (1 + Math.exp(-0.00368208 * cp)) - 1;  // lichess's winning chances, -1..1
+// an engine line for white: its win chance, a value to sort by (a quicker mate is better) and its score as text
+const chance = l => l.mate != null ? Math.sign(l.mate) : winning(l.cp);
+const worth = l => l.mate != null ? Math.sign(l.mate) * 1e5 - l.mate : l.cp;
+const fmt = l => {
+  if (l.mate != null) return '#' + l.mate;
+  const e = Math.round(l.cp / 10) / 10;
+  return (e > 0 ? '+' : '') + e.toFixed(1);
+};
 
 function drawEval() {
   const end = game.isCheckmate() ? 'checkmate' : game.isStalemate() ? 'stalemate'
     : game.isInsufficientMaterial() ? 'insufficient material' : game.isDraw() ? 'fifty moves' : '';
   // your move in a fight without hints: nothing runs, the last eval stays up
-  const quiet = !end && blind() && game.turn() === you();
+  const quiet = !end && blind() && game.turn() === you(), best = pvs[0];
   let white = null, score = '', info = quiet ? 'your move' : el.on.checked || engineMoves() ? 'thinking' : 'engine off';
   if (end) {
     white = end === 'checkmate' ? +(game.turn() === 'b') : .5;  // white's share of the gauge
     score = ['0-1', '½-½', '1-0'][white * 2];
     info = end;
-  } else if (ev) {
-    const e = Math.round(ev.cp / 10) / 10;
-    white = ev.mate != null ? +(ev.mate > 0) : (1 + winning(ev.cp)) / 2;
-    score = ev.mate != null ? '#' + ev.mate : (e > 0 ? '+' : '') + e.toFixed(1);
-    info = `depth ${ev.depth} · ${Math.round(ev.nps / 1000).toLocaleString()} kn/s`;
+  } else if (best) {
+    white = (1 + chance(best)) / 2;
+    score = fmt(best);
+    info = `depth ${best.depth} · ${Math.round(best.nps / 1000).toLocaleString()} kn/s`;
   }
   if (!quiet) el.score.textContent = score;
   el.info.textContent = info;
   if (white !== null) el.gaugeW.style.height = white * 100 + '%';
-  // the engine line in san, each move clickable
-  const g = new Chess(cur.fen);
-  el.pv.innerHTML = (blind() ? [] : ev?.pv ?? []).map((u, i) => {
-    const p = cur.ply + i, m = g.move(uciMove(u));
-    return `<span data-i="${i}" data-fen="${g.fen()}">${!i || p % 2 === 0 ? num(p) + ' ' : ''}${m.san}</span>`;
+  // a row per line, empty ones hold the space while the engine starts. the moves in san, each clickable
+  el.pv.innerHTML = Array.from({ length: end ? 0 : want() }, (_, l) => {
+    const g = new Chess(cur.fen), p = !blind() && pvs[l];
+    return '<div>' + (p ? `<b>${fmt(p)}</b>` + p.pv.map((u, i) => {
+      const ply = cur.ply + i, m = g.move(uciMove(u));
+      return `<span data-l="${l}" data-i="${i}" data-fen="${g.fen()}">${!i || ply % 2 === 0 ? num(ply) + ' ' : ''}${m.san}</span>`;
+    }).join('') : '') + '</div>';
   }).join('');
-  el.pvMore.hidden = !el.pv.classList.contains('open') && el.pv.scrollWidth <= el.pv.clientWidth;
+  el.pvMore.hidden = !el.pv.classList.contains('open') && [...el.pv.children].every(d => d.scrollWidth <= d.clientWidth);
   preview();
 }
 
-// hovering the engine line shows the position after the move under the pointer on a small board, like lichess. the
+// hovering an engine line shows the position after the move under the pointer on a small board, like lichess. the
 // pointer is kept so a pv update under a still mouse picks the right move again, and pieces slide between moves
 let hoverAt = null, shown = null;
 function preview() {
@@ -245,9 +263,9 @@ function preview() {
     const g = new Chess(s.dataset.fen), r = s.getBoundingClientRect(), t = el.tools.getBoundingClientRect();
     const w = el.preview.offsetWidth;
     el.preview.style.left = Math.min(Math.max(r.left + r.width / 2 - w / 2 - t.left, 8), t.width - w - 8) + 'px';
-    el.preview.style.top = r.bottom - t.top + 6 + 'px';
+    el.preview.style.top = el.pvRow.getBoundingClientRect().bottom - t.top + 6 + 'px';
     syncPieces(!shown, el.pvPieces, g);
-    el.pvSquares.innerHTML = marks(ev.pv[s.dataset.i], g);
+    el.pvSquares.innerHTML = marks(pvs[s.dataset.l].pv[s.dataset.i], g);
   }
   shown = s;
 }
@@ -263,10 +281,10 @@ function spawn() {
 }
 
 const position = n => `position fen ${root.fen} moves ${path(n).join(' ')}`;
-// an engine info line at node n in white's view: depth, cp or mate, nps and the line
+// an engine info line at node n in white's view: depth, which line (1 without multipv), cp or mate, nps and the moves
 const parse = (line, n) => {
   const m = INFO.exec(line);
-  return m && { depth: +m[1], [m[2]]: m[3] * (n.ply % 2 ? -1 : 1), nps: +m[4], pv: m[5].split(' ').filter(Boolean) };
+  return m && { depth: +m[1], k: +(m[2] ?? 1), [m[3]]: m[4] * (n.ply % 2 ? -1 : 1), nps: +m[5], pv: m[6].split(' ').filter(Boolean) };
 };
 
 // avy: the wasm build can't take a stop mid search, so a new position kills the worker and starts a fresh one and the
@@ -275,13 +293,15 @@ const parse = (line, n) => {
 function analyse() {
   clearTimeout(timer);
   worker?.terminate();
-  worker = ev = null;
+  worker = null;
+  pvs = [];
   drawEval();
   drawShapes();
   const plays = engineMoves();
   if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === you())) return;
   timer = setTimeout(() => {
-    const n = cur, w = worker = spawn();
+    const n = cur, w = worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
+    let got = [];
     w.onmessage = e => {
       if (w !== worker) return;
       // it searches the start position instead, so its lines wouldn't fit this one
@@ -289,11 +309,17 @@ function analyse() {
       const info = parse(e.data, n), best = plays && BEST.exec(e.data);
       if (best) return goto(child(n, best[1]));
       if (!info || !el.on.checked) return;
-      ev = info;
+      // the lines of a depth come one by one from line 1 and show once they're all in, so depths don't mix. they're in
+      // search order, a later one can score a little higher, so they get sorted
+      if (info.k === 1) got = [];
+      got[info.k - 1] = info;
+      if (info.k < lines) return;
+      pvs = got.sort((a, b) => side * (worth(b) - worth(a)));
       drawEval();
       drawShapes();
     };
     w.onerror = () => { el.info.textContent = 'engine failed to load, try another move'; };
+    w.postMessage(`setoption name MultiPV value ${lines}`);
     w.postMessage(position(n));
     // a fight move searches as the strength picker says (its values are go args), analysis is capped so an idle tab
     // doesn't spin the fan forever
@@ -326,8 +352,7 @@ function review() {
     last = parse(e.data, n) ?? last;
     const best = BEST.exec(e.data);
     if (!best) return;
-    const mate = last?.mate != null;
-    scored(n, { win: !last ? n.parent?.score.win ?? 0 : mate ? Math.sign(last.mate) : winning(last.cp), mate, best: best[1], pv: last?.pv ?? [] });
+    scored(n, { win: last ? chance(last) : n.parent?.score.win ?? 0, mate: last?.mate != null, best: best[1], pv: last?.pv ?? [] });
     next();
   };
   w.onerror = () => { reviewer = null; el.stats.textContent = 'engine failed to load, press review again'; };
@@ -552,7 +577,7 @@ const lineEnd = () => walk(cur).at(-1);
 const keys = {
   ArrowLeft: () => cur.parent, ArrowRight: () => cur.children[0],
   ArrowUp: () => root, Home: () => root, ArrowDown: lineEnd, End: lineEnd,
-  ' ': () => ev?.pv[0] && child(cur, ev.pv[0]),
+  ' ': () => pvs[0] && child(cur, pvs[0].pv[0]),
   f: () => { flipped = !flipped; orient(); drawBoard(true); if (mode === 'fight') analyse(); },  // in a fight that swaps sides
   l: () => el.on.click(),
   p: () => setMode('fight'),
@@ -578,17 +603,17 @@ el.graph.onclick = e => {
 el.pv.onpointermove = e => { if (e.pointerType !== 'touch') { hoverAt = [e.clientX, e.clientY]; preview(); } };
 el.pv.onpointerleave = () => { hoverAt = null; preview(); };
 el.pv.onclick = e => {
-  const i = e.target.dataset.i;
+  const { l, i } = e.target.dataset;
   if (!i) return;
   let n = cur;
-  for (const u of ev.pv.slice(0, +i + 1)) n = child(n, u);
+  for (const u of pvs[l].pv.slice(0, +i + 1)) n = child(n, u);
   goto(n);
 };
 
 el.on.onchange = el.hints.onchange = analyse;
-// the engine and strength pickers remember their choice, one that isn't an option any more keeps the default. blur
-// so arrow keys go back to the moves. another engine reviews the game again
-for (const s of [el.engine, el.level]) {
+// the engine, lines and strength pickers remember their choice, one that isn't an option any more keeps the default.
+// blur so arrow keys go back to the moves. another engine reviews the game again
+for (const s of [el.engine, el.multipv, el.level]) {
   try { if ([...s.options].some(o => o.value === localStorage['chess.' + s.id])) s.value = localStorage['chess.' + s.id]; } catch {}
   s.onchange = () => {
     try { localStorage['chess.' + s.id] = s.value; } catch {}

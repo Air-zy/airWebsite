@@ -102,8 +102,10 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 .switch:focus-visible { outline-offset: 2px; }
 #score { min-width: 3.4em; color: var(--hi); font: 700 24px/1 "Bricolage Grotesque", system-ui; font-variant-numeric: tabular-nums; }
 #ceval .meta { display: flex; flex-direction: column; min-width: 0; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
-#engine, #level { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 700; cursor: pointer; }
-:is(#engine, #level) :is(option, optgroup) { background: var(--panel); }
+#engine, #level, #multipv { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 700; cursor: pointer; }
+:is(#engine, #level, #multipv) :is(option, optgroup) { background: var(--panel); }
+#multipv { margin-left: auto; color: var(--mute); font-weight: 400; font-size: 12px; }
+#multipv:hover { color: var(--hi); }
 
 /* fight mode: who you are and the hints switch */
 #fightBar { display: none; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; background: #d850001c; border-bottom: 1px solid var(--line); }
@@ -114,10 +116,14 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 #sideKing { flex: none; width: 24px; height: 24px; background-size: cover; }
 #fightBar label { display: flex; align-items: center; gap: 6px; color: #d3a98c; font-size: 12px; cursor: pointer; }
 
-/* one line with an expand arrow when it doesn't fit. the moves are inline blocks so the open line only wraps between them */
+/* a row per engine line like lichess, its score then the moves. the arrow opens the lines that don't fit, the moves are
+   inline blocks so an open line only wraps between them */
 #pvRow { display: flex; align-items: flex-start; border-bottom: 1px solid var(--line); }
-#pv { flex: 1; min-width: 0; min-height: 2.4em; padding: 7px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
-#pv.open { white-space: normal; }
+#pv { flex: 1; min-width: 0; padding: 4px 0 4px 12px; font-size: 13px; }
+#pv > div { min-height: 2.1em; padding: 3px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#pv > div + div { border-top: 1px solid var(--line); }
+#pv.open > div { white-space: normal; }
+#pv b { display: inline-block; min-width: 3.6em; color: var(--hi); font-variant-numeric: tabular-nums; }
 #pv span { display: inline-block; padding: 1px 3px; cursor: pointer; border-radius: 3px; }
 #pv span:hover { color: var(--hi); background: var(--tint); }
 #pvMore { flex: none; padding: 9px 10px; border: 0; background: none; color: var(--mute); cursor: pointer; }
@@ -125,7 +131,7 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 #pvMore svg { display: block; width: 16px; height: 16px; fill: currentColor; transition: transform .2s; }
 #pvMore[aria-expanded=true] svg { transform: rotate(180deg); }
 
-/* the position after the hovered pv move, drops in under it */
+/* the position after the hovered pv move, drops in under the lines so it covers none of them */
 #preview {
   position: absolute; z-index: 4; width: min(240px, 70%); pointer-events: none; box-shadow: 0 10px 30px #0b0907dd, 0 0 0 1px #0b0907aa;
   opacity: 0; transform: translateY(-6px) scale(.97); transform-origin: top; transition: opacity .14s, transform .14s;
@@ -239,7 +245,13 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     <div id="ceval">
       <input type="checkbox" id="on" class="switch" checked autocomplete="off" title="engine (l)" aria-label="engine on">
       <b id="score"></b>
-      <div class="meta"><select id="engine" aria-label="engine"><option>v36</option><option>aggtm36</option><option>v31</option><option>mixall512</option></select><span id="info"></span></div>
+      <div class="meta"><select id="engine" aria-label="engine">
+        <option value="xaggd240tm">Verity</option><option value="aggex25s">Sukuna</option><option value="v39" selected>Gojo</option>
+      </select><span id="info"></span></div>
+      <select id="multipv" aria-label="lines" title="how many lines the engine shows">
+        <option value="1">1 line</option><option value="2">2 lines</option><option value="3" selected>3 lines</option>
+        <option value="4">4 lines</option><option value="5">5 lines</option>
+      </select>
     </div>
     <div id="fightBar">
       <i id="sideKing"></i><span>you play <b id="side">white</b></span>
