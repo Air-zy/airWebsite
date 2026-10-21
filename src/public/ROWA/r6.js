@@ -327,9 +327,9 @@ function bodyShadows(T, scene, key, box) {
 
 // a pool of shadow round the feet. a soft light from overhead drops it onto an invisible floor
 // with the figure drawn invisibly, so only its shadow lands. hands back that pass, the caller
-// draws the figure over it after, and where a point's shadow lands. the key is off for it,
-// its long low shadow would run off across the frame
-function floorPass(T, scene, box, key) {
+// draws the figure over it after, and where a point's shadow lands. the lights in quiet are off
+// for it, their long low shadows would run off across the frame
+function floorPass(T, scene, box, quiet) {
   const mats = [];
   scene.traverse(o => { if (o.isMesh) mats.push(o.material); });
 
@@ -337,7 +337,8 @@ function floorPass(T, scene, box, key) {
   const top = new T.DirectionalLight('#ffffff', 1);
   top.position.set(c.x - 1.5, box.max.y + 8, c.z - 1);
   top.target.position.set(c.x, box.min.y, c.z);
-  const r = fitShadow(T, top, box, 512, 18);
+  // any crisper and vsm leaves streaks across the floor
+  const r = fitShadow(T, top, box, 512, 8);
   // round and inside the shadow camera, past its edge the blur leaves streaks
   const floor = new T.Mesh(new T.CircleGeometry(r * 0.9, 48), new T.ShadowMaterial({ opacity: 0.55 }));
   floor.rotation.x = -Math.PI / 2;
@@ -348,7 +349,7 @@ function floorPass(T, scene, box, key) {
   const pooling = on => {
     mats.forEach(m => { m.colorWrite = m.depthWrite = !on; });
     floor.visible = top.visible = on;
-    key.castShadow = !on;
+    quiet.forEach(l => { l.castShadow = !on; });
   };
   pooling(false);
   const dir = top.target.position.clone().sub(top.position);
@@ -360,6 +361,40 @@ function floorPass(T, scene, box, key) {
     },
     shadowOf: v => v.addScaledVector(dir, (v.y - box.min.y) / -dir.y)
   };
+}
+
+// the live one is lit like a film still, not a thumbnail. a soft key from in front off to one side
+// and a rim either side from behind, cold and the rank's metal, every one throwing shadows so the
+// body shades itself, the head on the shoulders, an arm across the chest. a low fill from the other
+// side up front, a cold sky and warm light up off the floor keep the shadow side soft. laid out for
+// a camera at az 0 and turned with it, the thumbnail lights all go
+function cinema(T, scene, root, box, rim, toCreasedNormals) {
+  scene.remove(...scene.children.filter(o => o.isLight));
+  const light = (color, i, x, y, z) => {
+    const l = new T.DirectionalLight(color, i);
+    l.position.set(x, y, z);
+    return l;
+  };
+  const key = light('#fff0dc', 2.2, 4, 5, -7), fill = light('#ffe8d0', 1, -5, 2, -6);
+  const cold = light('#8fb4ff', 2.5, 5, 2, 5), warm = light(rim, 2.5, -5, 2, 5);
+  const rig = new T.Group().add(key, fill, cold, warm);
+  scene.add(rig, new T.HemisphereLight('#3a4a66', '#6b5038', 1.2));
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    // hair and heads often come in faceted, a real light shows every triangle. smoothed only
+    // between faces under 60 degrees apart, so box edges and the inside of a mouth stay apart
+    const flat = o.geometry;
+    o.geometry = toCreasedNormals(flat, Math.PI / 3);
+    flat.dispose();
+    o.castShadow = o.receiveShadow = true;
+    // a bit of sheen too, the rims catch the edges
+    o.material.roughness = 0.65;
+  });
+  // soft like a big light for the key, tighter for the rims. the fill throws none
+  fitShadow(T, key, box, 1024, 16);
+  fitShadow(T, cold, box, 1024, 4);
+  fitShadow(T, warm, box, 1024, 4);
+  return { rig, lights: [key, cold, warm] };
 }
 
 // a posed rig under the thumbnail lights. the box is taken before any floor goes in, it would blow it up
@@ -414,11 +449,12 @@ export function renderR6(userId, opts = {}) {
 
 // the player live on canvas, turning slowly like on a microwave plate. drag spins it and a
 // flick keeps going, easing back to the slow turn. a tap moves it into the next pose. its own
-// webgl context, the shared one is busy with the stills. resolves to a stop() that frees the
-// scene, rejects like renderR6
+// webgl context, the shared one is busy with the stills. rim is the colour of one back light.
+// resolves to a stop() that frees the scene, rejects like renderR6
 const spinners = new WeakMap();
-export async function turntable(userId, canvas) {
-  const a = await loadAvatar(userId), { T } = a;
+export async function turntable(userId, canvas, rim) {
+  const [a, { toCreasedNormals }] = await Promise.all([loadAvatar(userId), import(THREE_CDN + 'examples/jsm/utils/BufferGeometryUtils.js/+esm')]);
+  const { T } = a;
   let at = Number(userId) % POSES.length;
   let az = POSES[at].az, r = spinners.get(canvas);
   if (!r) {
@@ -426,9 +462,11 @@ export async function turntable(userId, canvas) {
     r.autoClear = false;
     r.shadowMap.enabled = true;
     r.shadowMap.type = T.VSMShadowMap;
+    // film's rolloff, the key can run hot without skin clipping flat
+    r.toneMapping = T.ACESFilmicToneMapping;
     spinners.set(canvas, r);
   }
-  const { scene, root, joints, key } = stage(a, POSES[at]);
+  const { scene, root, joints } = stage(a, POSES[at]);
   const parts = Object.values(joints);
 
   // every pose up front, its joints to tween to and every corner of every part. it turns on the
@@ -456,8 +494,9 @@ export async function turntable(userId, canvas) {
   const all = looks.flatMap(l => l.pts);
   const reach = Math.max(...all.map(p => Math.hypot(p.x, p.z))), ys = all.map(p => p.y);
   const swept = new T.Box3(new T.Vector3(-reach, Math.min(...ys), -reach), new T.Vector3(reach, Math.max(...ys), reach));
-  bodyShadows(T, scene, key, swept);
-  const pool = floorPass(T, scene, swept, key);
+  // before the floor pass, which adds a light of its own
+  const film = cinema(T, scene, root, swept, rim, toCreasedNormals);
+  const pool = floorPass(T, scene, swept, film.lights);
 
   // cropped round the pose and its pool like the stills are, over every angle it turns
   // through, by zooming and shifting in screen space. one zoom per pose so a tap can ease between
@@ -500,6 +539,20 @@ export async function turntable(userId, canvas) {
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const idle = still ? 0 : 0.25, MORPH = still ? 0 : 360;
   let speed = idle, drag = null, raf = 0, last = 0, seen = true, tween = null;
+  function paint() {
+    r.clear();
+    pool.pass(() => r.render(scene, camera));
+    r.clearDepth();
+    r.render(scene, camera);
+  }
+  // one throwaway frame while it is still hidden, aimed at it so nothing is culled. the shader
+  // compile stalls this one instead of the first one anyone sees, which would eat the fade in.
+  // only while hidden, the canvas is shared and a visible one is showing someone newer
+  if (!canvas.clientWidth) {
+    r.setSize(1, 1, false);
+    podiumCamera(T, swept, az, camera);
+    paint();
+  }
   function frame(t) {
     const dt = last ? Math.min(0.05, (t - last) / 1000) : 0;
     last = t;
@@ -525,10 +578,8 @@ export async function turntable(userId, canvas) {
       look(tween.view.map((w, i) => w + (frames[at][i] - w) * o));
       if (e === 1) tween = null;
     }
-    r.clear();
-    pool.pass(() => r.render(scene, camera));
-    r.clearDepth();
-    r.render(scene, camera);
+    film.rig.rotation.y = az;
+    paint();
     raf = seen && (drag || tween || Math.abs(speed) > 0.01) ? requestAnimationFrame(frame) : 0;
     if (!raf) last = 0;
   }

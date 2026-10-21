@@ -1649,7 +1649,8 @@
     fig.removeAttribute('src');
 
     try {
-      const stop = await (await loadR6()).turntable(p.id, spin);
+      // the head has already put the rank's metal on the box
+      const stop = await (await loadR6()).turntable(p.id, spin, getComputedStyle(spin).getPropertyValue('--metal').trim());
       // jumping between players starts several of these, only the newest may show
       if (mine !== modalToken) return stop();
       stopSpin = stop;
