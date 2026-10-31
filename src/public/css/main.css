@@ -26,11 +26,11 @@
   /* dark only. the ground leans violet and the text warm so neither is a flat black or white,
      grey is 5.5:1 on the ground so even the small print passes */
   --bg-col: #131217;
-  --frame-bcol: color-mix(in oklab, var(--bg-col), #fff 5%);
-  --frame-bcol2: color-mix(in oklab, var(--bg-col), #fff 9%);
+  --frame-bcol: color-mix(in oklab,var(--bg-col),#fff 5%);
+  --frame-bcol2: color-mix(in oklab,var(--bg-col),#fff 9%);
   --text-normal: #ebe7df;
   --text-grey: #8e8b94;
-  --text-soft: color-mix(in oklab, var(--text-grey), var(--text-normal) 45%);
+  --text-soft: color-mix(in oklab,var(--text-grey),var(--text-normal) 45%);
   /* the only colours in the text, taken from the plant. gold for the name, numbers, years and the odd word that
      matters, the petals' rose for schools, places and brands, the leaves' sage for languages and tools */
   --accent: gold;
@@ -42,10 +42,10 @@
   /* one page width for the nav and the content, so their edges line up */
   --nav-h: 64px;
   --page: 72rem;
-  --gutter: clamp(16px, 4vw, 48px);
+  --gutter: clamp(16px,4vw,48px);
   /* 65 to 75 characters a line of body text, counted, the ch unit runs wide on this font */
   --measure: 38rem;
-  --section-gap: clamp(72px, 12vh, 136px);
+  --section-gap: clamp(72px,12vh,136px);
 }
 /* main is the scroller, so the nav never covers what you are reading */
 body {
@@ -81,12 +81,12 @@ h3 {
   text-wrap: balance;
 }
 h1 {
-  font-size: clamp(44px, 8vw, 96px);
+  font-size: clamp(44px,8vw,96px);
   font-weight: 800;
   margin: 0;
 }
 h2 {
-  font-size: clamp(22px, 2.4vw, 30px);
+  font-size: clamp(22px,2.4vw,30px);
   margin: 0 0 0.75em;
 }
 h3 {
@@ -129,12 +129,12 @@ nav {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-inline: max(var(--gutter), calc((100% - var(--page)) / 2 + var(--gutter)));
+  padding-inline: max(var(--gutter), calc((100% - var(--page))/2 + var(--gutter)));
   background: var(--bg-col);
 }
 .nav-links {
   display: flex;
-  gap: clamp(16px, 3vw, 40px);
+  gap: clamp(16px,3vw,40px);
 }
 .nav-item {
   padding: 8px 0;
@@ -237,12 +237,12 @@ nav {
    capped below a full screen so the about section starts in view on a tall one, and a fixed height so nothing
    below jumps when the plant arrives */
 #s1 {
-  --hero-h: min(calc(100dvh - var(--nav-h)), 760px);
-  --hero-pad-t: clamp(32px, 6vh, 64px);
-  --hero-pad-b: clamp(40px, 8vh, 96px);
+  --hero-h: min(calc(100dvh - var(--nav-h)),760px);
+  --hero-pad-t: clamp(32px,6vh,64px);
+  --hero-pad-b: clamp(40px,8vh,96px);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  column-gap: clamp(24px, 4vw, 64px);
+  column-gap: clamp(24px,4vw,64px);
   align-items: end;
   min-height: var(--hero-h);
   box-sizing: border-box;
@@ -266,7 +266,7 @@ nav {
   mask: linear-gradient(to top, #000 46%, #0000 54%) 0 0 / 100% 220% no-repeat;
 }
 .flower.grown canvas {
-  animation: 2.4s cubic-bezier(0.25, 1, 0.5, 1) forwards grow;
+  animation: 2.4s cubic-bezier(0.25,1,0.5,1) forwards grow;
 }
 @keyframes grow {
   to {
@@ -276,11 +276,8 @@ nav {
 
 .lede {
   margin: 0.75em 0 0;
-  font-size: clamp(16px, 1.6vw, 20px);
+  font-size: clamp(16px,1.6vw,20px);
   color: var(--text-grey);
-}
-#airzy {
-  color: var(--accent);
 }
 /* chat bubble with an ios tail, proportions from samuelkraft.com/blog/ios-chat-bubbles-css.
    he cuts the tail curve with a patch in the page color, a mask does it here so it works over
@@ -296,7 +293,7 @@ nav {
   border-radius: 0.9em;
   transform: scale(0);
   transform-origin: -0.25em 100%;
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+  transition: transform 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s;
 }
 .bubble::after {
   content: "";
@@ -325,7 +322,7 @@ nav {
   max-width: none;
   display: grid;
   grid-template-columns: minmax(0, var(--measure)) minmax(0, 1fr);
-  column-gap: clamp(32px, 6vw, 96px);
+  column-gap: clamp(32px,6vw,96px);
   align-items: start;
 }
 .plate {
@@ -346,6 +343,8 @@ article p {
   mix-blend-mode: color-dodge;
   opacity: 0.22;
 }
+/* the name, the adapt word and the gold numbers */
+#airzy,
 #adapt,
 .hl-accent {
   color: var(--accent);
@@ -478,7 +477,7 @@ article p {
   /* the paper's own colour darkened for the writing, not a flat grey */
   background: var(--paper);
   color: color-mix(in oklab, var(--paper), #000 78%);
-  box-shadow: 0 2px 3px rgb(0 0 0 / 0.25), 0 14px 16px -12px rgb(0 0 0 / 0.6);
+  box-shadow: 0 2px 3px rgb(0 0 0/0.25), 0 14px 16px -12px rgb(0 0 0/0.6);
   rotate: var(--tilt);
 }
 /* ascii art, main.js sets --cols to the widest line. a monospace letter is about 0.6em plus 2em of
@@ -486,7 +485,7 @@ article p {
 .sticky.art {
   max-width: none;
   font-family: monospace;
-  font-size: min(15px, 100cqi / (var(--cols) * 0.6 + 2));
+  font-size: min(15px,100cqi/(var(--cols)*0.6 + 2));
   line-height: 1.2;
   white-space: pre;
 }
@@ -504,8 +503,8 @@ article p {
   height: 1.2em;
   translate: -50% 0;
   rotate: -3deg;
-  background: rgb(255 255 245 / 0.45);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  background: rgb(255 255 245/0.45);
+  box-shadow: 0 1px 2px rgb(0 0 0/0.15);
 }
 /* the owner pinned it, a pushpin instead of tape */
 .pinned .sticky::before {
@@ -515,11 +514,11 @@ article p {
   border-radius: 50%;
   rotate: none;
   background: radial-gradient(circle at 35% 35%, #ff9a8f, #d9372b 55%, #7a120b);
-  box-shadow: 1px 3px 3px rgb(0 0 0 / 0.45);
+  box-shadow: 1px 3px 3px rgb(0 0 0/0.45);
 }
 /* a note being stuck on, starts lifted and big and settles flat. main.js staggers the delay */
 .note.place {
-  animation: 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards notePlace;
+  animation: 0.45s cubic-bezier(0.16,1,0.3,1) backwards notePlace;
 }
 @keyframes notePlace {
   from {
