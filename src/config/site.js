@@ -14,12 +14,13 @@ const socials = [
   { label: 'X',         icon: 'twitter',             url: 'https://x.com/airzyalt' },
 ];
 
+// to is where a button goes, main.js reads it off data-to. guestbook and contact do more than scroll
 const nav = [
   { label: 'home',      href: '/home' },
-  { label: 'about',     click: "goTo('about')" },
-  { label: 'projects',  click: "goTo('projects-section')" },
-  { label: 'guestbook', click: 'toGuestbook()' },
-  { label: 'contact',   click: 'toContact()' },
+  { label: 'about',     to: 'about' },
+  { label: 'projects',  to: 'projects-section' },
+  { label: 'guestbook', to: 'guestbook' },
+  { label: 'contact',   to: 'contact' },
 ];
 
 const about = [
@@ -41,7 +42,7 @@ const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}
 
 const navItem = n => n.href
   ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
-  : `<button class="nav-item" onclick="${n.click}">${n.label} <span class="underline"></span></button>`;
+  : `<button class="nav-item" data-to="${n.to}">${n.label} <span class="underline"></span></button>`;
 
 // {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). {phrase|role|url}
 // makes it a link too. no html in the lines, so the cli just drops the braces and has nothing to strip
@@ -78,9 +79,10 @@ module.exports = {
     // built once at boot, a server left running over new years eve keeps the old year until it restarts
     copyright: `© ${new Date().getFullYear()} Airzy`,
 
-    // ?v for main.css, main.js, dither.js and r6.js, only changes when one of them does.
-    // cloudflare holds js for 4h whatever we send, so a page and an older r6.js can meet
-    v: ['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js'].reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8),
+    // ?v for main.css, main.js, dither.js, r6.js and og.png, only changes when one of them does.
+    // cloudflare holds js for 4h whatever we send, so a page and an older r6.js can meet.
+    // link previews cache og.png by url, so a new one needs a new ?v too
+    v: ['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js', 'og.png'].reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8),
   },
 };
 

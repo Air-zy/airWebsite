@@ -5,6 +5,10 @@
 //   - no window, document or url reading, so it runs in a worker. canvases are OffscreenCanvas
 //   - the paper texture, squircle border, settings ui, download and logging are gone, the page draws its own ground
 //   - Layer.filter and Layer.bound skip transparent pixels and index the buffer directly. same output, ~4x faster
+//   - defaults are default parameters instead of "(args.x != undefined) ? args.x : ..." lines, same order, same values
+//   - all of it runs inside one function, so terser can shorten every name and drop what nothing calls. only Layer,
+//     woody and herbal are handed to the worker. the helpers nothing called (bean, bezmh, midPt, deg, distance,
+//     randGaussian, wtrand, squircle, v3.copy, v3.normalize, noiseDetail, noiseSeed, Math.oldRandom) are gone
 /*
 MIT License
 
@@ -28,6 +32,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+(function () {
 
 
 // index arrays with .x, .y, .z and negative indices
@@ -54,7 +59,6 @@ for (var i = 1; i < 4; i++){
 }
 
 // math constants
-var rad2deg = 180/Math.PI
 var deg2rad = Math.PI/180
 var PI = Math.PI
 var sin = Math.sin
@@ -62,7 +66,6 @@ var cos = Math.cos
 var abs = Math.abs
 var pow = Math.pow
 function rad(x){return x * deg2rad}
-function deg(x){return x * rad2deg}
 
 // seedable pseudo random number generator
 var Prng = new function(){
@@ -89,7 +92,6 @@ var Prng = new function(){
     return Prng.s/Prng.m
   }
 }
-Math.oldRandom = Math.random
 Math.random = function(){return Prng.next()}
 Math.seed = function(x){return Prng.seed(x)}
 
@@ -139,29 +141,6 @@ var Noise = new function(){
     }
     return r;
   };
-  this.noiseDetail = function(lod, falloff) {
-    if (lod>0)     { perlin_octaves=lod; }
-    if (falloff>0) { perlin_amp_falloff=falloff; }
-  };
-  this.noiseSeed = function(seed) {
-    var lcg = (function() {
-      var m = 4294967296, a = 1664525, c = 1013904223, seed, z;
-      return {
-        setSeed : function(val) {
-          z = seed = (val == null ? Math.random() * m : val) >>> 0;
-        },
-        getSeed : function() {return seed;},
-        rand : function() { z = (a * z + c) % m; return z / m;}
-      };
-    }());
-    lcg.setSeed(seed);
-    perlin = new Array(PERLIN_SIZE + 1);
-    for (var i = 0; i < PERLIN_SIZE + 1; i++) {perlin[i] = lcg.rand();}
-  };
-}
-// distance between 2 coordinates in 2D
-function distance(p0,p1){
-  return Math.sqrt(Math.pow(p0[0]-p1[0],2) + Math.pow(p0[1]-p1[1],2));
 }
 // map float from one range to another
 function mapval(value,istart,istop,ostart,ostop){
@@ -175,77 +154,12 @@ function randChoice(arr) {
 function normRand(m,M){
   return mapval(Math.random(),0,1,m,M);
 }
-// weighted randomness
-function wtrand(func){
-  var x = Math.random()
-  var y = Math.random()
-  if (y<func(x)){
-    return x
-  }else{
-    return wtrand(func)
-  }
-}
-// gaussian randomness
-function randGaussian(){
-  return wtrand(function(x){return Math.pow(Math.E,-24*Math.pow(x-0.5,2))})*2-1
-}
 // sigmoid curve
-function sigmoid(x,k){
-  k = (k != undefined) ? k : 10
+function sigmoid(x,k=10){
   return 1/(1+Math.exp(-k*(x-0.5)))
 }
-// pseudo bean curve
-function bean(x){
-  return pow(0.25-pow(x-0.5,2),0.5)*(2.6+2.4*pow(x,1.5))*0.54
-}
-// interpolate between square and circle
-var squircle = function(r,a){
-  return function(th){
-    while (th > PI/2){
-      th -= PI/2
-    }
-    while (th < 0){
-      th += PI/2
-    }
-    return r*pow(1/(pow(cos(th),a)+pow(sin(th),a)),1/a)
-  }
-}
-// mid-point of an array of points
-function midPt(){
-  var plist = (arguments.length == 1) ? 
-    arguments[0] : Array.apply(null, arguments)
-  return plist.reduce(function(acc,v){
-    return [v[0]/plist.length+acc[0],
-            v[1]/plist.length+acc[1],
-            v[2]/plist.length+acc[2]]
-  },[0,0,0])
-}
-// rational bezier curve
-function bezmh(P, w){
-  w = (w == undefined) ? 1 : w
-  if (P.length == 2){
-    P = [P[0],midPt(P[0],P[1]),P[1]];
-  }
-  var plist = [];
-  for (var j = 0; j < P.length-2; j++){
-    var p0; var p1; var p2;
-    if (j == 0){p0 = P[j];}else{p0 = midPt(P[j],P[j+1]);}
-    p1 = P[j+1];
-    if (j == P.length-3){p2 = P[j+2];}else{p2 = midPt(P[j+1],P[j+2]);}
-    var pl = 20;
-    for (var i = 0; i < pl+(j==P.length-3); i+= 1){
-      var t = i/pl;
-      var u = (Math.pow (1 - t, 2) + 2 * t * (1 - t) * w + t * t);
-      plist.push([
-        (Math.pow(1-t,2)*p0[0]+2*t*(1-t)*p1[0]*w+t*t*p2[0])/u,
-        (Math.pow(1-t,2)*p0[1]+2*t*(1-t)*p1[1]*w+t*t*p2[1])/u,
-        (Math.pow(1-t,2)*p0[2]+2*t*(1-t)*p1[2]*w+t*t*p2[2])/u]);
-    }
-  }
-  return plist;
-}
 // tools for vectors in 3d
-v3 = new function(){
+var v3 = new function(){
   this.forward = [0,0,1]
   this.up = [0,1,0]
   this.right = [1,0,0]
@@ -283,9 +197,6 @@ v3 = new function(){
   this.scale = function(vec,p){
     return [vec.x*p,vec.y*p,vec.z*p]
   }
-  this.copy = function(v0){
-    return [v0.x,v0.y,v0.z]
-  }
   this.add = function(v0,v){
     return [v0.x+v.x,v0.y+v.y,v0.z+v.z]
   }
@@ -294,10 +205,6 @@ v3 = new function(){
   }
   this.mag = function(v){
     return Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z)
-  }
-  this.normalize = function(v){
-    p = 1/mag(v)
-    return [v.x*p,v.y*p,v.z*p]
   }
   this.dot = function(u,v){
     return u.x*v.x + u.y*v.y + u.z*v.z 
@@ -346,11 +253,7 @@ v3 = new function(){
   }
 }
 // rgba to css color string
-function rgba(r,g,b,a){
-  r = (r != undefined) ? r:255;
-  g = (g != undefined) ? g:r;
-  b = (b != undefined) ? b:g;
-  a = (a != undefined) ? a:1.0;
+function rgba(r=255,g=r,b=g,a=1.0){
   return "rgba("+Math.floor(r)+","+Math.floor(g)+","+Math.floor(b)+","+a.toFixed(3)+")"
 }
 // hsv to css color string
@@ -364,15 +267,15 @@ function hsv(h,s,v,a){
     return rgba(r,g,b,a)
 }
 // polygon for HTML canvas
-function polygon(args){
-  var args =(args != undefined) ? args : {};
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;
-  var xof = (args.xof != undefined) ? args.xof : 0;  
-  var yof = (args.yof != undefined) ? args.yof : 0;  
-  var pts = (args.pts != undefined) ? args.pts : [];
-  var col = (args.col != undefined) ? args.col : "black";
-  var fil = (args.fil != undefined) ? args.fil : true;
-  var str = (args.str != undefined) ? args.str : !fil;
+function polygon({
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  pts = [],
+  col = "black",
+  fil = true,
+  str = !fil,
+} = {}){
 
   ctx.beginPath();
   if (pts.length > 0){
@@ -406,13 +309,12 @@ function grot(P,ind){
   return v3.toeuler(d)
 }
 // generate 2d tube shape from list of points
-function tubify(args){
-  var args = (args != undefined) ? args : {};
-  var pts = (args.pts != undefined) ? args.pts : [];
-  var wid = (args.wid != undefined) ? args.wid : (x)=>(10);
-  vtxlist0 = []
-  vtxlist1 = []
-  vtxlist = []
+function tubify({
+  pts = [],
+  wid = (x)=>(10),
+} = {}){
+  var vtxlist0 = []
+  var vtxlist1 = []
   for (var i = 1; i < pts.length-1; i++){
     var w = wid(i/pts.length)
     var a1 = Math.atan2(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0]);
@@ -434,15 +336,15 @@ function tubify(args){
   return [vtxlist0,vtxlist1]
 }
 // line work with weight function
-function stroke(args){
-  var args = (args != undefined) ? args : {};
-  var pts = (args.pts != undefined) ? args.pts : [];
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;
-  var xof = (args.xof != undefined) ? args.xof : 0;
-  var yof = (args.yof != undefined) ? args.yof : 0;
-  var col = (args.col != undefined) ? args.col : "black";
-  var wid = (args.wid != undefined) ? args.wid :
-    (x)=>(1*sin(x*PI)*mapval(Noise.noise(x*10),0,1,0.5,1));
+function stroke({
+  pts = [],
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  col = "black",
+  wid = 
+    (x)=>(1*sin(x*PI)*mapval(Noise.noise(x*10),0,1,0.5,1)),
+} = {}){
 
   var [vtxlist0,vtxlist1] = tubify({pts:pts,wid:wid})
 
@@ -451,22 +353,22 @@ function stroke(args){
   return [vtxlist0,vtxlist1]
 }
 // generate leaf-like structure
-function leaf(args){
-  var args =(args != undefined) ? args : {};
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;  
-  var xof = (args.xof != undefined) ? args.xof : 0;  
-  var yof = (args.yof != undefined) ? args.yof : 0;  
-  var rot = (args.rot != undefined) ? args.rot : [PI/2,0,0];
-  var len = (args.len != undefined) ? args.len : 500;
-  var seg = (args.seg != undefined) ? args.seg : 40;
-  var wid = (args.wid != undefined) ? args.wid : (x) => (sin(x*PI)*20);
-  var vei = (args.vei != undefined) ? args.vei : [1,3];
-  var flo = (args.flo != undefined) ? args.flo : false
-  var col = (args.col != undefined) ? args.col : 
-    {min:[90,0.2,0.3,1],max:[90,0.1,0.9,1]}
-  var cof = (args.cof != undefined) ? args.cof : (x) => (x)
-  var ben = (args.ben != undefined) ? args.ben : 
-    (x) => ([normRand(-10,10),0,normRand(-5,5)])
+function leaf({
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  rot = [PI/2,0,0],
+  len = 500,
+  seg = 40,
+  wid = (x) => (sin(x*PI)*20),
+  vei = [1,3],
+  flo = false,
+  col = 
+    {min:[90,0.2,0.3,1],max:[90,0.1,0.9,1]},
+  cof = (x) => (x),
+  ben = 
+    (x) => ([normRand(-10,10),0,normRand(-5,5)]),
+} = {}){
 
   var disp = v3.zero
   var crot = v3.zero
@@ -545,19 +447,19 @@ function leaf(args){
 }
 
 // generate stem-like structure
-function stem(args){
-  var args =(args != undefined) ? args : {};
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;  
-  var xof = (args.xof != undefined) ? args.xof : 0;  
-  var yof = (args.yof != undefined) ? args.yof : 0;  
-  var rot = (args.rot != undefined) ? args.rot : [PI/2,0,0];
-  var len = (args.len != undefined) ? args.len : 400;
-  var seg = (args.seg != undefined) ? args.seg : 40;
-  var wid = (args.wid != undefined) ? args.wid : (x) => (6);
-  var col = (args.col != undefined) ? args.col : 
-    {min:[250,0.2,0.4,1],max:[250,0.3,0.6,1]}
-  var ben = (args.ben != undefined) ? args.ben : 
-    (x) => ([normRand(-10,10),0,normRand(-5,5)])
+function stem({
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  rot = [PI/2,0,0],
+  len = 400,
+  seg = 40,
+  wid = (x) => (6),
+  col = 
+    {min:[250,0.2,0.4,1],max:[250,0.3,0.6,1]},
+  ben = 
+    (x) => ([normRand(-10,10),0,normRand(-5,5)]),
+} = {}){
 
   var disp = v3.zero
   var crot = v3.zero
@@ -604,20 +506,20 @@ function stem(args){
 }
 
 // generate fractal-like branches
-function branch(args){
-  var args =(args != undefined) ? args : {};
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;  
-  var xof = (args.xof != undefined) ? args.xof : 0;  
-  var yof = (args.yof != undefined) ? args.yof : 0;  
-  var rot = (args.rot != undefined) ? args.rot : [PI/2,0,0];
-  var len = (args.len != undefined) ? args.len : 400;
-  var seg = (args.seg != undefined) ? args.seg : 40;
-  var wid = (args.wid != undefined) ? args.wid : 1;
-  var twi = (args.twi != undefined) ? args.twi : 5;
-  var col = (args.col != undefined) ? args.col : 
-    {min:[50,0.2,0.8,1],max:[50,0.2,0.8,1]}
-  var dep = (args.dep != undefined) ? args.dep : 3
-  var frk = (args.frk != undefined) ? args.frk : 4
+function branch({
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  rot = [PI/2,0,0],
+  len = 400,
+  seg = 40,
+  wid = 1,
+  twi = 5,
+  col = 
+    {min:[50,0.2,0.8,1],max:[50,0.2,0.8,1]},
+  dep = 3,
+  frk = 4,
+} = {}){
 
   var jnt = []
   for (var i = 0; i < twi; i++){
@@ -792,12 +694,12 @@ function genParams(){
 }
 
 // generate a woody plant
-function woody(args){
-  var args =(args != undefined) ? args : {};
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;  
-  var xof = (args.xof != undefined) ? args.xof : 0;  
-  var yof = (args.yof != undefined) ? args.yof : 0;  
-  var PAR = (args.PAR != undefined) ? args.PAR : genParams();
+function woody({
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  PAR = genParams(),
+} = {}){
 
   var cwid = 1200
   var lay0 = Layer.empty(cwid)
@@ -904,12 +806,12 @@ function woody(args){
 }
 
 // generate a herbaceous plant
-function herbal(args){
-  var args =(args != undefined) ? args : {};
-  var ctx = (args.ctx != undefined) ? args.ctx : CTX;  
-  var xof = (args.xof != undefined) ? args.xof : 0;  
-  var yof = (args.yof != undefined) ? args.yof : 0;
-  var PAR = (args.PAR != undefined) ? args.PAR : genParams();
+function herbal({
+  ctx = CTX,
+  xof = 0,
+  yof = 0,
+  PAR = genParams(),
+} = {}){
 
   var cwid = 1200
   var lay0 = Layer.empty(cwid)
@@ -1052,17 +954,15 @@ var Filter = new function(){
 
 // canvas context operations
 var Layer = new function(){
-  this.empty = function(w,h){
-    w = (w != undefined) ? w : 600;
-    h = (h != undefined) ? h : w;
+  this.empty = function(w=600,h=w){
     // read back by filter and bound, so keep the pixels on the cpu
     return new OffscreenCanvas(w, h).getContext('2d', { willReadFrequently: true })
   }
-  this.blit = function(ctx0,ctx1,args){
-    var args =(args != undefined) ? args : {};
-    var ble = (args.ble != undefined) ? args.ble : "normal";  
-    var xof = (args.xof != undefined) ? args.xof : 0;  
-    var yof = (args.yof != undefined) ? args.yof : 0;  
+  this.blit = function(ctx0,ctx1,{
+    ble = "normal",
+    xof = 0,
+    yof = 0,
+  } = {}){
     ctx0.globalCompositeOperation = ble;
     ctx0.drawImage(ctx1.canvas,xof,yof)
   }
@@ -1104,3 +1004,9 @@ var Layer = new function(){
     return {xmin:xmin,xmax:xmax,ymin:ymin,ymax:ymax}
   }
 }
+
+// what worker.js calls, the rest stays in here
+self.Layer = Layer
+self.woody = woody
+self.herbal = herbal
+})();
