@@ -14,12 +14,13 @@ const socials = [
   { label: 'X',         icon: 'twitter',             url: 'https://x.com/airzyalt' },
 ];
 
+// to is where a button goes, main.js reads it off data-to. guestbook and contact do more than scroll
 const nav = [
   { label: 'home',      href: '/home' },
-  { label: 'about',     click: "goTo('about')" },
-  { label: 'projects',  click: "goTo('projects-section')" },
-  { label: 'guestbook', click: 'toGuestbook()' },
-  { label: 'contact',   click: 'toContact()' },
+  { label: 'about',     to: 'about' },
+  { label: 'projects',  to: 'projects-section' },
+  { label: 'guestbook', to: 'guestbook' },
+  { label: 'contact',   to: 'contact' },
 ];
 
 const about = [
@@ -41,7 +42,7 @@ const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}
 
 const navItem = n => n.href
   ? `<a class="nav-item" href="${n.href}">${n.label} <span class="underline"></span></a>`
-  : `<button class="nav-item" onclick="${n.click}">${n.label} <span class="underline"></span></button>`;
+  : `<button class="nav-item" data-to="${n.to}">${n.label} <span class="underline"></span></button>`;
 
 // {phrase|role} is a phrase the page tints, role is accent, name or tech (.hl- in main.css). {phrase|role|url}
 // makes it a link too. no html in the lines, so the cli just drops the braces and has nothing to strip
