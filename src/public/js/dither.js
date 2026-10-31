@@ -27,191 +27,181 @@
     gl.compileShader(s);
     gl.attachShader(prog, s);
   };
-  shader(gl.VERTEX_SHADER, 'attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }');
-  shader(gl.FRAGMENT_SHADER, `
-    precision highp float;
-    uniform sampler2D blue;
-    uniform float tile, rows, cell, t, lift, clumps, split;
-
+  shader(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}');
+  shader(gl.FRAGMENT_SHADER,
+    // the shader is one string of glsl pieces, one statement each. terser joins the pieces and drops these comments,
+    // so the page gets the shader with no comments or indentation
+    'precision highp float;' +
+    'uniform sampler2D blue;' +
+    'uniform float tile,rows,cell,t,lift,clumps,split;' +
     // a patch never reaches past this much of its size, 1.6 for the spores and 0.66 for the ragged edge
-    const float FAR = 2.26;
+    'const float FAR=2.26;' +
     // how fast the pieces wander, and how far: a share of a piece off home and radians of turn either way.
     // a piece's corner is 0.71 from its middle and a knob tip 0.82, plus the wander that stays under 1, so only the
     // 3x3 pieces around a point can ever cover it
-    const float WANDER = 0.04, SHIFT = 0.12, TURN = 0.3;
+    'const float WANDER=.04,SHIFT=.12,TURN=.3;' +
     // so the pieces read as pieces: each is drawn this much of a piece smaller all round, which leaves a dark seam
     // where two meet, and a patch fills its pieces this densely, capped so a full one keeps about 15% of its dots
     // off and still shimmers instead of going flat
-    const float SEAM = 0.025, DENSITY = 0.75, FULLEST = 0.85;
-
+    'const float SEAM=.025,DENSITY=.75,FULLEST=.85;' +
     // 0 to 1 from a position, no sin so every gpu agrees (dave hoskins' hash12)
-    float hash(vec2 p) {
-      vec3 p3 = fract(p.xyx * 0.1031);
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.x + p3.y) * p3.z);
-    }
-
+    'float hash(vec2 p){' +
+      'vec3 p3=fract(p.xyx*.1031);' +
+      'p3+=dot(p3,p3.yzx+33.33);' +
+      'return fract((p3.x+p3.y)*p3.z);' +
+    '}' +
     // smooth noise, and 4 octaves of it for ragged edges
-    float noise(vec2 p) {
-      vec2 i = floor(p), f = fract(p);
-      f = f * f * (3.0 - 2.0 * f);
-      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + 1.0), f.x), f.y);
-    }
-    float fbm(vec2 p) {
-      float v = 0.0, a = 0.5;
-      for (int i = 0; i < 4; i++) {
-        v += a * noise(p);
-        p *= 2.0;
-        a *= 0.5;
-      }
-      return v;
-    }
-
+    'float noise(vec2 p){' +
+      'vec2 i=floor(p),f=fract(p);' +
+      'f=f*f*(3.-2.*f);' +
+      'return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);' +
+    '}' +
+    'float fbm(vec2 p){' +
+      'float v=0.,a=.5;' +
+      'for(int i=0;i<4;i++){' +
+        'v+=a*noise(p);' +
+        'p*=2.;' +
+        'a*=.5;' +
+      '}' +
+      'return v;' +
+    '}' +
     // jigsaw pieces are 128px and every shared edge has a round knob poking one way. these are the knobs poking
     // into cell g, right left down up, as middle and radius in the cell's -0.5 to 0.5 units, radius 0 if it pokes
     // out. both neighbours hash the same edge so they agree
-    void knobs(vec2 g, out vec3 r, out vec3 l, out vec3 d, out vec3 u) {
-      float hr = hash(g + vec2(0.37, 0.0)), hl = hash(g - vec2(0.63, 0.0));
-      float hd = hash(g + vec2(0.0, 0.71)), hu = hash(g - vec2(0.0, 0.29));
-      r = vec3(0.35, fract(hr * 7.0) * 0.2 - 0.1, hr < 0.5 ? 0.17 : 0.0);
-      l = vec3(-0.35, fract(hl * 7.0) * 0.2 - 0.1, hl >= 0.5 ? 0.17 : 0.0);
-      d = vec3(fract(hd * 7.0) * 0.2 - 0.1, 0.35, hd < 0.5 ? 0.17 : 0.0);
-      u = vec3(fract(hu * 7.0) * 0.2 - 0.1, -0.35, hu >= 0.5 ? 0.17 : 0.0);
-    }
-
+    'void knobs(vec2 g,out vec3 r,out vec3 l,out vec3 d,out vec3 u){' +
+      'float hr=hash(g+vec2(.37,0.)),hl=hash(g-vec2(.63,0.));' +
+      'float hd=hash(g+vec2(0.,.71)),hu=hash(g-vec2(0.,.29));' +
+      'r=vec3(.35,fract(hr*7.)*.2-.1,hr<.5?.17:0.);' +
+      'l=vec3(-.35,fract(hl*7.)*.2-.1,hl>=.5?.17:0.);' +
+      'd=vec3(fract(hd*7.)*.2-.1,.35,hd<.5?.17:0.);' +
+      'u=vec3(fract(hu*7.)*.2-.1,-.35,hu>=.5?.17:0.);' +
+    '}' +
     // whether q, in piece g's own units with its middle at 0, is on that piece: its square, minus the knobs its
     // neighbours poke into it, plus its own knobs poking out. an outgoing knob is the neighbour's incoming one seen
     // from this side, 0.65 out where the neighbour has it 0.35 in, and it exists where the incoming radius is 0.
     // the whole outline sits SEAM inside the true one: square smaller, own knobs thinner, the holes wider
-    bool onPiece(vec2 q, vec2 g) {
-      vec3 r, l, d, u;
-      knobs(g, r, l, d, u);
-      float own = 0.17 - SEAM;
-      if ((r.z == 0.0 && length(q - vec2(0.65, r.y)) < own) || (l.z == 0.0 && length(q - vec2(-0.65, l.y)) < own)
-        || (d.z == 0.0 && length(q - vec2(d.x, 0.65)) < own) || (u.z == 0.0 && length(q - vec2(u.x, -0.65)) < own))
-        return true;
-      bool hole = (r.z > 0.0 && length(q - r.xy) < r.z + SEAM) || (l.z > 0.0 && length(q - l.xy) < l.z + SEAM)
-        || (d.z > 0.0 && length(q - d.xy) < d.z + SEAM) || (u.z > 0.0 && length(q - u.xy) < u.z + SEAM);
-      return max(abs(q.x), abs(q.y)) < 0.5 - SEAM && !hole;
-    }
-
+    'bool onPiece(vec2 q,vec2 g){' +
+      'vec3 r,l,d,u;' +
+      'knobs(g,r,l,d,u);' +
+      'float own=.17-SEAM;' +
+      'if((r.z==0.&&length(q-vec2(.65,r.y))<own)||(l.z==0.&&length(q-vec2(-.65,l.y))<own)' +
+        '||(d.z==0.&&length(q-vec2(d.x,.65))<own)||(u.z==0.&&length(q-vec2(u.x,-.65))<own))' +
+        'return true;' +
+      'bool hole=(r.z>0.&&length(q-r.xy)<r.z+SEAM)||(l.z>0.&&length(q-l.xy)<l.z+SEAM)' +
+        '||(d.z>0.&&length(q-d.xy)<d.z+SEAM)||(u.z>0.&&length(q-u.xy)<u.z+SEAM);' +
+      'return max(abs(q.x),abs(q.y))<.5-SEAM&&!hole;' +
+    '}' +
     // the piece over p (px), the higher one where two overlap, false in a gap between them. home is p carried back
     // to where it sits on that piece unmoved, so the patches, boxes and dots ride along with the piece
-    bool pieceAt(vec2 p, out vec2 owner, out vec2 home) {
-      vec2 g = floor(p / 128.0);
-      float top = -1.0;
-      for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
-        vec2 n = g + vec2(float(x), float(y));
+    'bool pieceAt(vec2 p,out vec2 owner,out vec2 home){' +
+      'vec2 g=floor(p/128.);' +
+      'float top=-1.;' +
+      'for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){' +
+        'vec2 n=g+vec2(float(x),float(y));' +
         // three slow wobbles per piece, each read off its own row of the noise
-        float s = t * WANDER;
-        vec2 off = (vec2(noise(vec2(s, hash(n) * 97.0)), noise(vec2(s, hash(n + 3.1) * 97.0))) - 0.5) * 2.0 * SHIFT;
-        float a = (noise(vec2(s, hash(n + 5.7) * 97.0)) - 0.5) * 2.0 * TURN;
-        vec2 q = p / 128.0 - n - 0.5 - off;
-        q = vec2(cos(a) * q.x + sin(a) * q.y, cos(a) * q.y - sin(a) * q.x);
-        float z = hash(n + 31.7);
-        if (z > top && onPiece(q, n)) {
-          top = z;
-          owner = n;
-          home = (n + 0.5 + q) * 128.0;
-        }
-      }
-      return top >= 0.0;
-    }
-
+        'float s=t*WANDER;' +
+        'vec2 off=(vec2(noise(vec2(s,hash(n)*97.)),noise(vec2(s,hash(n+3.1)*97.)))-.5)*2.*SHIFT;' +
+        'float a=(noise(vec2(s,hash(n+5.7)*97.))-.5)*2.*TURN;' +
+        'vec2 q=p/128.-n-.5-off;' +
+        'q=vec2(cos(a)*q.x+sin(a)*q.y,cos(a)*q.y-sin(a)*q.x);' +
+        'float z=hash(n+31.7);' +
+        'if(z>top&&onPiece(q,n)){' +
+          'top=z;' +
+          'owner=n;' +
+          'home=(n+.5+q)*128.;' +
+        '}' +
+      '}' +
+      'return top>=0.;' +
+    '}' +
     // a bushy patch in whole pieces, d is 1 at its edge. inside gets the fill, a thin ring past it like spores.
     // the edge creeps, so the steps are ramps: a piece the edge crosses fades over seconds and its dots dissolve one
     // at a time. a hard step switched the whole piece in one frame, a visible flicker
-    float patch(float d, float fill) {
-      return mix(fill, 0.15, smoothstep(0.85, 1.15, d)) * (1.0 - smoothstep(1.45, 1.75, d));
-    }
-
+    'float patch(float d,float fill){' +
+      'return mix(fill,.15,smoothstep(.85,1.15,d))*(1.-smoothstep(1.45,1.75,d));' +
+    '}' +
     // how full the grain is at p (px), owner is the jigsaw piece p is in. at most one clump per 256px slot,
     // each fading on its own clock. slots 2 away are checked since a side bush spills that far
-    float clump(vec2 p, vec2 owner) {
-      vec2 slot = floor(p / 256.0);
+    'float clump(vec2 p,vec2 owner){' +
+      'vec2 slot=floor(p/256.);' +
       // bushy parts come in whole pieces, so they are judged at the piece middle
-      vec2 pc = (owner + 0.5) * 128.0;
+      'vec2 pc=(owner+.5)*128.;' +
       // one flat amount per piece so pieces and knobs show, a few missing like a half done puzzle
-      float h = hash(owner + 19.3);
-      float fill = hash(owner + 21.7) < 0.15 ? 0.0 : 0.3 + 1.7 * h * h;
+      'float h=hash(owner+19.3);' +
+      'float fill=hash(owner+21.7)<.15?0.:.3+1.7*h*h;' +
       // only worked out once a patch is near, 9 means not yet
-      float edge = 9.0;
-      float f = 0.0;
-      for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++) {
-        vec2 s = slot + vec2(float(x), float(y));
-        if (hash(s) > clumps) continue;
-        vec2 at = (s + 0.3 + 0.4 * vec2(hash(s + 7.1), hash(s + 3.7))) * 256.0;
+      'float edge=9.;' +
+      'float f=0.;' +
+      'for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++){' +
+        'vec2 s=slot+vec2(float(x),float(y));' +
+        'if(hash(s)>clumps)continue;' +
+        'vec2 at=(s+.3+.4*vec2(hash(s+7.1),hash(s+3.7)))*256.;' +
         // most clumps are tight blocks, some bushy patches. anything that cant reach p is dropped before the
         // rest of its hashes, a bushy one is at most 112px and a block 45
-        bool bushy = hash(s + 4.4) > 0.65;
-        if (bushy && length(pc - at) > FAR * 112.0) continue;
-        bool grows = !bushy && hash(s + 12.3) < 0.6;
-        if (!bushy && !grows && max(abs(p.x - at.x), abs(p.y - at.y)) > 45.0) continue;
-        vec2 reach = 128.0 * (0.1 + 0.25 * vec2(hash(s + 1.3), hash(s + 5.9))) * (bushy ? 2.5 : 1.0);
-        vec2 q = (p - at) / reach;
-        float square = max(abs(q.x), abs(q.y)), circle = length((pc - at) / reach);
-        bool block = !bushy && square < 1.0;
-        bool bush = bushy && circle < FAR;
+        'bool bushy=hash(s+4.4)>.65;' +
+        'if(bushy&&length(pc-at)>FAR*112.)continue;' +
+        'bool grows=!bushy&&hash(s+12.3)<.6;' +
+        'if(!bushy&&!grows&&max(abs(p.x-at.x),abs(p.y-at.y))>45.)continue;' +
+        'vec2 reach=128.*(.1+.25*vec2(hash(s+1.3),hash(s+5.9)))*(bushy?2.5:1.);' +
+        'vec2 q=(p-at)/reach;' +
+        'float square=max(abs(q.x),abs(q.y)),circle=length((pc-at)/reach);' +
+        'bool block=!bushy&&square<1.;' +
+        'bool bush=bushy&&circle<FAR;' +
         // a block often grows a 256 to 512px bush off one side
-        float rooted = FAR;
-        if (grows) {
-          float side = hash(s + 11.1);
-          vec2 dir = side < 0.5 ? vec2(side < 0.25 ? 1.0 : -1.0, 0.0) : vec2(0.0, side < 0.75 ? 1.0 : -1.0);
-          float r = 256.0 * (0.5 + 0.5 * hash(s + 14.2));
-          vec2 root = at + (dir + dir.yx * (hash(s + 13.7) - 0.5) * 1.2) * reach + dir * r * 0.6;
-          rooted = length(pc - root) / r;
-        }
-        bool growth = rooted < FAR;
-        if (!block && !bush && !growth) continue;
+        'float rooted=FAR;' +
+        'if(grows){' +
+          'float side=hash(s+11.1);' +
+          'vec2 dir=side<.5?vec2(side<.25?1.:-1.,0.):vec2(0.,side<.75?1.:-1.);' +
+          'float r=256.*(.5+.5*hash(s+14.2));' +
+          'vec2 root=at+(dir+dir.yx*(hash(s+13.7)-.5)*1.2)*reach+dir*r*.6;' +
+          'rooted=length(pc-root)/r;' +
+        '}' +
+        'bool growth=rooted<FAR;' +
+        'if(!block&&!bush&&!growth)continue;' +
         // some get a straight cut, one side gone
-        float cut = hash(s + 6.6);
-        if (cut < 0.4) {
-          float along = (cut < 0.2 ? q.x : q.y) - (hash(s + 8.8) - 0.5);
-          if (hash(s + 2.2) < 0.5 ? along > 0.0 : along < 0.0) continue;
-        }
+        'float cut=hash(s+6.6);' +
+        'if(cut<.4){' +
+          'float along=(cut<.2?q.x:q.y)-(hash(s+8.8)-.5);' +
+          'if(hash(s+2.2)<.5?along>0.:along<0.)continue;' +
+        '}' +
         // ragged edge so patches take an uneven set of pieces, drifting so they creep
-        if ((bush || growth) && edge > 8.0) edge = (fbm(pc * 0.03 + t * 0.02) - 0.47) * 1.4;
-        float v = block ? 1.0 - smoothstep(0.7, 1.0, square) : 0.0;
-        if (bush) v = patch(circle + edge, fill);
-        if (growth) v = max(v, patch(rooted + edge, fill));
+        'if((bush||growth)&&edge>8.)edge=(fbm(pc*.03+t*.02)-.47)*1.4;' +
+        'float v=block?1.-smoothstep(.7,1.,square):0.;' +
+        'if(bush)v=patch(circle+edge,fill);' +
+        'if(growth)v=max(v,patch(rooted+edge,fill));' +
         // each patch breathes on its own clock between half and full, it never goes out. a screen holds about 8, and
         // when they could reach 0 a few of the big ones lining up emptied the screen, 30x fewer dots than at a peak
-        float life = mix(0.5, 1.0, smoothstep(0.1, 0.9, 0.5 + 0.5 * sin(t * (0.1 + 0.2 * hash(s + 9.2)) + hash(s + 2.4) * 6.283)));
-        f = max(f, life * v);
-      }
-      return f;
-    }
-
-    void main() {
+        'float life=mix(.5,1.,smoothstep(.1,.9,.5+.5*sin(t*(.1+.2*hash(s+9.2))+hash(s+2.4)*6.283)));' +
+        'f=max(f,life*v);' +
+      '}' +
+      'return f;' +
+    '}' +
+    'void main(){' +
       // cells counted from the top left, gl counts rows up from the bottom
-      vec2 c = vec2(floor(gl_FragCoord.x), rows - 1.0 - floor(gl_FragCoord.y));
-
+      'vec2 c=vec2(floor(gl_FragCoord.x),rows-1.-floor(gl_FragCoord.y));' +
       // which piece this cell lands on now. the outline is tested every cell, so knobs stay crisp as pieces move
-      vec2 owner, home;
-      if (!pieceAt((c + 0.5) * cell, owner, home)) {
-        gl_FragColor = vec4(0.0);
-        return;
-      }
-
+      'vec2 owner,home;' +
+      'if(!pieceAt((c+.5)*cell,owner,home)){' +
+        'gl_FragColor=vec4(0.);' +
+        'return;' +
+      '}' +
       // macroblocks like a glitched video frame, 8 cells down to 1, laid out on the unmoved piece so they turn
       // with it. a hash decides each split
-      vec2 lc = floor(home / cell);
-      float size = 8.0;
-      vec2 box = floor(lc / size);
-      for (int i = 0; i < 3; i++) {
-        if (hash(box + size * 37.0) > split) break;
-        size *= 0.5;
-        box = floor(lc / size);
-      }
-
+      'vec2 lc=floor(home/cell);' +
+      'float size=8.;' +
+      'vec2 box=floor(lc/size);' +
+      'for(int i=0;i<3;i++){' +
+        'if(hash(box+size*37.)>split)break;' +
+        'size*=.5;' +
+        'box=floor(lc/size);' +
+      '}' +
       // the box reads the clumps once at its middle and goes on or off as a whole. a clump fills about
       // 3 in 4 boxes, and blue noise per box keeps them spread out. each box's threshold wobbles a little on its
       // own 4 to 8s clock, so boxes near it twinkle while the patch as a whole holds steady
-      vec2 m = (box + 0.5) * size * cell;
-      float twinkle = 0.015 * sin(t * (0.8 + 0.6 * hash(box + size * 5.0)) + hash(box + size * 7.0) * 6.283);
-      bool on = min(DENSITY * clump(m, owner), FULLEST) > texture2D(blue, (box + size * 13.0 + 0.5) / tile).r + twinkle;
-      gl_FragColor = on ? vec4(vec3(lift), 1.0) : vec4(0.0);
-    }`);
+      'vec2 m=(box+.5)*size*cell;' +
+      'float twinkle=.015*sin(t*(.8+.6*hash(box+size*5.))+hash(box+size*7.)*6.283);' +
+      'bool on=min(DENSITY*clump(m,owner),FULLEST)>texture2D(blue,(box+size*13.+.5)/tile).r+twinkle;' +
+      'gl_FragColor=on?vec4(vec3(lift),1.):vec4(0.);' +
+    '}');
   gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return console.error(gl.getProgramInfoLog(prog));
   gl.useProgram(prog);
