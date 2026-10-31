@@ -336,6 +336,10 @@ nav {
   max-width: 100%;
   height: auto;
 }
+/* no paragraph ends on one lonely word. article only, the guestbook notes keep the breaks people typed */
+article p {
+  text-wrap: pretty;
+}
 /* the page grain from js/dither.js, the same one as the auth page. color-dodge lifts the ground under a dot
    by a share, so the grain keeps the ground's tint instead of going grey */
 #bg {
@@ -378,6 +382,16 @@ nav {
   padding: 0;
   list-style: none;
   color: var(--text-soft);
+}
+/* a skill too long for its column wraps indented and tight, with a gap before the next one,
+   so "roblox game development" reads as one skill and not two */
+.skills li {
+  padding-left: 0.75em;
+  text-indent: -0.75em;
+  line-height: 1.3;
+}
+.skills li + li {
+  margin-top: 0.3em;
 }
 
 /* projects, one row each. the markup comes from makeProjectCard in js/main.js, and projectsEdit.html

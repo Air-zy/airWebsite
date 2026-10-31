@@ -18,9 +18,9 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://airzy.ca/home" />
 
-    <!-- placeholder. 1200x630 png, drop it at src/public/og.png. scrapers cache
-         hard so bump the ?v when you replace it -->
-    <meta property="og:image" content="https://airzy.ca/og.png?v=1" />
+    <!-- the hero at 1200x630 with ?seed=12345, nav cropped off. og.png is in the
+         ?v hash in site.js, so replacing it is enough for scrapers to fetch it again -->
+    <meta property="og:image" content="https://airzy.ca/og.png?v=<!--#v-->" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta
