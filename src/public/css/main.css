@@ -371,19 +371,34 @@ article p {
   color: var(--text-grey);
 }
 
-/* people i like, a name and a line on why. the rows come from /api/people, built in site.js */
+/* people i like, like credits: names down the left, why beside each. the rows come from /api/people, built in
+   site.js. a linked name gets the same dotted underline as the numbers in how i started, solid on hover */
 .people {
+  display: grid;
+  grid-template-columns: fit-content(14rem) minmax(0, 1fr);
+  gap: 14px 32px;
   margin: 0;
 }
-.people div + div {
-  margin-top: 16px;
+/* the rows are the grid's own, so the columns line up across people. pinned, or a name with no reason would slide
+   into the reason column of the row above */
+.people div {
+  display: contents;
 }
 .people dt {
-  font-weight: 700;
+  grid-column: 1;
 }
 .people dd {
+  grid-column: 2;
   margin: 0;
+  color: var(--text-soft);
   text-wrap: pretty;
+}
+.people a {
+  text-decoration: underline dotted var(--text-grey);
+  text-underline-offset: 0.25em;
+}
+.people a:hover {
+  text-decoration: underline var(--text-normal);
 }
 
 .skills {
@@ -771,6 +786,17 @@ article p {
   .project-card img {
     width: 64px;
     height: 64px;
+  }
+  /* no room for two columns, the reason goes under its name, the space goes above each next name */
+  .people {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .people dd {
+    grid-column: 1;
+  }
+  .people div + div dt {
+    margin-top: 14px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
