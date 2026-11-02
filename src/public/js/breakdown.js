@@ -1,27 +1,31 @@
-// the breakdown. click the 🤓 by the name and the site falls apart. a crack runs out of it along the wall, and when it
-// snaps the page breaks bit by bit as the shock gets to it. words and letters go crooked, hang off one corner, get
-// misspelled or drop to the bottom of the screen and pile up, the ones on the crack rip in half, links, buttons and
-// pictures come loose and the plant tips over. then a glitchy mechanical spider made of lines and ascii walks down the
-// screen and fixes all of it with its legs. it jabs the crooked ones straight, reels the fallen ones back up on a
-// thread, welds the ripped ones back together and zips the crack shut as it passes.
+// the breakdown. click the 🤓 by the name and the whole site falls apart. a crack runs out of it along the wall, and when
+// it snaps, more cracks run down the whole page and everything breaks as the shock gets to it. words and letters go
+// crooked, hang off one corner, get misspelled or drop onto whatever's below them and pile up, the ones on a crack rip in
+// half, links, buttons and pictures come loose and the plant tips over. then a glitchy mechanical spider made of lines
+// and ascii climbs over the page and fixes all of it with its legs. it jabs the crooked ones straight, reels the fallen
+// ones back up on a thread, welds the ripped ones back together and closes the cracks it walks over.
 //
-// main.js only loads this on that click. a click or esc skips to the end. reduced motion gets a still version, things
-// go crooked and come back one at a time, with no crack, shaking, falling or spider.
+// the page still scrolls the whole time. the spider goes for what's broken on screen first, jumps over on a thread when
+// that's far from it, and when you stop scrolling for a bit the page follows it around. clicks don't go through while
+// it's broken, so nothing opens and moves things around mid fix. the skip button or esc puts it all back. main.js only
+// loads this on that click. reduced motion gets a still version, things go crooked and come back group by group, with
+// no cracks, shaking, falling or spider.
 //
 // nothing is a picture of the page. a word that breaks is wrapped in a span and hidden, and a copy with the same font
-// and colour stands in for it over the page, so every word moves on its own. links, buttons, pictures, notes and the
-// plant are the real ones, moved where they are with transform. once something's fixed the real one shows again, and
-// at the end the spans come back out, so the page is left exactly how it was
+// and colour stands in for it, in a layer inside the page's scroller so it scrolls along, and every word moves on its
+// own. links, buttons, pictures, notes and the plant are the real ones, moved where they are with transform. once
+// something's fixed the real one shows again, and at the end the spans come back out, so the page is left exactly how
+// it was
 (() => {
   // ---------- tuning
-  const T_CRACK = 0.65;     // s, the crack runs along the wall, then it snaps
-  const WAVE = 1500;        // px/s, the snap spreads out from the 🤓 and breaks things as it gets to them
+  const T_CRACK = 0.65;     // s, the first crack runs along the wall, then it snaps
+  const WAVE = 1700;        // px/s, the snap spreads out from the 🤓 and breaks things as it gets to them
   const T_SPIDER = 1.4;     // s after the snap, the spider walks in
   const KICK = 18;          // px, the shake at the snap
   const GRAVITY = 2300;     // px/s²
-  const MAX_WORDS = 120;    // the most words and letters that break, the ones near the 🤓 first
-  const MAX_TAPS = 15;      // what broke is grouped into about this many jabs for the spider
-  const HEAL_STEP = 0.011;  // s per point of the crack, how fast it zips shut
+  const MAX_WORDS = 420;    // the most words and letters that break, the ones near the 🤓 first
+  const HEAL_R = 150;       // px, the cracks close up this near the spider
+  const IDLE = 2.5;         // s without scrolling before the page follows the spider again
 
   // the spider is drawn in 2.5d. the camera looks at the page a little from below, so something z px off the page
   // shows PY*z higher up the screen, and the light is up and to the left, so its shadow falls down and right of it
@@ -38,6 +42,9 @@
   const SKIP = 'script, style, textarea, dialog, #adapt';
   // these move as one piece. all other text breaks word by word, and big text letter by letter
   const RIGID = 'nav .nav-item, .menu-icon, .bubble, .flower canvas, main img, main svg, main button, main .sticky';
+  // what falling things land on: the tops of these, and the bottom of the first screen
+  const LEDGES = 'h2, .project-container, .skills > div, .note, .plate, .footer-top, .footer-bottom, #board-form, .people';
+  const SCROLL_KEYS = [' ', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'];
   const BROKEN = new Set(['crook', 'typo', 'hang', 'fall', 'topple']);
   // typos: the keys around each key, and the glitchy look-alikes
   const NEAR = {
@@ -84,26 +91,17 @@
   const P = p => ({ x: p.x, y: p.y - p.z * PY });
   const SH = p => ({ x: p.x + p.z * SHX, y: p.y + p.z * SHY });
 
+  // everything is placed on the page, not the screen: y counts from the top of the scroller's content, so it holds
+  // still while the page scrolls. this takes a box measured on screen at the start onto the page
+  const toPage = (r, b) => ({ left: b.left, right: b.right, width: b.width, height: b.height, top: b.top + r.dy, bottom: b.bottom + r.dy });
+
   let run = null, frame = 0;
 
-  // ---------- the crack
+  // ---------- the cracks
 
-  // jagged, across the whole screen through the 🤓. the left half heads for the middle of the name, so it rips
-  function crackLine(o, W, H, aim) {
-    const left = [], right = [];
-    for (const [dir, out] of [[-1, left], [1, right]]) {
-      let x = o.x, y = o.y;
-      const drift = rand(-0.25, 0.25);
-      while (dir < 0 ? x > -40 : x < W + 40) {
-        x += dir * rand(10, 22);
-        y += rand(-8, 8) + drift * 10 + (dir < 0 ? (aim - y) * 0.14 : 0);
-        out.push({ x, y: clamp(y, o.y - H * 0.25, o.y + H * 0.25) });
-        y = out.at(-1).y;
-      }
-    }
-    const points = [...left.reverse(), { ...o }, ...right];
-    // short cracks off the main one
-    const branches = Array.from({ length: 10 }, () => {
+  // short ones off a long one, only drawn
+  function branchesOf(points, n) {
+    return Array.from({ length: n }, () => {
       const at = Math.floor(rand(2, points.length - 2));
       let a = rand(0, Math.PI * 2), p = points[at];
       const path = [p];
@@ -114,16 +112,55 @@
       }
       return { at, path };
     });
-    return { points, origin: left.length, branches };
   }
 
-  // the crack's height at x
-  function crackAt(crack, x) {
-    const p = crack.points;
-    for (let i = 1; i < p.length; i++) {
-      if (p[i].x >= x) return p[i - 1].y + (p[i].y - p[i - 1].y) * ((x - p[i - 1].x) / (p[i].x - p[i - 1].x || 1));
+  // a crack: its points, when each one shows, how wide its gap opens there, and when it closes again
+  const crack = (points, dir, show, wide) => ({
+    points, dir, show, wide, close: points.map(() => Infinity), branches: branchesOf(points, Math.max(3, Math.round(points.length / 7))),
+  });
+
+  // the first one: jagged, across the page through the 🤓, running out from it as it builds up. the left half heads for
+  // the middle of the name, so it rips
+  function crackAcross(r, aim) {
+    const { origin: o, W } = r, left = [], right = [];
+    for (const [dir, out] of [[-1, left], [1, right]]) {
+      let x = o.x, y = o.y;
+      const drift = rand(-0.25, 0.25);
+      while (dir < 0 ? x > -40 : x < W + 40) {
+        x += dir * rand(10, 22);
+        y = clamp(y + rand(-8, 8) + drift * 10 + (dir < 0 ? (aim - y) * 0.14 : 0), o.y - 200, o.y + 200);
+        out.push({ x, y });
+      }
     }
-    return p.at(-1).y;
+    const points = [...left.reverse(), { ...o }, ...right], at = left.length, far = Math.max(at, points.length - at);
+    // it runs out with the same ease out as the rest of it
+    const show = points.map((p, i) => T_CRACK * (1 - Math.cbrt(1 - Math.abs(i - at) / far)));
+    const c = crack(points, 'h', show, points.map((p, i) => 2 + 7 * Math.exp(-Math.abs(i - at) / 14)));
+    c.origin = at;
+    return c;
+  }
+
+  // the rest run from it down the whole page when it snaps, as fast as the shock spreads
+  function crackDown(r, from) {
+    const points = [{ ...from }];
+    let { x, y } = from;
+    const drift = rand(-0.3, 0.3);
+    while (y < r.bottom + 30) {
+      y += rand(14, 30);
+      x = clamp(x + rand(-10, 10) + drift * 8, 6, r.W - 6);
+      points.push({ x, y });
+    }
+    const show = points.map(p => r.at.snap + Math.hypot(p.x - r.origin.x, p.y - r.origin.y) / WAVE);
+    return crack(points, 'v', show, points.map(() => rand(1.4, 3.2)));
+  }
+
+  // where a crack is: for one across, its height at v = x. for one running down, how far across it is at v = y
+  function crackAt(c, v) {
+    const p = c.points, [k, o] = c.dir === 'h' ? ['x', 'y'] : ['y', 'x'];
+    for (let i = 1; i < p.length; i++) {
+      if (p[i][k] >= v) return p[i - 1][o] + (p[i][o] - p[i - 1][o]) * ((v - p[i - 1][k]) / (p[i][k] - p[i - 1][k] || 1));
+    }
+    return p.at(-1)[o];
   }
 
   // ---------- typos
@@ -176,34 +213,45 @@
 
   // a word: a copy over the page where it is. ripped, it's two copies, one cut off below the tear and one above it.
   // the box it falls and spins with is the part that has ink in it, not the whole line
+
+  // a word: a copy where it is on the page. ripped, it's two copies, each cut off at the tear, top and bottom for a
+  // crack across, left and right for one running down. the box it falls and spins with is the part with ink in it
   function wordActors(r, k) {
-    const b = k.span.getBoundingClientRect(), look = textLook(k.span), col = getComputedStyle(k.span).color;
-    const make = (clip, y0, y1) => {
+    const b = toPage(r, k.span.getBoundingClientRect()), look = textLook(k.span), col = getComputedStyle(k.span).color;
+    const make = (clip, x0, x1, y0, y1) => {
       const node = el('div', `position:absolute;left:0;top:0;margin:0;white-space:pre;height:${b.height}px;`
-        + `line-height:${b.height}px;${look};transform-origin:${b.width / 2}px ${(y0 + y1) / 2}px`);
+        + `line-height:${b.height}px;${look};transform-origin:${(x0 + x1) / 2}px ${(y0 + y1) / 2}px`);
       node.textContent = k.text;
       if (clip) node.style.clipPath = clip;
       r.layer.append(node);
       return actor(r, {
         node, span: k.span, text: k.text, letter: k.letter, col, d: k.d,
-        w: b.width, h: Math.max(4, y1 - y0), ox: b.width / 2, oy: (y0 + y1) / 2,
-        hx: b.left + b.width / 2, hy: b.top + (y0 + y1) / 2,
+        w: Math.max(4, x1 - x0), h: Math.max(4, y1 - y0), ox: (x0 + x1) / 2, oy: (y0 + y1) / 2,
+        hx: b.left + (x0 + x1) / 2, hy: b.top + (y0 + y1) / 2,
       });
     };
-    if (!k.tear) return [make(null, b.height * 0.12, b.height * 0.92)];
-    const pts = k.tear.map(p => `${(p.x - b.left).toFixed(1)}px ${(p.y - b.top).toFixed(1)}px`);
-    const ys = k.tear.map(p => p.y - b.top);
-    const top = make(`polygon(-20px -20px,${b.width + 20}px -20px,${[...pts].reverse()})`, b.height * 0.12, Math.max(...ys));
-    const bottom = make(`polygon(${pts},${b.width + 20}px ${b.height + 20}px,-20px ${b.height + 20}px)`, Math.min(...ys), b.height * 0.92);
-    top.pair = bottom;
-    bottom.pair = top;
-    top.tear = k.tear;
-    return [top, bottom];
+    const Y0 = b.height * 0.12, Y1 = b.height * 0.92, W = b.width, H = b.height;
+    if (!k.tear) return [make(null, 0, W, Y0, Y1)];
+    const T = k.tear.pts, pts = T.map(p => `${(p.x - b.left).toFixed(1)}px ${(p.y - b.top).toFixed(1)}px`);
+    let one, two;
+    if (!k.tear.v) {
+      const ys = T.map(p => p.y - b.top);
+      one = make(`polygon(-20px -20px,${W + 20}px -20px,${[...pts].reverse()})`, 0, W, Y0, Math.max(...ys));
+      two = make(`polygon(${pts},${W + 20}px ${H + 20}px,-20px ${H + 20}px)`, 0, W, Math.min(...ys), Y1);
+    } else {
+      const xs = T.map(p => p.x - b.left), top = `${xs[0].toFixed(1)}px -20px`, bottom = `${xs.at(-1).toFixed(1)}px ${H + 20}px`;
+      one = make(`polygon(-20px -20px,${top},${pts},${bottom},-20px ${H + 20}px)`, 0, Math.max(...xs), Y0, Y1);
+      two = make(`polygon(${W + 20}px -20px,${top},${pts},${bottom},${W + 20}px ${H + 20}px)`, Math.min(...xs), W, Y0, Y1);
+    }
+    one.pair = two;
+    two.pair = one;
+    one.tear = T;
+    return [one, two];
   }
 
   // a whole element, moved in place. its own size, and its transform-origin, so turning it can be made about its middle
-  function elementActor(r, e, d) {
-    const b = e.getBoundingClientRect(), cs = getComputedStyle(e);
+  function elementActor(r, e, b, d) {
+    const cs = getComputedStyle(e);
     const [ox, oy] = cs.transformOrigin.split(' ').map(parseFloat);
     // a note's tilt turns everything we add too, so the shifts get turned back by it
     const tilt = cs.rotate && cs.rotate !== 'none' ? (parseFloat(cs.rotate) * Math.PI) / 180 : 0;
@@ -216,28 +264,66 @@
     return A;
   }
 
+  // a crack running through a word rips it. the tear is jagged down to the pixel
+  function tearFor(r, b) {
+    for (const c of r.cracks) {
+      const pts = [];
+      if (c.dir === 'h') {
+        const ys = [b.left, (b.left + b.right) / 2, b.right].map(x => crackAt(c, x));
+        if (!ys.some(y => y > b.top + b.height * 0.2 && y < b.bottom - b.height * 0.15)) continue;
+        for (let x = b.left - 2; x < b.right + 3; x += 3) pts.push({ x, y: crackAt(c, x) + rand(-1.3, 1.3) });
+      } else {
+        const x = crackAt(c, (b.top + b.bottom) / 2);
+        if (b.top < c.points[0].y || x < b.left + b.width * 0.22 || x > b.right - b.width * 0.22) continue;
+        for (let y = b.top - 2; y < b.bottom + 3; y += 3) pts.push({ x: crackAt(c, y) + rand(-1.3, 1.3), y });
+      }
+      return { pts, v: c.dir === 'v' };
+    }
+    return null;
+  }
+
+  // what falls lands on the next ledge below where it started: a heading, a project's dotted line, a picture, the
+  // footer, or the bottom of the first screen. past the end of every ledge, the bottom of the page
+  function ledges(r) {
+    const out = [];
+    for (const e of main.querySelectorAll(LEDGES)) {
+      const b = e.getBoundingClientRect();
+      if (b.width > 1 && b.height > 0) out.push({ x0: b.left, x1: b.right, y: b.top + r.dy });
+    }
+    const hero = document.getElementById('s1')?.getBoundingClientRect();
+    if (hero?.height) out.push({ x0: 0, x1: r.W, y: hero.bottom + r.dy });
+    return out.sort((a, b) => a.y - b.y);
+  }
+  function floorAt(r, x, from) {
+    for (const l of r.ledges) if (l.y >= from && x >= l.x0 && x <= l.x1) return l.y;
+    return r.bottom;
+  }
+
   function collect(r) {
-    const { W, H, origin } = r;
-    const seen = (b, top) => b.width > 1 && b.height > 1 && b.right > 0 && b.left < W && b.bottom > top + 2 && b.top < H;
+    const { W, origin } = r;
+    const real = b => b.width > 1 && b.height > 1;
     const dist = b => Math.hypot(b.left + b.width / 2 - origin.x, b.top + b.height / 2 - origin.y);
     // near the 🤓 things break harder
-    const near = d => clamp(1.15 - d / 1300, 0.35, 1);
+    const near = d => clamp(1.15 - d / 1600, 0.35, 1);
     const hitAt = d => r.at.snap + d / WAVE + rand(0, 0.05);
 
     for (const e of document.querySelectorAll(RIGID)) {
       if (e.parentElement.closest(RIGID)) continue;
-      const b = e.getBoundingClientRect();
-      if (!seen(b, main.contains(e) ? r.mainTop : 0) || b.width > W * 0.8 || getComputedStyle(e).visibility !== 'visible') continue;
-      const d = dist(b), q = near(d), A = elementActor(r, e, d), x = Math.random();
+      const cb = e.getBoundingClientRect(), inNav = nav.contains(e);
+      if (!real(cb) || cb.width > W * 0.8 || getComputedStyle(e).visibility !== 'visible') continue;
+      const b = toPage(r, cb), d = dist(b), q = near(d), A = elementActor(r, e, b, d), x = Math.random();
       A.q = q;
+      A.nav = inNav;
       A.hit = e === bubble ? r.at.snap : hitAt(d);
-      A.fate = e === bubble ? 'launch' : e.matches('.flower canvas') ? 'topple' : x < 0.32 * q ? 'fall' : x < 0.68 * q ? 'hang' : 'crook';
+      // the nav stays on screen while the page scrolls under it, so nothing in it falls, it only hangs or goes crooked
+      A.fate = e === bubble ? 'launch' : e.matches('.flower canvas') ? 'topple'
+        : !inNav && x < 0.32 * q ? 'fall' : x < 0.68 * q ? 'hang' : 'crook';
     }
 
-    // the words on screen, measured where they are before anything changes
+    // the words on the whole page, measured where they are before anything changes. about half of them near the 🤓
+    // break, a third of them far from it
     const words = [];
     for (const scope of [nav, main]) {
-      const top = scope === main ? r.mainTop : 0;
       const walk = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
       for (let n; (n = walk.nextNode());) {
         const parent = n.parentElement;
@@ -250,24 +336,15 @@
           range.setStart(n, m.index);
           range.setEnd(n, m.index + m[0].length);
           const rects = range.getClientRects();
-          if (rects.length !== 1 || !seen(rects[0], top)) continue;
-          const d = dist(rects[0]);
-          words.push({ n, start: m.index, end: m.index + m[0].length, text: m[0], letter, b: rects[0], d, score: d * rand(0.7, 1.3) });
+          if (rects.length !== 1 || !real(rects[0])) continue;
+          const b = toPage(r, rects[0]), d = dist(b);
+          if (Math.random() > 0.2 + 0.4 * near(d)) continue;
+          words.push({ n, start: m.index, end: m.index + m[0].length, text: m[0], letter, b, d, score: d * rand(0.7, 1.3) });
         }
       }
     }
-    const chosen = words.sort((a, b) => a.score - b.score).slice(0, MAX_WORDS).filter(() => Math.random() > 0.08);
-
-    // the crack rips what it runs through. the tear is jagged down to the pixel
-    if (!r.calm) {
-      for (const k of chosen) {
-        const { left, right, top, bottom, height } = k.b;
-        const ys = [left, (left + right) / 2, right].map(x => crackAt(r.crack, x));
-        if (!ys.some(y => y > top + height * 0.2 && y < bottom - height * 0.15)) continue;
-        k.tear = [];
-        for (let x = left - 2; x < right + 3; x += 3) k.tear.push({ x, y: crackAt(r.crack, x) + rand(-1.3, 1.3) });
-      }
-    }
+    const chosen = words.sort((a, b) => a.score - b.score).slice(0, MAX_WORDS);
+    if (!r.calm) for (const k of chosen) k.tear = tearFor(r, k.b);
 
     // wrap them, a text node at a time. an inline span with no style changes nothing about the layout
     const byNode = new Map();
@@ -291,10 +368,12 @@
       const made = wordActors(r, k), q = near(k.d), x = Math.random();
       k.span.style.visibility = 'hidden';
       if (made.length === 2) {
-        // the top half stays up crooked or hanging, the bottom half mostly drops
+        // one half stays up crooked or hanging, the other mostly drops. the one across rips as it snaps, the ones
+        // down the page as the shock gets there
         made[0].fate = x < 0.4 ? 'crook' : x < 0.75 ? 'hang' : 'fall';
         made[1].fate = Math.random() < 0.7 ? 'fall' : 'crook';
-        for (const A of made) { A.q = q; A.hit = r.at.snap + rand(0, 0.04); }
+        const at = k.tear.v ? hitAt(k.d) : r.at.snap + rand(0, 0.04);
+        for (const A of made) { A.q = q; A.hit = at; }
         continue;
       }
       const A = made[0];
@@ -312,18 +391,19 @@
     for (const A of r.actors) if (!A.own) pose(A);
   }
 
-  // what broke, grouped by where it belongs, top down. one jab of a leg fixes a group
+  // what broke, grouped by where it belongs, top down. one jab of a leg fixes a group. a longer page gets more groups
   function group(r) {
     const list = r.actors.filter(A => A.fate).sort((a, b) => a.hy - b.hy);
-    let R = 60, out;
+    const most = Math.round(clamp(r.bottom / 200, 14, 36));
+    let R = 80, out;
     do {
       out = [];
       const left = new Set(list);
       for (const A of list) {
         if (!left.has(A)) continue;
-        const c = { members: [], x: 0, y: 0, taken: false };
+        const c = { members: [], x: 0, y: 0, taken: false, nav: A.nav };
         for (const B of left) {
-          if (Math.hypot(B.hx - A.hx, B.hy - A.hy) > R) continue;
+          if (B.nav !== A.nav || Math.hypot(B.hx - A.hx, B.hy - A.hy) > R) continue;
           // the halves of a ripped word always go together
           for (const X of B.pair ? [B, B.pair] : [B]) {
             if (left.delete(X)) c.members.push(X);
@@ -334,24 +414,27 @@
         out.push(c);
       }
       R *= 1.25;
-    } while (out.length > MAX_TAPS);
+    } while (out.length > most);
     r.clusters = out;
   }
 
   // ---------- physics
 
-  // where it is on screen. a copy's box is placed directly. the real element is moved by a transform about its own
-  // transform-origin, so the shift makes up the difference to turning it about its middle
+  // where it is. a copy's box is placed directly. the real element is moved by a transform about its own
+  // transform-origin, so the shift makes up the difference to turning it about its middle. nothing's written when
+  // nothing moved
   function pose(A, jx = 0, jy = 0) {
     const c = Math.cos(A.a), s = Math.sin(A.a);
+    let tf;
     if (A.own) {
       const px = A.w / 2 - A.ox, py = A.h / 2 - A.oy;
       let tx = A.cx - A.hx + jx + px - (c * px - s * py), ty = A.cy - A.hy + jy + py - (s * px + c * py);
       if (A.tilt) [tx, ty] = [Math.cos(A.tilt) * tx + Math.sin(A.tilt) * ty, -Math.sin(A.tilt) * tx + Math.cos(A.tilt) * ty];
-      A.node.style.transform = `translate(${tx.toFixed(2)}px,${ty.toFixed(2)}px) rotate(${A.a.toFixed(4)}rad)`;
+      tf = `translate(${tx.toFixed(2)}px,${ty.toFixed(2)}px) rotate(${A.a.toFixed(4)}rad)`;
     } else {
-      A.node.style.transform = `translate(${(A.cx - A.ox + jx).toFixed(2)}px,${(A.cy - A.oy + jy).toFixed(2)}px) rotate(${A.a.toFixed(4)}rad)`;
+      tf = `translate(${(A.cx - A.ox + jx).toFixed(2)}px,${(A.cy - A.oy + jy).toFixed(2)}px) rotate(${A.a.toFixed(4)}rad)`;
     }
+    if (tf !== A.tf) A.node.style.transform = A.tf = tf;
   }
 
   function corners(A) {
@@ -370,7 +453,8 @@
     A.a += A.va * dt;
   }
 
-  // hanging off a pin. gravity turns it about the pin, and it can't swing through the bottom of the screen
+
+  // hanging off a pin. gravity turns it about the pin, and it can't swing through the ledge under it
   function swing(r, A, dt) {
     const { x, y, rx, ry } = A.pin, k2 = (A.w * A.w + A.h * A.h) / 12 + rx * rx + ry * ry;
     const at = a => [x + Math.cos(a) * rx - Math.sin(a) * ry, y + Math.sin(a) * rx + Math.cos(a) * ry];
@@ -379,25 +463,25 @@
     const before = A.a;
     A.a += A.va * dt;
     [A.cx, A.cy] = at(A.a);
-    if (corners(A).some(p => A.cy + p.ry > r.H)) {
+    if (corners(A).some(p => A.cy + p.ry > A.floor)) {
       A.a = before;
       A.va *= -0.3;
       [A.cx, A.cy] = at(A.a);
     }
   }
 
-  // falling free, a box that bounces off the bottom and the sides of the screen. each corner that goes through gets
-  // an impulse back out, with friction, so it tumbles and settles like a thing would
+  // falling free, a box that bounces off the ledge it lands on and the sides of the screen. each corner that goes
+  // through gets an impulse back out, with friction, so it tumbles and settles like a thing would
   function fall(r, A, dt) {
     A.vy += GRAVITY * dt;
     A.cx += A.vx * dt;
     A.cy += A.vy * dt;
     A.a += A.va * dt;
-    const I = (A.w * A.w + A.h * A.h) / 12;
+    const I = (A.w * A.w + A.h * A.h) / 12, floor = floorAt(r, A.cx, A.from);
     let up = 0, side = 0;
     for (const { rx, ry } of corners(A)) {
       const x = A.cx + rx, y = A.cy + ry;
-      if (y > r.H) { up = Math.max(up, y - r.H); contact(A, rx, ry, 0, -1, I); }
+      if (y > floor) { up = Math.max(up, y - floor); contact(A, rx, ry, 0, -1, I); }
       if (x < 0) { side = Math.max(side, -x); contact(A, rx, ry, 1, 0, I); }
       if (x > r.W) { side = Math.min(side, r.W - x); contact(A, rx, ry, -1, 0, I); }
     }
@@ -422,11 +506,14 @@
     A.va += (rt * jt) / I;
   }
 
+
   // the shock gets to it
   function hit(r, A) {
     const dx = A.hx - r.origin.x, dy = A.hy - r.origin.y, d = Math.hypot(dx, dy) || 1;
     const nx = dx / d, ny = dy / d, q = A.q, size = Math.sqrt(A.w * A.h);
     A.mode = A.fate === 'launch' ? 'fall' : A.fate;
+    A.from = A.hy + A.h / 2 - 2;
+    A.floor = A.nav ? Infinity : floorAt(r, A.hx, A.from);
     if (A.fate === 'typo') A.node.textContent = A.wrong;
     if (A.fate === 'launch') {
       // the 🤓 itself pops off
@@ -443,7 +530,7 @@
       A.pin = { x: A.hx + (side * A.w) / 2, y: A.hy - A.h / 2 + rand(0, 3), rx: (-side * A.w) / 2, ry: A.h / 2 };
       A.va = rand(-1, 1) * 2 * q;
       // some give way a bit later
-      if (Math.random() < 0.3) A.snapAt = r.t + rand(0.8, 2.4);
+      if (!A.nav && Math.random() < 0.3) A.snapAt = r.t + rand(0.8, 2.4);
     } else if (A.fate === 'topple') {
       // the plant tips over away from the 🤓, about its base
       A.pin = { x: A.hx, y: A.hy + A.h / 2, rx: 0, ry: -A.h / 2 };
@@ -470,13 +557,19 @@
     chips(r, A.cx, A.cy, A.own ? 6 : A.letter ? 4 : 2, 200 * q, A.col);
   }
 
-  // jabbed by the spider: everything in the group springs home. the ones that ended up far away get a thread
+  // jabbed by the spider: everything in the group springs home. a word's home is measured again first, in case
+  // something above it changed size since. the ones that ended up far away get a thread
   function fix(r, c, L) {
     r.thud = Math.max(r.thud, 2.4);
     r.rings.push({ x: c.x, y: c.y, t: r.t });
     sparks(r, c.x, c.y, 16);
     for (const A of c.members) {
       if (A.mode === 'home' || A.mode === 'done') continue;
+      if (!A.own) {
+        const b = A.span.getBoundingClientRect();
+        A.hx = b.left - r.sh.x + A.ox;
+        A.hy = b.top - r.sh.y - r.mainTop + main.scrollTop + A.oy;
+      }
       A.reel = Math.hypot(A.cx - A.hx, A.cy - A.hy) > 70;
       if (A.reel && L) r.threads.push({ A, L });
       A.mode = 'fix';
@@ -496,9 +589,21 @@
         const p = t / T_CRACK, j = (A.fate === 'launch' ? 3 : 1.4) * p * A.q;
         if (A.d < p * 900) pose(A, rand(-j, j), rand(-j, j));
         return;
-      } else return pose(A);
+      }
+      // waiting for the shock, put back straight once after shivering
+      if (!A.still) { A.still = true; pose(A); }
+      return;
     }
-    if (A.mode === 'crook' || A.mode === 'typo') spring(A, A.hx + A.dx, A.hy + A.dy, A.ta, 220, 0.3, dt);
+    if (A.mode === 'crook' || A.mode === 'typo') {
+      // once it's stopped wobbling it's left alone, unless it's glitching
+      if (!A.flick && Math.abs(A.vx) + Math.abs(A.vy) < 0.4 && Math.abs(A.va) < 0.004 && Math.abs(A.cx - A.hx - A.dx) + Math.abs(A.cy - A.hy - A.dy) < 0.3) {
+        if (!A.settled) pose(A);
+        A.settled = true;
+        return;
+      }
+      A.settled = false;
+      spring(A, A.hx + A.dx, A.hy + A.dy, A.ta, 220, 0.3, dt);
+    }
     else if (A.mode === 'hang' || A.mode === 'topple') {
       swing(r, A, dt);
       if (A.snapAt && t > A.snapAt) {
@@ -507,6 +612,7 @@
         A.vx = -A.va * (A.cy - A.pin.y);
         A.vy = A.va * (A.cx - A.pin.x);
         A.va *= 1.5;
+        A.from = A.cy + Math.max(...corners(A).map(p => p.ry)) - 2;
         chips(r, A.pin.x, A.pin.y, 3, 120, A.col);
       }
     } else if (A.mode === 'fall') {
@@ -537,16 +643,15 @@
       // back where it belongs. a ripped one waits for its other half, then they're welded
       if (A.pair && A.pair.mode !== 'home') return pose(A);
       if (A.pair) {
-        const top = A.tear ? A : A.pair;
-        r.welds.push({ pts: top.tear, t });
-        for (let i = 0; i < top.tear.length; i += 4) sparks(r, top.tear[i].x, top.tear[i].y, 1);
+        const one = A.tear ? A : A.pair;
+        r.welds.push({ pts: one.tear, t });
+        for (let i = 0; i < one.tear.length; i += 4) sparks(r, one.tear[i].x, one.tear[i].y, 1);
       }
       for (const B of A.pair ? [A, A.pair] : [A]) handBack(B);
       return;
     }
     pose(A, A.flick ? rand(-5, 5) : 0, 0);
   }
-
   // the real one shows again
   function handBack(A) {
     A.mode = 'done';
@@ -557,7 +662,8 @@
     }
   }
 
-  // broken things glitch now and then, a colour split and a jump to the side. a typo flickers to garbage
+
+  // broken things on screen glitch now and then, a colour split and a jump to the side. a typo flickers to garbage
   function flicker(r, t) {
     for (const A of r.actors) {
       if (A.flick && --A.flick === 0 && A.mode !== 'done') {
@@ -565,21 +671,26 @@
         if (A.mode === 'typo') A.node.textContent = A.wrong;
       }
     }
-    if (Math.random() > 0.4) return;
-    const A = pick(r.actors);
-    const live = t < r.at.snap ? A?.d < (t / T_CRACK) * 900 && A.mode === 'still' : BROKEN.has(A?.mode);
-    if (!live || A.flick) return;
-    A.flick = 2 + Math.floor(Math.random() * 4);
-    A.node.style.filter = 'drop-shadow(2px 0 rgba(255,40,90,.7)) drop-shadow(-2px 0 rgba(40,240,255,.7))';
-    if (A.mode === 'typo') A.node.textContent = glitched(A.wrong);
+    if (Math.random() > 0.5) return;
+    for (let tries = 0; tries < 6; tries++) {
+      const A = pick(r.actors);
+      if (!A || A.flick || A.cy < r.view.top - r.mainTop || A.cy > r.view.bottom) continue;
+      const live = t < r.at.snap ? A.d < (t / T_CRACK) * 900 && A.mode === 'still' : BROKEN.has(A.mode);
+      if (!live) continue;
+      A.flick = 2 + Math.floor(Math.random() * 4);
+      A.node.style.filter = 'drop-shadow(2px 0 rgba(255,40,90,.7)) drop-shadow(-2px 0 rgba(40,240,255,.7))';
+      if (A.mode === 'typo') A.node.textContent = glitched(A.wrong);
+      return;
+    }
   }
 
   // ---------- particles
 
-  // bits off broken things, they drop and bounce on the bottom of the screen
+  // bits off broken things, they drop and bounce on the ledge below
   function chips(r, x, y, n, power, col) {
+    const floor = floorAt(r, x, y);
     for (let i = 0; i < n; i++) {
-      r.parts.push({ x, y, vx: rand(-1, 1) * power, vy: rand(-1.4, 0.3) * power, s: rand(1.4, 3.4), col, life: rand(1, 2.2) });
+      r.parts.push({ x, y, vx: rand(-1, 1) * power, vy: rand(-1.4, 0.3) * power, s: rand(1.4, 3.4), col, life: rand(1, 2.2), floor });
     }
   }
   // off a jab, they fly up off the page and fall back
@@ -596,16 +707,21 @@
   function dims(W, H) {
     const k = clamp(Math.min(W, H * 1.4) / 900, 0.6, 1), deg = Math.PI / 180;
     return {
-      k, thigh: 88 * k, shin: 116 * k, z: 46 * k, lag: 48 * k, lift: 30 * k, speed: 320 * k, reach: 190 * k, stepTime: 0.15,
+      k, thigh: 88 * k, shin: 116 * k, z: 46 * k, lag: 48 * k, lift: 30 * k, speed: 420 * Math.max(k, 0.85), reach: 190 * k, stepTime: 0.13,
       // hips on the body, ahead and out to the side. feet at rest, at an angle from straight ahead and a distance
       hips: [[17, 11], [9, 15], [0, 15], [-9, 12]].map(([u, v]) => [u * k, v * k]),
       rests: [[40, 152], [80, 140], [113, 136], [146, 150]].map(([a, d]) => [Math.cos(a * deg) * d * k, Math.sin(a * deg) * d * k]),
     };
   }
 
+
+  // it comes in from just above the screen
   function makeSpider(r) {
     const D = dims(r.W, r.H);
-    const s = { D, x: r.W / 2 + rand(-80, 80), y: -230 * D.k, z: D.z, h: Math.PI / 2, vx: 0, vy: 0, t: 0, glitch: 0.4, legs: [] };
+    const s = {
+      D, x: r.W / 2 + rand(-80, 80), y: r.view.top - r.mainTop - 230 * D.k, z: D.z, h: Math.PI / 2,
+      vx: 0, vy: 0, t: 0, glitch: 0.4, legs: [],
+    };
     for (let i = 0; i < 4; i++) {
       for (const side of [-1, 1]) {
         const L = { i, side, group: (i + (side > 0)) % 2, step: null, task: null, L1: D.thigh * LEN[i], L2: D.shin * LEN[i] };
@@ -615,7 +731,6 @@
     }
     return s;
   }
-
   // the body's own frame to the page: u ahead, v to its right, z up off the page
   function local(s, u, v, z) {
     const c = Math.cos(s.h), n = Math.sin(s.h);
@@ -641,28 +756,43 @@
     };
   }
 
+
   function updateSpider(r, dt) {
     const s = r.spider, D = s.D;
     s.t += dt;
+    // now and then it glitches for a moment
+    s.glitch -= dt;
+    if (s.glitch <= 0 && Math.random() < dt * 0.9) {
+      s.glitch = rand(0.06, 0.22);
+      s.asciiLegs = Math.random() < 0.5;
+    }
+    if (s.leap) return fly(r, s, dt);
     const todo = r.clusters.filter(c => !c.taken);
     let busy = s.legs.filter(L => L.task).length;
 
-    // where to: the nearest thing still broken in the top band of what's left, standing off it by half a leg.
-    // nothing left, off the bottom
+    // where to: what's broken on screen first, otherwise the top of what's left. the nearest one there, standing off
+    // it by half a leg, or under it for the nav, which stays at the top of the screen
     let goal = { x: s.x, y: s.y };
     if (todo.length) {
-      if (!s.focus || s.focus.taken) {
-        const top = Math.min(...todo.map(c => c.y)), d = c => Math.hypot(c.x - s.x, c.y - s.y);
-        s.focus = todo.filter(c => c.y < top + 160).reduce((a, c) => (d(c) < d(a) ? c : a));
+      if (!s.focus || s.focus.taken || s.t > s.repick) {
+        const seen = todo.filter(c => c.y > r.view.top - r.mainTop - 20 && c.y < r.view.bottom + 20);
+        const pool = seen.length ? seen : todo, d = c => Math.hypot(c.x - s.x, c.y - s.y);
+        const top = Math.min(...pool.map(c => c.y));
+        s.focus = pool.filter(c => c.y < top + 180).reduce((a, c) => (d(c) < d(a) ? c : a));
+        s.repick = s.t + 0.5;
       }
-      const dx = s.focus.x - s.x, dy = s.focus.y - s.y, d = Math.hypot(dx, dy) || 1;
-      // not off the top of the screen though, it reaches up for things up there
-      goal = { x: s.focus.x - (dx / d) * D.reach * 0.5, y: Math.max(80 * D.k, s.focus.y - (dy / d) * D.reach * 0.5) };
-    } else if (!busy) goal = { x: s.x, y: r.H + 600 * D.k };
+      const c = s.focus, dx = c.x - s.x, dy = c.y - s.y, d = Math.hypot(dx, dy) || 1;
+      goal = c.nav ? { x: c.x, y: c.y + 100 * D.k } : { x: c.x - (dx / d) * D.reach * 0.5, y: c.y - (dy / d) * D.reach * 0.5 };
+      // too far to walk, it jumps there on a thread
+      if (!busy && Math.hypot(goal.x - s.x, goal.y - s.y) > (r.H - r.mainTop) * 0.7) return leap(r, s, goal);
+    } else if (!busy) {
+      // all fixed, it's pulled back up off the top of the screen on its thread
+      return leap(r, s, { x: s.x, y: r.view.top - r.mainTop - 420 * D.k }, true);
+    }
 
     // walk there, slowly while a leg is busy, turning to face the way it goes
     const gx = goal.x - s.x, gy = goal.y - s.y, gd = Math.hypot(gx, gy);
-    const sp = Math.min(D.speed * (busy ? 0.5 : 1), gd * 2.4);
+    const sp = Math.min(D.speed * (busy ? 0.6 : 1), gd * 2.4);
     s.vx += ((gd > 0.5 ? (gx / gd) * sp : 0) - s.vx) * Math.min(1, dt * 3);
     s.vy += ((gd > 0.5 ? (gy / gd) * sp : 0) - s.vy) * Math.min(1, dt * 3);
     s.x += s.vx * dt;
@@ -671,9 +801,9 @@
     if (v > 35) s.h += wrapAngle(Math.atan2(s.vy, s.vx) - s.h) * Math.min(1, dt * 2.6);
     s.z = D.z + Math.sin(s.t * 9) * 2.2 * D.k * Math.min(1, v / 80);
 
-    // anything a free front leg can reach gets jabbed, three at a time
+    // anything a free front leg can reach gets jabbed, four at a time
     for (const c of todo) {
-      if (busy >= 3) break;
+      if (busy >= 4) break;
       let best = null, bd = D.reach * 0.92;
       for (const L of s.legs) {
         if (L.task || L.step || L.i > 1) continue;
@@ -698,7 +828,7 @@
       if (L.step.t < 1) { stepping[L.group]++; continue; }
       L.step = null;
       r.thud = Math.max(r.thud, 0.7);
-      if (L.f.y > 0 && L.f.y < r.H) chips(r, L.f.x, L.f.y, 2, 50, C.grey);
+      chips(r, L.f.x, L.f.y, 2, 50, C.grey);
     }
     for (const L of s.legs) {
       if (L.step || L.task) continue;
@@ -709,21 +839,45 @@
       stepping[L.group]++;
     }
 
-    // walking over the crack zips it shut, out both ways from under it
-    if (r.crack && !r.heal && s.y > crackAt(r.crack, s.x) - 30) {
-      const p = r.crack.points;
-      let i = 0;
-      p.forEach((q, j) => { if (Math.abs(q.x - s.x) < Math.abs(p[i].x - s.x)) i = j; });
-      r.heal = { i, t: r.t, end: r.t + Math.max(i, p.length - i) * HEAL_STEP + 0.8 };
+    // the cracks close up around it as it goes, out from under it
+    for (const c of r.cracks) {
+      c.points.forEach((p, i) => {
+        if (c.close[i] !== Infinity || r.t < c.show[i]) return;
+        const d = Math.hypot(p.x - s.x, p.y - s.y);
+        if (d < HEAL_R * D.k) c.close[i] = r.t + d / 1500;
+      });
     }
+  }
 
-    // now and then it glitches for a moment
-    s.glitch -= dt;
-    if (s.glitch <= 0 && Math.random() < dt * 0.9) {
-      s.glitch = rand(0.06, 0.22);
-      s.asciiLegs = Math.random() < 0.5;
-    }
-    if (s.y > r.H + 230 * D.k) s.gone = true;
+  // a jump on a thread, or leaving for good up off the screen
+  function leap(r, s, to, exit) {
+    const d = Math.hypot(to.x - s.x, to.y - s.y);
+    s.leap = { from: { x: s.x, y: s.y }, to, t: 0, exit, dur: exit ? 0.9 : clamp(d / 1800, 0.55, 1.2), hop: (exit ? 50 : Math.min(240, d * 0.18)) * s.D.k };
+    // the thread runs from where it took off, or for leaving, from far up off the screen
+    r.silk = { x: s.x, y: exit ? s.y - 4000 : s.y, until: Infinity };
+    for (const L of s.legs) L.step = null;
+    s.glitch = Math.max(s.glitch, 0.12);
+  }
+  function fly(r, s, dt) {
+    const J = s.leap, D = s.D;
+    J.t += dt;
+    const p = clamp(J.t / J.dur, 0, 1), e = p < 0.5 ? 2 * p * p : 1 - (2 - 2 * p) ** 2 / 2;
+    const x = J.from.x + (J.to.x - J.from.x) * e, y = J.from.y + (J.to.y - J.from.y) * e;
+    if (!J.exit && Math.hypot(x - s.x, y - s.y) > 0.5) s.h += wrapAngle(Math.atan2(y - s.y, x - s.x) - s.h) * Math.min(1, dt * 6);
+    s.x = x;
+    s.y = y;
+    s.z = D.z + Math.sin(Math.PI * p) * J.hop;
+    // legs pulled in under it
+    for (const L of s.legs) L.f = local(s, D.rests[L.i][0] * 0.45, D.rests[L.i][1] * 0.45 * L.side, Math.max(0, s.z - 36 * D.k));
+    if (p < 1) return;
+    s.leap = null;
+    if (J.exit) { s.gone = true; return; }
+    // lands with a thud, feet down where they'd stand
+    for (const L of s.legs) L.f = restOf(s, L);
+    r.thud = Math.max(r.thud, 3);
+    r.rings.push({ x: s.x, y: s.y, t: r.t, big: true });
+    chips(r, s.x, s.y, 10, 160, C.grey);
+    r.silk.until = r.t;
   }
 
   // a leg fixing something: up and over it, a jab, holding there while it all comes back, then back to walking
@@ -732,27 +886,26 @@
     const next = phase => { T.phase = phase; T.t = 0; T.from = { ...L.f }; };
     T.t += dt;
     if (T.phase === 0) {
-      const p = ease(T.t / 0.3);
+      const p = ease(T.t / 0.24);
       L.f = {
         x: T.from.x + (c.x - T.from.x) * p, y: T.from.y + (c.y - T.from.y) * p,
         z: T.from.z + (hover - T.from.z) * p + Math.sin(Math.PI * p) * 24 * k,
       };
-      if (T.t >= 0.3) next(1);
+      if (T.t >= 0.24) next(1);
     } else if (T.phase === 1) {
-      L.f = { x: c.x, y: c.y, z: hover * (1 - clamp(T.t / 0.075, 0, 1) ** 2) };
-      if (T.t >= 0.075) { next(2); fix(r, c, L); }
+      L.f = { x: c.x, y: c.y, z: hover * (1 - clamp(T.t / 0.06, 0, 1) ** 2) };
+      if (T.t >= 0.06) { next(2); fix(r, c, L); }
     } else if (T.phase === 2) {
       L.f = { x: c.x + rand(-0.8, 0.8), y: c.y + rand(-0.8, 0.8), z: 0 };
       if (Math.random() < dt * 30) sparks(r, c.x, c.y, 1);
       // until it's nearly all back, it settles on its own after
-      if ((T.t > 0.16 && c.members.every(A => A.mode !== 'fix' || Math.hypot(A.cx - A.hx, A.cy - A.hy) < 18)) || T.t > 0.7) next(3);
+      if ((T.t > 0.12 && c.members.every(A => A.mode !== 'fix' || Math.hypot(A.cx - A.hx, A.cy - A.hy) < 18)) || T.t > 0.6) next(3);
     } else {
-      const to = restOf(s, L), p = ease(T.t / 0.22);
+      const to = restOf(s, L), p = ease(T.t / 0.18);
       L.f = { x: T.from.x + (to.x - T.from.x) * p, y: T.from.y + (to.y - T.from.y) * p, z: Math.sin(Math.PI * p) * 34 * k };
-      if (T.t >= 0.22) { L.task = null; L.f.z = 0; }
+      if (T.t >= 0.18) { L.task = null; L.f.z = 0; }
     }
   }
-
   // ---------- drawing the spider
 
   function convexHull(pts) {
@@ -957,11 +1110,13 @@
     g.restore();
   }
 
-  // a glitch tears a few strips of it sideways
+
+  // a glitch tears a few strips of it sideways, on screen
   function tear(r, s) {
-    const g = r.ctx, d = r.dpr, k = s.D.k;
-    for (let i = 0; i < 3; i++) {
-      const y = s.y + rand(-140, 110) * k, h = rand(3, 14), x = Math.max(0, s.x - 230 * k), w = Math.min(r.W - x, 460 * k);
+    const g = r.ctx, d = r.dpr, k = s.D.k, sy = s.y + r.oy;
+    g.setTransform(d, 0, 0, d, 0, 0);
+    for (let i = 0; i < 2; i++) {
+      const y = sy + rand(-140, 110) * k, h = rand(3, 14), x = Math.max(0, s.x - 230 * k), w = Math.min(r.W - x, 460 * k);
       if (y < 0 || y + h > r.H || w <= 0) continue;
       g.drawImage(r.canvas, x * d, y * d, w * d, h * d, x + rand(-16, 16), y, w, h);
     }
@@ -973,50 +1128,81 @@
     if (run) return;
     const W = innerWidth, H = innerHeight;
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const b = bubble.getBoundingClientRect(), origin = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    const mainTop = main.getBoundingClientRect().top, scroll0 = main.scrollTop, dy = scroll0 - mainTop;
+    const b = bubble.getBoundingClientRect(), origin = { x: b.left + b.width / 2, y: b.top + b.height / 2 + dy };
     const h1 = document.querySelector('#s1 h1')?.getBoundingClientRect();
-    const aim = h1 && h1.bottom > 0 && h1.top < H ? h1.top + h1.height * 0.55 : origin.y;
+    const aim = h1?.height ? h1.top + h1.height * 0.55 + dy : origin.y;
 
-    // the overlay: the stand-ins for the words, and a canvas over them for everything drawn. it takes every click, so
-    // the page underneath can't be used mid break, and a click skips. the wall canvas sits behind the page, the crack
-    // is in the wall
-    const root = el('div', 'position:fixed;inset:0;z-index:50;overflow:hidden;touch-action:none');
-    const layer = el('div', 'position:absolute;inset:0');
+    // the stand-ins for the words go in a layer inside the page's scroller, so they scroll with the rest of it. the
+    // canvas for the spider and everything else drawn sits over the screen, follows the scroll itself and lets every
+    // touch through, so the page scrolls like it always does. the wall canvas sits behind the page, the cracks are in
+    // the wall
+    const layer = el('div', 'position:absolute;left:0;top:0;width:0;height:0;z-index:2;pointer-events:none');
+    const root = el('div', 'position:fixed;inset:0;z-index:50;overflow:hidden;pointer-events:none');
     const canvas = el('canvas', 'position:absolute;inset:0;width:100%;height:100%');
     const wall = el('canvas', 'position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none');
+    const skip = el('button', `position:fixed;right:16px;bottom:16px;z-index:51;padding:10px 14px;border:0;`
+      + `background:var(--frame-bcol);color:var(--text-grey);font:13px/1 ${MONO};cursor:pointer;opacity:0;`
+      + (calm ? '' : 'transition:opacity .4s .8s'));
+    skip.type = 'button';
+    skip.textContent = '// skip';
+    skip.setAttribute('aria-label', 'skip, put the site back together');
+    skip.addEventListener('click', finish);
     root.setAttribute('aria-hidden', 'true');
-    root.append(layer, canvas);
+    root.append(canvas);
     const dpr = devicePixelRatio || 1;
     for (const c of [canvas, wall]) { c.width = W * dpr; c.height = H * dpr; }
     const bg = document.getElementById('bg');
 
     run = {
-      W, H, calm, origin, root, layer, canvas, wall, dpr, ctx: canvas.getContext('2d'), wctx: wall.getContext('2d'),
-      crack: calm ? null : crackLine(origin, W, H, aim), at: { snap: calm ? 0 : T_CRACK, spider: T_CRACK + T_SPIDER },
-      actors: [], wrapped: [], clusters: [], parts: [], rings: [], threads: [], welds: [], spider: null, heal: null,
-      thud: 0, t: 0, phase: { x: rand(0, 9), y: rand(0, 9) }, t0: performance.now(), last: performance.now(),
-      scroll: main.scrollTop, mainTop: main.getBoundingClientRect().top,
+      W, H, calm, origin, root, layer, canvas, wall, skip, dpr, ctx: canvas.getContext('2d'), wctx: wall.getContext('2d'),
+      mainTop, dy, bottom: main.scrollHeight, maxScroll: main.scrollHeight - main.clientHeight, at: { snap: calm ? 0 : T_CRACK, spider: T_CRACK + T_SPIDER },
+      view: { top: scroll0, bottom: scroll0 + H - mainTop }, oy: mainTop - scroll0, sh: { x: 0, y: 0 },
+      cracks: [], ledges: [], actors: [], wrapped: [], clusters: [], parts: [], rings: [], threads: [], welds: [],
+      spider: null, silk: null, thud: 0, t: 0, user: -Infinity, expect: scroll0, healEnd: Infinity,
+      phase: { x: rand(0, 9), y: rand(0, 9) }, t0: performance.now(), last: performance.now(),
       // the camera shake moves these, they get their own style back after
       shaken: [nav, main, bg].filter(Boolean).map(e => [e, e.getAttribute('style')]),
     };
+    if (!calm) {
+      // one crack across through the 🤓, and one to three running down the page from it
+      const across = crackAcross(run, aim), n = Math.round(clamp(W / 450, 1, 3));
+      run.cracks.push(across);
+      for (let i = 0; i < n; i++) {
+        const x = clamp((W * (i + 0.5)) / n + rand(-60, 60), 20, W - 20);
+        run.cracks.push(crackDown(run, { x, y: crackAt(across, x) }));
+      }
+    }
+    run.ledges = ledges(run);
     collect(run);
     group(run);
     if (calm) for (const A of run.actors) hit(run, A);
-    document.body.append(root);
+    main.append(layer);
+    document.body.append(root, skip);
     (bg || document.body.firstChild).after(wall);
-    root.addEventListener('pointerdown', finish);
+    getComputedStyle(skip).opacity;
+    skip.style.opacity = '1';
+    addEventListener('click', onClick, true);
     addEventListener('keydown', onKey, true);
+    addEventListener('wheel', onInput, { passive: true });
+    addEventListener('touchstart', onInput, { passive: true });
     addEventListener('resize', onResize);
     frame = requestAnimationFrame(tick);
   }
 
   // everything was measured for this width. a phone's bars sliding in and out only change the height, that's fine
   const onResize = () => run && innerWidth !== run.W && finish();
-
-  // esc skips. the keys that would scroll the page under it do nothing
+  // clicks don't reach the page while it's broken, so nothing opens and shoves the rest around mid fix
+  const onClick = e => {
+    if (!run || e.target === run.skip) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  // scrolling by hand stops the page following the spider for a bit
+  const onInput = () => run && (run.user = run.t);
   function onKey(e) {
     if (e.key === 'Escape') return finish();
-    if ([' ', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(e.key)) e.preventDefault();
+    if (SCROLL_KEYS.includes(e.key)) onInput();
   }
 
   function shake(r, t) {
@@ -1029,157 +1215,224 @@
     return { x: amp * n(53, 31, r.phase.x), y: amp * n(47, 29, r.phase.y) };
   }
 
+  // when nobody's scrolled for a bit, the page follows the spider: once it wanders near the top or bottom of the
+  // screen, it scrolls until it's a bit above the middle again
+  function camera(r, dt) {
+    const s = r.spider;
+    if (!s || s.gone || s.leap?.exit || r.t - r.user < IDLE) return (r.follow = false);
+    const h = r.H - r.mainTop, at = (s.y - r.view.top) / h;
+    if (at < 0.15 || at > 0.72) r.follow = true;
+    if (!r.follow) return;
+    const want = clamp(s.y - h * 0.45, 0, r.maxScroll);
+    if (Math.abs(want - r.view.top) < 6) return (r.follow = false);
+    // where it asked to go is kept, reading the scroll back here would make the browser lay the page out again
+    r.expect = Math.round(r.view.top + (want - r.view.top) * Math.min(1, dt * 2.4));
+    main.scrollTo({ top: r.expect, behavior: 'instant' });
+  }
+
   function tick(now) {
     const r = run, dt = Math.min(1 / 30, (now - r.last) / 1000);
     r.last = now;
     const t = (r.t = (now - r.t0) / 1000);
-    if (main.scrollTop !== r.scroll) main.scrollTo({ top: r.scroll, behavior: 'instant' });
+    // where the screen is on the page. a scroll the camera didn't make was someone scrolling
+    const st = main.scrollTop;
+    if (Math.abs(st - r.expect) > 1) r.user = t;
+    r.expect = st;
+    r.view.top = st;
+    r.view.bottom = st + r.H - r.mainTop;
+    // the camera moves first, from where the spider got to last frame. scrolling after this frame's changes would
+    // make the browser lay the page out again just for that
+    camera(r, dt);
+    if (r.expect !== st) {
+      r.view.top = r.expect;
+      r.view.bottom = r.expect + r.H - r.mainTop;
+    }
+    r.oy = r.mainTop - r.view.top;
     r.thud *= Math.exp(-dt * 10);
 
-    const sh = shake(r, t), tf = `translate(${sh.x.toFixed(2)}px,${sh.y.toFixed(2)}px)`;
+    const sh = (r.sh = shake(r, t)), tf = `translate(${sh.x.toFixed(2)}px,${sh.y.toFixed(2)}px)`;
     for (const [e] of r.shaken) e.style.transform = tf;
     r.root.style.transform = r.wall.style.transform = tf;
 
     if (!r.calm && t >= r.at.snap && !r.snapped) {
       // the snap. the crack opens and spits bits of wall
       r.snapped = true;
-      r.crack.points.forEach((p, i) => i % 3 || chips(r, p.x, p.y, 2, 240, C.grey));
+      r.cracks[0].points.forEach((p, i) => i % 3 || chips(r, p.x, p.y, 2, 240, C.grey));
     }
     for (const A of r.actors) update(r, A, t, dt);
     if (!r.calm) flicker(r, t);
 
     if (r.calm) {
-      // one group at a time, straight back
+      // a group at a time, straight back
       r.clusters.forEach((c, i) => {
-        if (c.taken || t < 0.9 + i * 0.16) return;
+        if (c.taken || t < 0.6 + i * 0.05) return;
         c.taken = true;
-        for (const A of c.members) { if (A.fate === 'typo') A.node.textContent = A.text; handBack(A); }
+        for (const A of c.members) handBack(A);
       });
     } else if (t >= r.at.spider) {
-      r.spider ||= makeSpider(r);
-      if (!r.spider.gone) updateSpider(r, dt);
-      // whatever's somehow left when it's gone goes back on its own
-      else for (const c of r.clusters) if (!c.taken) { c.taken = true; fix(r, c, null); }
+      const s = (r.spider ||= makeSpider(r));
+      if (!s.gone) {
+        updateSpider(r, dt);
+        if (s.gone) {
+          // it's left. whatever's somehow still broken goes back on its own, and the rest of the cracks zip shut
+          // out from where it was
+          for (const c of r.clusters) if (!c.taken) { c.taken = true; fix(r, c, null); }
+          let end = r.t;
+          for (const c of r.cracks) {
+            c.points.forEach((p, i) => {
+              if (c.close[i] === Infinity) c.close[i] = r.t + 0.2 + Math.hypot(p.x - s.x, p.y - s.y) / 2500;
+              end = Math.max(end, c.close[i]);
+            });
+          }
+          r.healEnd = end + 0.85;
+        }
+      }
     }
 
     drawWall(r, t);
     drawFx(r, t, dt);
 
     const settled = r.actors.every(A => A.mode === 'done');
-    if (r.calm ? settled : (r.spider?.gone && settled && (!r.heal || t > r.heal.end)) || t > r.at.spider + 45) return finish();
+    if (r.calm ? settled : (r.spider?.gone && settled && t > r.healEnd) || t > r.at.spider + 150) return finish();
     frame = requestAnimationFrame(tick);
   }
 
-  // the crack, behind the page. a bright hairline while it runs, then a dark gap with a lit bottom lip, widest at the
-  // 🤓. the spider zips it shut, stitch by stitch
+  // the cracks, behind the page, the part of them on screen. a bright hairline while the first one runs, then dark
+  // gaps with a lit edge, widest at the 🤓. the ones down the page glow at the tip as they run. they close with a
+  // stitch where the spider's been
   function drawWall(r, t) {
-    if (r.calm || (t > r.at.snap + 0.4 && !(r.heal && t < r.heal.end + 0.05))) return;
-    const g = r.wctx, { points: pts, origin: o, branches } = r.crack;
+    if (r.calm) return;
+    const busy = t < r.at.snap + 0.4 || r.cracks.some(c => c.show.some(v => t > v - 0.05 && t < v + 0.2) || c.close.some(v => t > v - 0.05 && t < v + 0.85));
+    if (!busy && r.wallAt === r.view.top) return;
+    r.wallAt = r.view.top;
+    const g = r.wctx, top = r.view.top - r.mainTop - 80, bottom = r.view.bottom + 80;
     g.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
     g.clearRect(0, 0, r.W, r.H);
+    g.translate(0, r.oy);
     g.lineCap = g.lineJoin = 'round';
     const path = (list, from, to) => {
       g.beginPath();
       for (let i = from; i <= to; i++) i === from ? g.moveTo(list[i].x, list[i].y) : g.lineTo(list[i].x, list[i].y);
     };
     if (t < r.at.snap) {
-      const reach = Math.ceil(ease(t / T_CRACK) * Math.max(o, pts.length - o));
-      const from = Math.max(0, o - reach), to = Math.min(pts.length - 1, o + reach);
+      const c = r.cracks[0], on = c.points.map((p, i) => t >= c.show[i]), from = on.indexOf(true), to = on.lastIndexOf(true);
+      if (from < 0) return;
       g.strokeStyle = 'rgba(255,255,255,.85)';
       g.shadowColor = 'rgba(255,255,255,.7)';
       g.shadowBlur = 6;
       g.lineWidth = 1.3;
-      path(pts, from, to);
+      path(c.points, from, to);
       g.stroke();
       g.lineWidth = 0.7;
-      for (const b of branches) if (b.at >= from && b.at <= to) { path(b.path, 0, b.path.length - 1); g.stroke(); }
+      for (const b of c.branches) if (on[b.at]) { path(b.path, 0, b.path.length - 1); g.stroke(); }
       return;
     }
-    const closeAt = i => (r.heal ? r.heal.t + Math.abs(i - r.heal.i) * HEAL_STEP : Infinity);
-    const open = i => ease((t - r.at.snap) / 0.18) * (1 - ease((t - closeAt(i)) / 0.18));
-    const wide = i => open(i) * (2 + 7 * Math.exp(-Math.abs(i - o) / 14));
-    // the branches first, scratched in
-    for (const b of branches) {
-      const k = open(b.at);
-      if (k < 0.02) continue;
-      g.globalAlpha = k;
-      g.strokeStyle = 'rgba(255,255,255,.08)';
+    g.font = `11px ${MONO}`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (const c of r.cracks) {
+      const pts = c.points;
+      const open = i => (t < c.show[i] ? 0 : ease((t - Math.max(c.show[i], r.at.snap)) / 0.18) * (1 - ease((t - c.close[i]) / 0.18)));
+      const o = pts.map((p, i) => open(i));
+      // a gap opens down from a crack across, and sideways from one running down
+      const [ux, uy] = c.dir === 'h' ? [0, 1] : [1, 0];
+      const a = pts.map((p, i) => ({ x: p.x - ux * c.wide[i] * o[i] * 0.4, y: p.y - uy * c.wide[i] * o[i] * 0.4 }));
+      const b = pts.map((p, i) => ({ x: p.x + ux * c.wide[i] * o[i] * 0.6, y: p.y + uy * c.wide[i] * o[i] * 0.6 }));
+      const shown = i => (o[i - 1] > 0.02 || o[i] > 0.02) && Math.max(pts[i - 1].y, pts[i].y) > top && Math.min(pts[i - 1].y, pts[i].y) < bottom;
+      for (const br of c.branches) {
+        const k = o[br.at];
+        if (k < 0.02 || br.path[0].y < top - 150 || br.path[0].y > bottom + 150) continue;
+        g.globalAlpha = k;
+        g.strokeStyle = 'rgba(255,255,255,.08)';
+        g.lineWidth = 1;
+        g.save();
+        g.translate(0, 1);
+        path(br.path, 0, br.path.length - 1);
+        g.stroke();
+        g.restore();
+        g.strokeStyle = 'rgba(0,0,0,.6)';
+        path(br.path, 0, br.path.length - 1);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+      g.beginPath();
+      for (let i = 1; i < pts.length; i++) {
+        if (!shown(i)) continue;
+        g.moveTo(a[i - 1].x, a[i - 1].y);
+        g.lineTo(a[i].x, a[i].y);
+        g.lineTo(b[i].x, b[i].y);
+        g.lineTo(b[i - 1].x, b[i - 1].y);
+        g.closePath();
+      }
+      g.fillStyle = VOID_COL;
+      g.fill();
+      // its edges a bit at a time, so the parts closing fade out with it
       g.lineWidth = 1;
-      g.save();
-      g.translate(0, 1);
-      path(b.path, 0, b.path.length - 1);
-      g.stroke();
-      g.restore();
-      g.strokeStyle = 'rgba(0,0,0,.6)';
-      path(b.path, 0, b.path.length - 1);
-      g.stroke();
+      for (let i = 1; i < pts.length; i++) {
+        if (!shown(i)) continue;
+        g.globalAlpha = Math.min(o[i - 1], o[i]);
+        g.strokeStyle = 'rgba(0,0,0,.55)';
+        path(a, i - 1, i);
+        g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,.16)';
+        path(b, i - 1, i);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+      pts.forEach((p, i) => {
+        if (p.y < top || p.y > bottom) return;
+        const age = t - c.show[i], shut = t - c.close[i];
+        // the tip of one running down the page
+        if (c.dir === 'v' && age >= 0 && age < 0.12) {
+          g.fillStyle = '#fff';
+          g.shadowColor = '#fff';
+          g.shadowBlur = 8;
+          g.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+          g.shadowBlur = 0;
+        }
+        // stitches where it's just closed, and the bright front of the closing
+        if (shut < 0 || shut > 0.8) return;
+        g.globalAlpha = 1 - shut / 0.8;
+        g.fillStyle = C.tech;
+        if (i % 2 === 0) g.fillText('x', p.x, p.y);
+        if (shut < 0.08) {
+          g.shadowColor = C.tech;
+          g.shadowBlur = 10;
+          g.fillRect(p.x - 2, p.y - 2, 4, 4);
+          g.shadowBlur = 0;
+        }
+        g.globalAlpha = 1;
+      });
     }
-    g.globalAlpha = 1;
-    const top = pts.map((p, i) => ({ x: p.x, y: p.y - wide(i) * 0.4 })), bottom = pts.map((p, i) => ({ x: p.x, y: p.y + wide(i) * 0.6 }));
-    g.beginPath();
-    top.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)));
-    for (let i = bottom.length - 1; i >= 0; i--) g.lineTo(bottom[i].x, bottom[i].y);
-    g.fillStyle = VOID_COL;
-    g.fill();
-    // its edges, a bit at a time so the closed parts fade out with it
-    g.lineWidth = 1;
-    for (let i = 1; i < pts.length; i++) {
-      g.globalAlpha = Math.min(open(i - 1), open(i));
-      if (g.globalAlpha < 0.02) continue;
-      g.strokeStyle = 'rgba(0,0,0,.55)';
-      path(top, i - 1, i);
-      g.stroke();
-      g.strokeStyle = 'rgba(255,255,255,.16)';
-      path(bottom, i - 1, i);
-      g.stroke();
-    }
-    g.globalAlpha = 1;
-    // the snap's flash along it
+    // the snap's flash along the first one
     const flash = 1 - (t - r.at.snap) / 0.3;
     if (flash > 0) {
       g.strokeStyle = `rgba(255,255,255,${(flash * 0.9).toFixed(3)})`;
       g.shadowColor = 'rgba(255,255,255,.8)';
       g.shadowBlur = 10;
       g.lineWidth = 1.6;
-      path(pts, 0, pts.length - 1);
+      path(r.cracks[0].points, 0, r.cracks[0].points.length - 1);
       g.stroke();
       g.shadowBlur = 0;
     }
-    if (!r.heal) return;
-    // the stitches where it's just closed, and the zip's bright front
-    g.font = `11px ${MONO}`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    pts.forEach((p, i) => {
-      const age = t - closeAt(i);
-      if (age < 0 || age > 0.8) return;
-      g.globalAlpha = 1 - age / 0.8;
-      g.fillStyle = C.tech;
-      if (i % 2 === 0) g.fillText('x', p.x, p.y);
-      if (age < 0.08) {
-        g.shadowColor = C.tech;
-        g.shadowBlur = 10;
-        g.fillRect(p.x - 2, p.y - 2, 4, 4);
-        g.shadowBlur = 0;
-      }
-    });
-    g.globalAlpha = 1;
   }
 
+  // everything drawn over the page, placed on the page and moved up by how far it's scrolled
   function drawFx(r, t, dt) {
     const g = r.ctx, s = r.spider && !r.spider.gone ? r.spider : null;
     g.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
     g.clearRect(0, 0, r.W, r.H);
+    g.translate(0, r.oy);
     g.lineCap = g.lineJoin = 'round';
     if (s) {
       for (const L of s.legs) {
-        const { knee, foot } = knee3(hipOf(s, L), L.f, L.L1, L.L2);
-        L.g = { h: hipOf(s, L), kn: knee, f: foot };
+        const h = hipOf(s, L), { knee, foot } = knee3(h, L.f, L.L1, L.L2);
+        L.g = { h, kn: knee, f: foot };
       }
       drawShadow(g, s);
     }
 
-    // jabs: rings on the page where a foot came down
+    // jabs and landings: rings on the page
     r.rings = r.rings.filter(q => t - q.t < 0.5);
     for (const q of r.rings) {
       const p = (t - q.t) / 0.5;
@@ -1188,11 +1441,21 @@
       for (const [k, d] of [[1, 0], [0.6, 0.1]]) {
         g.globalAlpha = Math.max(0, 1 - p - d) * 0.9;
         g.beginPath();
-        g.arc(q.x, q.y, 4 + ease(p) * 46 * k, 0, 7);
+        g.arc(q.x, q.y, 4 + ease(p) * 46 * k * (q.big ? 2.4 : 1), 0, 7);
         g.stroke();
       }
     }
     g.globalAlpha = 1;
+
+    // the thread it jumps on, fading once it's landed
+    if (s && r.silk && t < r.silk.until + 0.5) {
+      const end = P(local(s, -104 * s.D.k, 0, s.z + 12 * s.D.k));
+      g.globalAlpha = clamp(1 - (t - r.silk.until) / 0.5, 0, 1) * 0.75;
+      g.strokeStyle = C.text;
+      g.lineWidth = 1;
+      line(g, r.silk, end);
+      g.globalAlpha = 1;
+    }
 
     // threads, from the foot to what it's reeling in, with a bead running up them
     r.threads = r.threads.filter(q => q.A.mode === 'fix');
@@ -1228,7 +1491,7 @@
       q.vy += GRAVITY * 0.8 * dt;
       q.x += q.vx * dt;
       q.y += q.vy * dt;
-      if (q.y > r.H - q.s) { q.y = r.H - q.s; q.vy *= -0.3; q.vx *= 0.6; }
+      if (q.y > q.floor - q.s) { q.y = q.floor - q.s; q.vy *= -0.3; q.vx *= 0.6; }
       g.fillStyle = q.col;
       g.fillRect(q.x, q.y, q.s, q.s);
     }
@@ -1249,7 +1512,8 @@
     }
     g.globalAlpha = 1;
 
-    if (!s) return;
+    // the spider, if it's anywhere near the screen
+    if (!s || s.y + r.oy < -400 || s.y + r.oy > r.H + 400) return;
     if (s.glitch > 0) {
       g.globalCompositeOperation = 'lighter';
       drawSpider(g, s, -3, 'rgba(255,50,90,.6)');
@@ -1260,7 +1524,7 @@
     if (s.glitch > 0) tear(r, s);
   }
 
-  // the page as it was, everything gone. skipping comes here too
+  // the page as it was, everything gone. skipping comes here too. the scroll stays wherever it is
   function finish() {
     if (!run) return;
     const r = run;
@@ -1273,10 +1537,11 @@
       for (const p of parts) p.remove();
     }
     for (const [e, style] of r.shaken) restoreStyle(e, style);
-    r.root.remove();
-    r.wall.remove();
-    if (main.scrollTop !== r.scroll) main.scrollTo({ top: r.scroll, behavior: 'instant' });
+    for (const e of [r.layer, r.root, r.skip, r.wall]) e.remove();
+    removeEventListener('click', onClick, true);
     removeEventListener('keydown', onKey, true);
+    removeEventListener('wheel', onInput);
+    removeEventListener('touchstart', onInput);
     removeEventListener('resize', onResize);
   }
 
