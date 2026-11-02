@@ -25,6 +25,15 @@
   // or right away when there is no plant
   const popBubble = () => document.getElementById('s1').classList.add('done');
 
+  // the 🤓 breaks the site, then a spider fixes it. js/breakdown.js only loads on the first click, it starts itself
+  // and leaves window.breakdown behind to play it again
+  document.querySelector('.bubble').addEventListener('click', e => {
+    if (window.breakdown) return breakdown();
+    if (e.currentTarget.dataset.loading) return;
+    e.currentTarget.dataset.loading = '1';
+    document.head.append(Object.assign(document.createElement('script'), { src: e.currentTarget.dataset.src }));
+  });
+
   // a new nonflowers plant every visit, ?seed= brings one back. js/flower/worker.js paints it off the main thread
   // and main.css grows it in. no worker or OffscreenCanvas and it just stays hidden
   (function growFlower() {
