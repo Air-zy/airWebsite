@@ -30,8 +30,8 @@ const about = [
 ];
 
 // people i like, in the order they show. url and why can be left out, why takes the same {phrase|role|url} marks
-// as about. not in the page: /api/people sends it when someone opens the section from the small link by the
-// copyright or /home#people. no link while the list is empty
+// as about. not in the page: /api/people sends it when someone opens the section from people i like under elsewhere
+// in the footer, or /home#people. no link while the list is empty
 const people = [
   // { name: 'someone', url: 'https://example.com', why: 'taught me {C++|tech}' },
 ];
@@ -83,8 +83,8 @@ module.exports = {
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
-    // as quiet as the copyright it sits in front of, and gone while the list is empty
-    peopleLink: people.length ? '<button class="people-link" data-to="people">people i like</button> · ' : '',
+    // the last item under elsewhere in the footer, gone while the list is empty
+    peopleLink: people.length ? '<button class="people-link" data-to="people">people i like</button>' : '',
 
     nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
