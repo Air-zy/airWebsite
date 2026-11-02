@@ -429,27 +429,42 @@ article p {
   padding: 20px 0;
   border-top: 1px dotted var(--text-grey);
 }
+/* a short project is less tall than its picture, the spare height goes to an empty last row so the title, views
+   and text keep their spacing instead of spreading out */
 .project-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto 1fr;
   text-decoration: none;
 }
 .project-card > :not(img) {
   grid-column: 2;
 }
 .project-card img {
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 4;
   width: 96px;
   height: 96px;
   margin-right: 20px;
   object-fit: cover;
 }
+/* the title, and its years on the right where the line was empty. the years used to take a line of their own */
 .proj-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0;
   font-weight: 700;
 }
-.project-card:hover .proj-title {
+.project-card:hover .proj-title > :first-child {
   text-decoration: underline;
+}
+.proj-years {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-grey);
+  font-variant-numeric: tabular-nums;
 }
 .proj-stats {
   margin: 0;
