@@ -193,7 +193,7 @@
           </form>
           <div class="board" id="board"></div>
         </section>
-        <!-- people i like. hidden like the guestbook, opened from elsewhere in the footer or /home#people, then
+        <!-- people i like. hidden like the guestbook, opened from the footer button next to leave a note or /home#people, then
              main.js asks /api/people for the list, so the names are not in the page. the list is in src/config/site.js -->
         <section class="txt-section" id="people" hidden>
           <h2>people i like</h2>
@@ -257,8 +257,6 @@
                 <a href="/" target="_blank" id="main-discord" hidden
                   ><svg class="icon" aria-hidden="true"><use href="#i-external-link"/></svg></a
                 >
-                <!-- people i like, the way into the hidden section above. nothing here while the list is empty -->
-                <!--#peopleLink-->
               </div>
             </div>
             <div>
@@ -273,6 +271,8 @@
             <button data-to="guestbook" class="chat-button">
               leave a note <svg class="icon" aria-hidden="true"><use href="#i-comments-o"/></svg>
             </button>
+            <!-- people i like, a button like leave a note, both open a hidden section above. nothing while the list is empty -->
+            <!--#peopleLink-->
             <span class="social-medias"><!--#socialLinks--></span>
             <p class="small-p"><!--#copyright--></p>
           </div>

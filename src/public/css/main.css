@@ -710,7 +710,7 @@ article p {
 .social-medias .icon {
   margin-right: 0.4em;
 }
-/* the padding makes the hover box a bigger target than just the text */
+/* leave a note and people i like. the padding makes the hover box a bigger target than just the text */
 .chat-button {
   padding: 10px 14px;
   margin-left: -14px;
@@ -733,21 +733,6 @@ article p {
   height: 1em;
   fill: currentColor;
   vertical-align: -0.125em;
-}
-/* the way into people i like, an item under elsewhere in the footer like Roblox and groups. a button, so it drops
-   the browser's button look and takes the list's text. the column stretches its items, so this one keeps to its text */
-.people-link {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.people-link:hover {
-  text-decoration: underline;
 }
 .chat-button .icon {
   font-size: 1.3em;
