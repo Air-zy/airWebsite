@@ -109,9 +109,21 @@
         card.appendChild(img);
       }
 
+      // the years go on the title's line like the homepage, when the last line is only years
+      const lines = [...(proj.text || [])];
+      const years = /^\d{4}(\s*-\s*(\d{4}|now))?$/i.test((lines.at(-1) || '').trim()) ? lines.pop().trim().replace(/\s*-\s*/, '–') : '';
+
       const pTitle = document.createElement('p');
-      pTitle.textContent = proj.title || '';
       pTitle.classList.add('proj-title');
+      const name = document.createElement('span');
+      name.textContent = proj.title || '';
+      pTitle.append(name);
+      if (years) {
+        const span = document.createElement('span');
+        span.className = 'proj-years';
+        span.textContent = years;
+        pTitle.append(span);
+      }
       card.appendChild(pTitle);
 
       const pStats = document.createElement('p');
@@ -121,7 +133,7 @@
       card.appendChild(pStats);
 
       const textContainer = document.createElement('div');
-      (proj.text || []).forEach(line => {
+      lines.forEach(line => {
         const p = document.createElement('p');
         // [link text]("url")
         p.innerHTML = line.replace(/\[([^\]]+)\]\("([^"]+)"\)/g,

@@ -61,6 +61,10 @@
     }).catch(err => console.log('[ERROR] project view send', err));
   }
 
+  // the last text line is the years when it looks like them ("2024", "2022-2025", "2026 - now"). they go on the
+  // title's line, on the right, instead of a line of their own. anything else stays where it is
+  const PROJECT_YEARS = /^\d{4}(\s*-\s*(\d{4}|now))?$/i;
+
   function makeProjectCard(proj, key) {
     const cardContainer = document.createElement('div');
     cardContainer.classList.add('project-container');
@@ -78,9 +82,20 @@
       card.appendChild(img);
     }
 
+    const lines = [...proj.text];
+    const years = PROJECT_YEARS.test((lines.at(-1) || '').trim()) ? lines.pop().trim().replace(/\s*-\s*/, '–') : '';
+
     const pTitle = document.createElement('p');
-    pTitle.textContent = proj.title;
     pTitle.classList.add('proj-title');
+    const name = document.createElement('span');
+    name.textContent = proj.title;
+    pTitle.append(name);
+    if (years) {
+      const span = document.createElement('span');
+      span.className = 'proj-years';
+      span.textContent = years;
+      pTitle.append(span);
+    }
     card.appendChild(pTitle);
 
     const pStats = document.createElement('p');
@@ -91,7 +106,7 @@
     card.appendChild(pStats);
 
     const textContainer = document.createElement('div');
-    proj.text.forEach(line => {
+    lines.forEach(line => {
       const p = document.createElement('p');
       // [link text]("url") turns into a link
       p.innerHTML = line.replace(/\[([^\]]+)\]\("([^"]+)"\)/g, '<a href="$2" target="_blank">$1</a>');
