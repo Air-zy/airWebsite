@@ -11,6 +11,8 @@ router.use('/rowa', require('./rowa2/router.js'));
 router.use('/projects', require('./projects/router.js'));
 router.use('/status', require('./status/router.js'));
 router.use('/notes', require('./notes.js'));
+// the my friends list, from firestore. peopleEdit.html changes it
+router.use('/people', require('./people/router.js'));
 router.use('/gam3DB', require('../rblxapp/routes/gam3DB.js'));
 
 router.get('/roblox-user/:userId', require('../rblxapp/routes/userlookup.js'));
@@ -30,8 +32,6 @@ router.get('/anime3/coords',       require('./anime3/coords.js')           );
 router.get('/rblx',                require('./api_rblx.js')                );
 // the live roblox numbers in how i started on the home page
 router.get('/roblox-stats',        require('./api_robloxStats.js')         );
-// the friends list, fetched when the home page section is opened
-router.get('/people',              require('./api_people.js')              );
 // visitor ips and user agents, owner only
 router.get('/logs',                requireAdmin, require('./api_logs.js') );
 router.get('/headers',             require('./api_headers.js')             );
