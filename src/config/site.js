@@ -83,8 +83,8 @@ module.exports = {
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
-    // a footer button like leave a note, gone while the list is empty
-    peopleLink: people.length ? '<button data-to="people" class="chat-button">people i like</button>' : '',
+    // a footer button like leave a note, its icon after the words the same way, gone while the list is empty
+    peopleLink: people.length ? `<button data-to="people" class="chat-button">people i like ${icon('heart-o')}</button>` : '',
 
     nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
@@ -136,6 +136,7 @@ if (require.main === module) {
 
   // people i like: a link only when there is a url, the reason only when there is one, and no way in while empty
   a.strictEqual(peopleList([]), '');
+  a.ok(module.exports.html.icons.includes('id="i-heart-o"'), 'the people i like button uses this one, from here and not index.html');
   a.strictEqual(module.exports.html.peopleLink === '', people.length === 0, 'the link shows exactly when someone is listed');
   const two = peopleList([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
   a.ok(two.includes('<a href="https://x.y/?a=1&amp;b=2" target="_blank">a&lt;b</a>'), 'linked and escaped');
