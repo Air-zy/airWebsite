@@ -129,15 +129,22 @@
     return cardContainer;
   }
 
+  // projects ticked hidden in projectsEdit go last, folded behind show more under the list
+  const projectsMore = document.getElementById('projects-more');
+
   async function reloadProjects() {
     const container = document.getElementById('projects');
     try {
       const res = await fetch('/api/projects');
       if (!res.ok) throw new Error(`/api/projects ${res.status}`);
       const rank = ([, proj]) => proj.stats.views / proj.rank;
-      container.replaceChildren(...Object.entries(await res.json())
-        .sort((a, b) => rank(b) - rank(a))
-        .map(([key, proj]) => makeProjectCard(proj, key)));
+      const sorted = Object.entries(await res.json()).sort((a, b) => rank(b) - rank(a));
+      const shown = sorted.filter(([, proj]) => !proj.hidden), folded = sorted.filter(([, proj]) => proj.hidden);
+      const cards = [...shown, ...folded].map(([key, proj]) => makeProjectCard(proj, key));
+      for (const card of cards.slice(shown.length)) card.hidden = true;
+      container.replaceChildren(...cards);
+      projectsMore.textContent = `show more +${folded.length}`;
+      projectsMore.hidden = !folded.length;
     } catch (error) {
       // what went wrong goes to the console, the visitor gets what to do about it
       console.error('projects:', error);
@@ -146,6 +153,14 @@
   }
 
   reloadProjects();
+
+  // the folded ones come in where the button was, focus goes to the first of them so a keyboard lands on what opened
+  projectsMore.addEventListener('click', () => {
+    const folded = [...document.querySelectorAll('#projects > [hidden]')];
+    for (const card of folded) card.hidden = false;
+    projectsMore.hidden = true;
+    folded[0]?.querySelector('a').focus();
+  });
 
   const pageStart = Date.now();
   const mainContentElm = document.getElementById("main-content");

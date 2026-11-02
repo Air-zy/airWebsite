@@ -474,6 +474,10 @@ article p {
 .project-card div p {
   margin: 8px 0 0;
 }
+/* show more under the projects, the same quiet button as leave a note */
+#projects-more {
+  margin-top: 8px;
+}
 .project-footer {
   display: flex;
   flex-wrap: wrap;
