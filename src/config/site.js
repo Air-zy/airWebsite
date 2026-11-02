@@ -4,6 +4,9 @@
 const fs = require('fs');
 const crypto = require('crypto');
 
+// a short hash of some files in public, for ?v= on their urls
+const version = files => files.reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8);
+
 const socials = [
   { label: 'GitHub',    icon: 'github',              url: 'https://github.com/Air-zy' },
   { label: 'LinkedIn',  icon: 'linkedin-square',     url: 'https://www.linkedin.com/in/airzy-turqueza-7994762b3/' },
@@ -93,7 +96,9 @@ module.exports = {
     // ?v for main.css, main.js, dither.js, r6.js and og.png, only changes when one of them does.
     // cloudflare holds js for 4h whatever we send, so a page and an older r6.js can meet.
     // link previews cache og.png by url, so a new one needs a new ?v too
-    v: ['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js', 'og.png'].reduce((h, f) => h.update(fs.readFileSync(__dirname + '/../public/' + f)), crypto.createHash('md5')).digest('hex').slice(0, 8),
+    v: version(['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js', 'og.png']),
+    // the 🤓 easter egg's own, so changing it doesn't make everyone download the rest again
+    vBreak: version(['js/breakdown.js']),
   },
 };
 
