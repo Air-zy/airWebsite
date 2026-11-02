@@ -29,6 +29,12 @@ const about = [
   'programming {since 2018|accent}.',
 ];
 
+// people i like, in the order they show. url and why can be left out, why takes the same {phrase|role|url} marks
+// as about. the section stays off the page until someone is in here
+const people = [
+  // { name: 'someone', url: 'https://example.com', why: 'taught me {C++|tech}' },
+];
+
 const skills = {
   languages: ['C++', 'Java', 'JavaScript', 'TypeScript', 'Luau', 'Python'],
   technologies: ['Node.js', 'Express', 'PostgreSQL', 'React / React Native', 'Docker', 'Kubernetes', 'Azure', 'WebGL'],
@@ -51,6 +57,14 @@ const colorize = l => l.replace(/\{([^|}]+)\|([^|}]+)(?:\|([^}]+))?\}/g, (_, phr
   : `<span class="hl-${role}">${phrase}</span>`);
 const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
+// names and reasons are typed by hand, so the few characters that would break the html are escaped first
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const person = p => `<div><dt>${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.name)}</a>` : esc(p.name)}</dt>`
+  + (p.why ? `<dd>${colorize(esc(p.why))}</dd>` : '') + '</div>';
+const peopleSection = list => list.length
+  ? `<section class="txt-section" id="people"><h2>people i like</h2><dl class="people">${list.map(person).join('')}</dl></section>`
+  : '';
+
 const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
 module.exports = {
@@ -67,6 +81,9 @@ module.exports = {
       .map(s => `<a href="${s.url}" target="_blank">${icon(s.icon)}${s.label}</a>`).join(' '),
 
     skills: Object.entries(skills).map(skillGroup).join(''),
+
+    // the whole section, or nothing while the list is empty
+    people: peopleSection(people),
 
     nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
@@ -115,6 +132,13 @@ if (require.main === module) {
   a.ok(module.exports.html.icons.includes('display:none'), 'hidden does nothing on an svg, without display none the sprite renders 300x150');
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
   a.ok(html.includes('id="adapt"'), 'main.js animates this one, it stays in the page');
+
+  // people i like: nothing at all while empty, a link only when there is a url, the reason only when there is one
+  a.strictEqual(peopleSection([]), '', 'an empty list leaves no heading behind');
+  const two = peopleSection([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
+  a.ok(two.includes('<a href="https://x.y/?a=1&amp;b=2" target="_blank">a&lt;b</a>'), 'linked and escaped');
+  a.ok(two.includes('<dd>made <span class="hl-accent">this</span></dd>'), 'the reason takes the about marks');
+  a.ok(two.includes('<dt>c</dt></div>'), 'no url is a plain name and no reason is no dd');
 
   console.log('site ok');
 }

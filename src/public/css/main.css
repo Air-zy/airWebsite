@@ -371,6 +371,21 @@ article p {
   color: var(--text-grey);
 }
 
+/* people i like, a name and a line on why. the markup comes from site.js */
+.people {
+  margin: 0;
+}
+.people div + div {
+  margin-top: 16px;
+}
+.people dt {
+  font-weight: 700;
+}
+.people dd {
+  margin: 0;
+  text-wrap: pretty;
+}
+
 .skills {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
