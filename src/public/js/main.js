@@ -381,11 +381,16 @@
   if (location.hash === '#guestbook') toGuestbook();
   if (location.hash === '#people') toPeople();
 
-  // the address bar follows the guestbook so a refresh or shared link lands back on it.
-  // a line a third down counts, so a board taller than the screen still crosses it
-  new IntersectionObserver(([entry]) => {
-    history.replaceState(null, '', entry.isIntersecting ? '#guestbook' : location.pathname + location.search);
-  }, { root: mainContentElm, rootMargin: '-33% 0px -67% 0px' }).observe(document.getElementById('guestbook'));
+  // the address bar follows the guestbook and people i like, so a refresh or shared link lands back on the one you
+  // were on. a line a third down counts, so a section taller than the screen still crosses it. the line is one
+  // pixel, so at most one of them is on it, and the url goes back to plain when neither is
+  const onLine = new Set();
+  const follow = new IntersectionObserver(entries => {
+    for (const e of entries) e.isIntersecting ? onLine.add(e.target.id) : onLine.delete(e.target.id);
+    const [id] = onLine;
+    history.replaceState(null, '', id ? '#' + id : location.pathname + location.search);
+  }, { root: mainContentElm, rootMargin: '-33% 0px -67% 0px' });
+  for (const id of ['guestbook', 'people']) follow.observe(document.getElementById(id));
 
   boardForm.addEventListener('submit', async e => {
     e.preventDefault();

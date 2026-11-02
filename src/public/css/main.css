@@ -734,17 +734,19 @@ article p {
   fill: currentColor;
   vertical-align: -0.125em;
 }
-/* the way into people i like, as quiet as the copyright it sits in front of */
+/* the way into people i like, an item under elsewhere in the footer like Roblox and groups. a button, so it drops
+   the browser's button look and takes the list's text. the column stretches its items, so this one keeps to its text */
 .people-link {
+  align-self: flex-start;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
   color: inherit;
+  text-align: left;
   cursor: pointer;
 }
 .people-link:hover {
-  color: var(--text-normal);
   text-decoration: underline;
 }
 .chat-button .icon {
