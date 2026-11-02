@@ -29,6 +29,13 @@ const about = [
   'programming {since 2018|accent}.',
 ];
 
+// my friends, in the order they show. url and why can be left out, why takes the same {phrase|role|url} marks
+// as about. not in the page: /api/people sends it when someone opens the section from its footer button next to
+// leave a note, or /home#people. no button while the list is empty
+const people = [
+  // { name: 'someone', url: 'https://example.com', why: 'taught me {C++|tech}' },
+];
+
 const skills = {
   languages: ['C++', 'Java', 'JavaScript', 'TypeScript', 'Luau', 'Python'],
   technologies: ['Node.js', 'Express', 'PostgreSQL', 'React / React Native', 'Docker', 'Kubernetes', 'Azure', 'WebGL'],
@@ -51,6 +58,12 @@ const colorize = l => l.replace(/\{([^|}]+)\|([^|}]+)(?:\|([^}]+))?\}/g, (_, phr
   : `<span class="hl-${role}">${phrase}</span>`);
 const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
+// names and reasons are typed by hand, so the few characters that would break the html are escaped first
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const person = p => `<div><dt>${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.name)}</a>` : esc(p.name)}</dt>`
+  + (p.why ? `<dd>${colorize(esc(p.why))}</dd>` : '') + '</div>';
+const peopleList = list => list.map(person).join('');
+
 const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
 module.exports = {
@@ -58,6 +71,8 @@ module.exports = {
   repo: 'Air-zy/airWebsite',
   accent: '#cebe78',   // the terminal headings and the animation pane
   about: about.map(plain),
+  // the rows of the friends list, what /api/people answers with
+  peopleHtml: peopleList(people),
   skills,
 
   // the shapes index.html asks for by name, see the <!--#token--> comments in it.
@@ -67,6 +82,9 @@ module.exports = {
       .map(s => `<a href="${s.url}" target="_blank">${icon(s.icon)}${s.label}</a>`).join(' '),
 
     skills: Object.entries(skills).map(skillGroup).join(''),
+
+    // a footer button like leave a note, its icon after the words the same way, gone while the list is empty
+    peopleLink: people.length ? `<button data-to="people" class="chat-button">my friends ${icon('address-book-o')}</button>` : '',
 
     nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
@@ -115,6 +133,15 @@ if (require.main === module) {
   a.ok(module.exports.html.icons.includes('display:none'), 'hidden does nothing on an svg, without display none the sprite renders 300x150');
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
   a.ok(html.includes('id="adapt"'), 'main.js animates this one, it stays in the page');
+
+  // my friends: a link only when there is a url, the reason only when there is one, and no way in while empty
+  a.strictEqual(peopleList([]), '');
+  a.ok(module.exports.html.icons.includes('id="i-address-book-o"'), 'the my friends button uses this one, from here and not index.html');
+  a.strictEqual(module.exports.html.peopleLink === '', people.length === 0, 'the link shows exactly when someone is listed');
+  const two = peopleList([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
+  a.ok(two.includes('<a href="https://x.y/?a=1&amp;b=2" target="_blank">a&lt;b</a>'), 'linked and escaped');
+  a.ok(two.includes('<dd>made <span class="hl-accent">this</span></dd>'), 'the reason takes the about marks');
+  a.ok(two.includes('<dt>c</dt></div>'), 'no url is a plain name and no reason is no dd');
 
   console.log('site ok');
 }

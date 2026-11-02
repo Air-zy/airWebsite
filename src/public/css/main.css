@@ -371,6 +371,36 @@ article p {
   color: var(--text-grey);
 }
 
+/* my friends, like credits: names down the left, why beside each. the rows come from /api/people, built in
+   site.js. a linked name gets the same dotted underline as the numbers in how i started, solid on hover */
+.people {
+  display: grid;
+  grid-template-columns: fit-content(14rem) minmax(0, 1fr);
+  gap: 14px 32px;
+  margin: 0;
+}
+/* the rows are the grid's own, so the columns line up across people. pinned, or a name with no reason would slide
+   into the reason column of the row above */
+.people div {
+  display: contents;
+}
+.people dt {
+  grid-column: 1;
+}
+.people dd {
+  grid-column: 2;
+  margin: 0;
+  color: var(--text-soft);
+  text-wrap: pretty;
+}
+.people a {
+  text-decoration: underline dotted var(--text-grey);
+  text-underline-offset: 0.25em;
+}
+.people a:hover {
+  text-decoration: underline var(--text-normal);
+}
+
 .skills {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
@@ -399,27 +429,42 @@ article p {
   padding: 20px 0;
   border-top: 1px dotted var(--text-grey);
 }
+/* a short project is less tall than its picture, the spare height goes to an empty last row so the title, views
+   and text keep their spacing instead of spreading out */
 .project-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto 1fr;
   text-decoration: none;
 }
 .project-card > :not(img) {
   grid-column: 2;
 }
 .project-card img {
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 4;
   width: 96px;
   height: 96px;
   margin-right: 20px;
   object-fit: cover;
 }
+/* the title, and its years on the right where the line was empty. the years used to take a line of their own */
 .proj-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0;
   font-weight: 700;
 }
-.project-card:hover .proj-title {
+.project-card:hover .proj-title > :first-child {
   text-decoration: underline;
+}
+.proj-years {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-grey);
+  font-variant-numeric: tabular-nums;
 }
 .proj-stats {
   margin: 0;
@@ -428,6 +473,10 @@ article p {
 }
 .project-card div p {
   margin: 8px 0 0;
+}
+/* show more under the projects, the same quiet button as leave a note */
+#projects-more {
+  margin-top: 8px;
 }
 .project-footer {
   display: flex;
@@ -680,7 +729,7 @@ article p {
 .social-medias .icon {
   margin-right: 0.4em;
 }
-/* the padding makes the hover box a bigger target than just the text */
+/* leave a note and my friends. the padding makes the hover box a bigger target than just the text */
 .chat-button {
   padding: 10px 14px;
   margin-left: -14px;
@@ -743,6 +792,17 @@ article p {
   .project-card img {
     width: 64px;
     height: 64px;
+  }
+  /* no room for two columns, the reason goes under its name, the space goes above each next name */
+  .people {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .people dd {
+    grid-column: 1;
+  }
+  .people div + div dt {
+    margin-top: 14px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

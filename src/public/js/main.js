@@ -61,6 +61,10 @@
     }).catch(err => console.log('[ERROR] project view send', err));
   }
 
+  // the last text line is the years when it looks like them ("2024", "2022-2025", "2026 - now"). they go on the
+  // title's line, on the right, instead of a line of their own. anything else stays where it is
+  const PROJECT_YEARS = /^\d{4}(\s*-\s*(\d{4}|now))?$/i;
+
   function makeProjectCard(proj, key) {
     const cardContainer = document.createElement('div');
     cardContainer.classList.add('project-container');
@@ -78,9 +82,20 @@
       card.appendChild(img);
     }
 
+    const lines = [...proj.text];
+    const years = PROJECT_YEARS.test((lines.at(-1) || '').trim()) ? lines.pop().trim().replace(/\s*-\s*/, '–') : '';
+
     const pTitle = document.createElement('p');
-    pTitle.textContent = proj.title;
     pTitle.classList.add('proj-title');
+    const name = document.createElement('span');
+    name.textContent = proj.title;
+    pTitle.append(name);
+    if (years) {
+      const span = document.createElement('span');
+      span.className = 'proj-years';
+      span.textContent = years;
+      pTitle.append(span);
+    }
     card.appendChild(pTitle);
 
     const pStats = document.createElement('p');
@@ -91,7 +106,7 @@
     card.appendChild(pStats);
 
     const textContainer = document.createElement('div');
-    proj.text.forEach(line => {
+    lines.forEach(line => {
       const p = document.createElement('p');
       // [link text]("url") turns into a link
       p.innerHTML = line.replace(/\[([^\]]+)\]\("([^"]+)"\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -114,15 +129,22 @@
     return cardContainer;
   }
 
+  // projects ticked hidden in projectsEdit go last, folded behind show more under the list
+  const projectsMore = document.getElementById('projects-more');
+
   async function reloadProjects() {
     const container = document.getElementById('projects');
     try {
       const res = await fetch('/api/projects');
       if (!res.ok) throw new Error(`/api/projects ${res.status}`);
       const rank = ([, proj]) => proj.stats.views / proj.rank;
-      container.replaceChildren(...Object.entries(await res.json())
-        .sort((a, b) => rank(b) - rank(a))
-        .map(([key, proj]) => makeProjectCard(proj, key)));
+      const sorted = Object.entries(await res.json()).sort((a, b) => rank(b) - rank(a));
+      const shown = sorted.filter(([, proj]) => !proj.hidden), folded = sorted.filter(([, proj]) => proj.hidden);
+      const cards = [...shown, ...folded].map(([key, proj]) => makeProjectCard(proj, key));
+      for (const card of cards.slice(shown.length)) card.hidden = true;
+      container.replaceChildren(...cards);
+      projectsMore.textContent = `show more +${folded.length}`;
+      projectsMore.hidden = !folded.length;
     } catch (error) {
       // what went wrong goes to the console, the visitor gets what to do about it
       console.error('projects:', error);
@@ -131,6 +153,14 @@
   }
 
   reloadProjects();
+
+  // the folded ones come in where the button was, focus goes to the first of them so a keyboard lands on what opened
+  projectsMore.addEventListener('click', () => {
+    const folded = [...document.querySelectorAll('#projects > [hidden]')];
+    for (const card of folded) card.hidden = false;
+    projectsMore.hidden = true;
+    folded[0]?.querySelector('a').focus();
+  });
 
   const pageStart = Date.now();
   const mainContentElm = document.getElementById("main-content");
@@ -331,6 +361,22 @@
     setSidebar(false);
   }
 
+  // my friends, hidden like the guestbook. the list comes from /api/people on the first open, so it is not in the
+  // page and a visit that never opens it never asks. an empty list stays closed
+  let peopleLoad = null;
+  async function toPeople() {
+    const people = document.getElementById('people');
+    const list = people.querySelector('dl');
+    peopleLoad ??= fetch('/api/people')
+      .then(res => { if (!res.ok) throw new Error(res.status); return res.json(); })
+      .then(({ html }) => { list.innerHTML = html; return !!html; })
+      .catch(() => { list.insertAdjacentHTML('afterend', `<p class="small-p">couldn't load this, try again in a bit</p>`); return true; });
+    if (!await peopleLoad) return;
+    people.hidden = false;
+    people.scrollIntoView();
+    setSidebar(false);
+  }
+
   // signing needs an account. the popup logs you in without leaving the page, then the note goes out
   const loginDialog = document.getElementById('login-dialog');
   const loginFrame = loginDialog.querySelector('iframe');
@@ -361,14 +407,20 @@
     sessionStorage.removeItem('note');
   } catch {} // storage can be blocked, the note is lost then
 
-  // google comes back to /home#guestbook
+  // google comes back to /home#guestbook, and /home#people is the link to send people
   if (location.hash === '#guestbook') toGuestbook();
+  if (location.hash === '#people') toPeople();
 
-  // the address bar follows the guestbook so a refresh or shared link lands back on it.
-  // a line a third down counts, so a board taller than the screen still crosses it
-  new IntersectionObserver(([entry]) => {
-    history.replaceState(null, '', entry.isIntersecting ? '#guestbook' : location.pathname + location.search);
-  }, { root: mainContentElm, rootMargin: '-33% 0px -67% 0px' }).observe(document.getElementById('guestbook'));
+  // the address bar follows the guestbook and my friends, so a refresh or shared link lands back on the one you
+  // were on. a line a third down counts, so a section taller than the screen still crosses it. the line is one
+  // pixel, so at most one of them is on it, and the url goes back to plain when neither is
+  const onLine = new Set();
+  const follow = new IntersectionObserver(entries => {
+    for (const e of entries) e.isIntersecting ? onLine.add(e.target.id) : onLine.delete(e.target.id);
+    const [id] = onLine;
+    history.replaceState(null, '', id ? '#' + id : location.pathname + location.search);
+  }, { root: mainContentElm, rootMargin: '-33% 0px -67% 0px' });
+  for (const id of ['guestbook', 'people']) follow.observe(document.getElementById(id));
 
   boardForm.addEventListener('submit', async e => {
     e.preventDefault();
@@ -407,10 +459,12 @@
     window.history.replaceState(null, '', '/home' + location.search + location.hash);
   }
 
-  // the nav, the side bar and leave a note say where they go with data-to, guestbook and contact do more than scroll
+  // the nav, the side bar, leave a note and my friends say where they go with data-to. most just scroll there,
+  // these three do more
+  const opens = { guestbook: toGuestbook, contact: toContact, people: toPeople };
   addEventListener('click', e => {
     const to = e.target.closest('[data-to]')?.dataset.to;
-    if (to) (to === 'guestbook' ? toGuestbook : to === 'contact' ? toContact : goTo)(to);
+    if (to) (opens[to] || goTo)(to);
   });
   menuIcon.addEventListener('click', menuTrigger);
 })();

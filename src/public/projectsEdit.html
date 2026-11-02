@@ -52,6 +52,7 @@
     }
     .fields textarea { resize: vertical; min-height: 70px; }
     .fields input:read-only { color: var(--text-grey); }
+    .fields input[type="checkbox"] { width: auto; box-shadow: none; }
 
     .preview { flex: 1 1 560px; min-width: 0; padding-top: 14px; }
     .preview-label { font-size: 0.7rem; color: var(--text-grey); margin: 0 0 10px 0; text-transform: uppercase; }
@@ -109,9 +110,21 @@
         card.appendChild(img);
       }
 
+      // the years go on the title's line like the homepage, when the last line is only years
+      const lines = [...(proj.text || [])];
+      const years = /^\d{4}(\s*-\s*(\d{4}|now))?$/i.test((lines.at(-1) || '').trim()) ? lines.pop().trim().replace(/\s*-\s*/, '–') : '';
+
       const pTitle = document.createElement('p');
-      pTitle.textContent = proj.title || '';
       pTitle.classList.add('proj-title');
+      const name = document.createElement('span');
+      name.textContent = proj.title || '';
+      pTitle.append(name);
+      if (years) {
+        const span = document.createElement('span');
+        span.className = 'proj-years';
+        span.textContent = years;
+        pTitle.append(span);
+      }
       card.appendChild(pTitle);
 
       const pStats = document.createElement('p');
@@ -121,7 +134,7 @@
       card.appendChild(pStats);
 
       const textContainer = document.createElement('div');
-      (proj.text || []).forEach(line => {
+      lines.forEach(line => {
         const p = document.createElement('p');
         // [link text]("url")
         p.innerHTML = line.replace(/\[([^\]]+)\]\("([^"]+)"\)/g,
@@ -155,12 +168,15 @@
         rank: g('rank').value === '' ? null : Number(g('rank').value),
         text: g('text').value.split('\n').map(l => l.trim()).filter(Boolean),
         tags: g('tags').value.split(',').map(t => t.trim()).filter(Boolean),
-        stats: { views: Number(g('views').value) || 0 }
+        stats: { views: Number(g('views').value) || 0 },
+        // behind "show more" on the homepage. only saved when on
+        ...(g('hidden').checked && { hidden: true })
       };
     }
 
     function refreshPreview(card) {
       const proj = readCard(card);
+      card.querySelector('.preview-label').textContent = proj.hidden ? 'preview, behind show more' : 'preview';
       const holder = card.querySelector('.preview-card');
       holder.innerHTML = '';
       holder.appendChild(buildPreviewCard(proj));
@@ -173,7 +189,8 @@
       l.textContent = label;
       const input = document.createElement(opts.textarea ? 'textarea' : 'input');
       if (!opts.textarea) input.type = opts.type || 'text';
-      input.value = value == null ? '' : value;
+      if (input.type === 'checkbox') input.checked = !!value;
+      else input.value = value == null ? '' : value;
       input.dataset.f = name;
       if (opts.readOnly) input.readOnly = true;
       if (opts.placeholder) input.placeholder = opts.placeholder;
@@ -216,6 +233,8 @@
         Array.isArray(proj.text) ? proj.text.join('\n') : '', { textarea: true }));
       fields.appendChild(field('tags', 'Tags (comma separated)',
         Array.isArray(proj.tags) ? proj.tags.join(', ') : ''));
+      fields.appendChild(field('hidden', 'Hidden on the homepage until someone clicks "show more"', proj.hidden,
+        { type: 'checkbox' }));
 
       const preview = document.createElement('div');
       preview.classList.add('preview');
