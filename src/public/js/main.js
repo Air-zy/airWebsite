@@ -331,7 +331,7 @@
     setSidebar(false);
   }
 
-  // people i like, hidden like the guestbook. the list comes from /api/people on the first open, so it is not in the
+  // my friends, hidden like the guestbook. the list comes from /api/people on the first open, so it is not in the
   // page and a visit that never opens it never asks. an empty list stays closed
   let peopleLoad = null;
   async function toPeople() {
@@ -381,7 +381,7 @@
   if (location.hash === '#guestbook') toGuestbook();
   if (location.hash === '#people') toPeople();
 
-  // the address bar follows the guestbook and people i like, so a refresh or shared link lands back on the one you
+  // the address bar follows the guestbook and my friends, so a refresh or shared link lands back on the one you
   // were on. a line a third down counts, so a section taller than the screen still crosses it. the line is one
   // pixel, so at most one of them is on it, and the url goes back to plain when neither is
   const onLine = new Set();
@@ -429,7 +429,7 @@
     window.history.replaceState(null, '', '/home' + location.search + location.hash);
   }
 
-  // the nav, the side bar, leave a note and people i like say where they go with data-to. most just scroll there,
+  // the nav, the side bar, leave a note and my friends say where they go with data-to. most just scroll there,
   // these three do more
   const opens = { guestbook: toGuestbook, contact: toContact, people: toPeople };
   addEventListener('click', e => {

@@ -29,7 +29,7 @@ const about = [
   'programming {since 2018|accent}.',
 ];
 
-// people i like, in the order they show. url and why can be left out, why takes the same {phrase|role|url} marks
+// my friends, in the order they show. url and why can be left out, why takes the same {phrase|role|url} marks
 // as about. not in the page: /api/people sends it when someone opens the section from its footer button next to
 // leave a note, or /home#people. no button while the list is empty
 const people = [
@@ -71,7 +71,7 @@ module.exports = {
   repo: 'Air-zy/airWebsite',
   accent: '#cebe78',   // the terminal headings and the animation pane
   about: about.map(plain),
-  // the rows of the people i like list, what /api/people answers with
+  // the rows of the friends list, what /api/people answers with
   peopleHtml: peopleList(people),
   skills,
 
@@ -84,7 +84,7 @@ module.exports = {
     skills: Object.entries(skills).map(skillGroup).join(''),
 
     // a footer button like leave a note, its icon after the words the same way, gone while the list is empty
-    peopleLink: people.length ? `<button data-to="people" class="chat-button">people i like ${icon('heart-o')}</button>` : '',
+    peopleLink: people.length ? `<button data-to="people" class="chat-button">my friends ${icon('address-book-o')}</button>` : '',
 
     nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
@@ -134,9 +134,9 @@ if (require.main === module) {
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
   a.ok(html.includes('id="adapt"'), 'main.js animates this one, it stays in the page');
 
-  // people i like: a link only when there is a url, the reason only when there is one, and no way in while empty
+  // my friends: a link only when there is a url, the reason only when there is one, and no way in while empty
   a.strictEqual(peopleList([]), '');
-  a.ok(module.exports.html.icons.includes('id="i-heart-o"'), 'the people i like button uses this one, from here and not index.html');
+  a.ok(module.exports.html.icons.includes('id="i-address-book-o"'), 'the my friends button uses this one, from here and not index.html');
   a.strictEqual(module.exports.html.peopleLink === '', people.length === 0, 'the link shows exactly when someone is listed');
   const two = peopleList([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
   a.ok(two.includes('<a href="https://x.y/?a=1&amp;b=2" target="_blank">a&lt;b</a>'), 'linked and escaped');

@@ -371,7 +371,7 @@ article p {
   color: var(--text-grey);
 }
 
-/* people i like, like credits: names down the left, why beside each. the rows come from /api/people, built in
+/* my friends, like credits: names down the left, why beside each. the rows come from /api/people, built in
    site.js. a linked name gets the same dotted underline as the numbers in how i started, solid on hover */
 .people {
   display: grid;
@@ -710,7 +710,7 @@ article p {
 .social-medias .icon {
   margin-right: 0.4em;
 }
-/* leave a note and people i like. the padding makes the hover box a bigger target than just the text */
+/* leave a note and my friends. the padding makes the hover box a bigger target than just the text */
 .chat-button {
   padding: 10px 14px;
   margin-left: -14px;

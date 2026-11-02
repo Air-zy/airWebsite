@@ -1,4 +1,4 @@
-// the people i like list on the home page. sent only when someone opens that section, so the names are not in the
+// the friends list on the home page. sent only when someone opens that section, so the names are not in the
 // page itself, and noindex keeps this answer out of search results. the list lives in src/config/site.js
 const site = require('../../config/site.js');
 
