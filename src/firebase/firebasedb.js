@@ -17,6 +17,9 @@ const firedbSecure = mainFirestore.collection('secure');
 const addrRef = firedb.doc('adresses2');
 const airsiteRef = firedb.doc('airsite');
 const robloxRef = firedb.doc('rblx');
+// the my friends list on the home page, { list: [{ name, url, why }] } in the order they show. kept here and not in
+// the repo, which is public
+const peopleRef = firedb.doc('people');
 
 async function firedbAdressGet() {
   const snap = await addrRef.get();
@@ -86,6 +89,16 @@ async function firedbAirsiteSave(projects) {
   await _safeSet(airsiteRef, projects, 'projects');
 }
 
+// an empty list when the doc isn't there yet
+async function firedbPeopleGet() {
+  const snap = await peopleRef.get();
+  return snap.data()?.list ?? [];
+}
+
+async function firedbPeopleSave(list) {
+  await _safeSet(peopleRef, { list }, 'people');
+}
+
 //
 
 async function firedbRobloxGet() {
@@ -110,6 +123,9 @@ module.exports = {
 
   firedbRobloxGet,
   firedbRobloxSave,
+
+  firedbPeopleGet,
+  firedbPeopleSave,
 
   firedbSecure
 };

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Edit Friends</title>
+
+  <!-- same font, theme and credits layout as the homepage, so the preview is honest -->
+  <link rel="stylesheet" href="css/main.css" />
+
+  <style>
+    /* main.css sets body overflow hidden for the homepage scroll containers, undo it here */
+    body { overflow: auto; padding: 20px; }
+
+    #main { max-width: 1100px; margin: 0 auto; }
+    h1 { font-weight: normal; margin: 0 0 4px 0; font-size: 1.4rem; }
+    .sub { color: var(--text-grey); font-size: 0.85rem; margin: 0 0 20px 0; }
+    .sub code { color: var(--text-soft); }
+
+    #readonly-note {
+      background: var(--frame-bcol); color: var(--text-grey);
+      padding: 10px 14px; margin-bottom: 20px; font-size: 0.85rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    }
+    #readonly-note a { color: var(--text-normal); }
+
+    #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; align-items: center; }
+    button {
+      font-family: inherit; font-size: 14px; padding: 8px 14px; border: none;
+      background: var(--frame-bcol2); color: var(--text-normal); cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    }
+    button:hover { background: #262626; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.save { color: #28a745; }
+    #status { color: var(--text-grey); font-size: 0.85rem; }
+
+    /* one row per friend: name, link, why, then move and remove */
+    .head, .row {
+      display: grid;
+      /* the buttons column is a fixed width so the header row, which has none, lines up with the rows */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 2fr) 6.5rem;
+      gap: 8px;
+      align-items: center;
+    }
+    .head { font-size: 0.8rem; color: var(--text-grey); margin-bottom: 6px; }
+    .row { margin-bottom: 8px; }
+    .row input {
+      width: 100%; box-sizing: border-box; padding: 6px;
+      border: none; background: var(--frame-bcol); color: var(--text-normal);
+      font-family: inherit; font-size: 0.85rem;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.7);
+    }
+    /* the browser's own placeholder grey is under 4.5:1 on these boxes, same fix as the guestbook's */
+    .row input::placeholder { color: var(--text-grey); opacity: 1; }
+    .tools { display: flex; justify-content: flex-end; gap: 4px; }
+    .tools button { padding: 6px 10px; }
+    .tools button[data-act="remove"] { color: #dc3545; }
+
+    .preview { margin-top: 32px; padding: 16px; background: var(--frame-bcol); box-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+    .preview-label { font-size: 0.7rem; color: var(--text-grey); margin: 0 0 14px 0; text-transform: uppercase; }
+    .preview .people a { cursor: default; }
+
+    @media (max-width: 700px) {
+      body { padding: 12px; }
+      .head { display: none; }
+      .row { grid-template-columns: minmax(0, 1fr); padding: 10px; background: var(--frame-bcol); }
+    }
+  </style>
+</head>
+<body>
+  <div id="main">
+    <h1>Edit Friends</h1>
+    <p class="sub">the my friends list on the homepage, top to bottom in this order. link and why are optional, why takes
+      the same marks as the about lines, like <code>{C++|tech}</code>, <code>{SAIT|name}</code> or
+      <code>{ROWA|name|https://...}</code>.</p>
+
+    <div id="readonly-note" hidden></div>
+
+    <div id="controls">
+      <button id="add" type="button">Add Friend</button>
+      <button id="save" class="save" type="button">Save</button>
+      <span id="status"></span>
+    </div>
+
+    <div class="head" aria-hidden="true"><span>name</span><span>link</span><span>why</span><span></span></div>
+    <div id="rows"></div>
+
+    <div class="preview">
+      <p class="preview-label">preview</p>
+      <dl class="people" id="preview"></dl>
+    </div>
+  </div>
+
+  <script>
+    const rows = document.getElementById('rows');
+    const preview = document.getElementById('preview');
+    const statusEl = document.getElementById('status');
+    const setStatus = text => { statusEl.textContent = text || ''; };
+
+    // mirrors esc, colorize and person in src/config/site.js, so the preview is what /api/people draws. keep in sync
+    const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const colorize = l => l.replace(/\{([^|}]+)\|([^|}]+)(?:\|([^}]+))?\}/g, (_, phrase, role, url) => url
+      ? `<a class="hl-${role}" href="${url}" target="_blank">${phrase}</a>`
+      : `<span class="hl-${role}">${phrase}</span>`);
+    const person = p => `<div><dt>${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.name)}</a>` : esc(p.name)}</dt>`
+      + (p.why ? `<dd>${colorize(esc(p.why))}</dd>` : '') + '</div>';
+
+    const FIELDS = [
+      ['name', 'name', 'how they show up'],
+      ['url', 'link', 'https://... (optional)'],
+      ['why', 'why', 'optional, {C++|tech} marks work'],
+    ];
+    const TOOLS = [['up', '↑', 'move up'], ['down', '↓', 'move down'], ['remove', '✕', 'remove']];
+
+    function addRow(p = {}) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      for (const [f, label, placeholder] of FIELDS) {
+        const input = document.createElement('input');
+        input.dataset.f = f;
+        input.value = p[f] || '';
+        input.placeholder = placeholder;
+        input.setAttribute('aria-label', label);
+        row.append(input);
+      }
+      const tools = document.createElement('div');
+      tools.className = 'tools';
+      for (const [act, text, title] of TOOLS) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.act = act;
+        b.textContent = text;
+        b.title = title;
+        b.setAttribute('aria-label', title);
+        tools.append(b);
+      }
+      row.append(tools);
+      rows.append(row);
+      return row;
+    }
+
+    // the rows as the list that gets saved. fully empty rows are skipped, empty links and reasons left out
+    const readList = () => [...rows.querySelectorAll('.row')]
+      .map(r => Object.fromEntries([...r.querySelectorAll('input')].map(i => [i.dataset.f, i.value.trim()])))
+      .filter(p => p.name || p.url || p.why)
+      .map(p => ({ name: p.name, ...(p.url && { url: p.url }), ...(p.why && { why: p.why }) }));
+
+    function refresh() {
+      preview.innerHTML = readList().filter(p => p.name).map(person).join('');
+    }
+
+    rows.addEventListener('input', refresh);
+    rows.addEventListener('click', e => {
+      const b = e.target.closest('button[data-act]');
+      if (!b) return;
+      const row = b.closest('.row');
+      if (b.dataset.act === 'up' && row.previousElementSibling) row.previousElementSibling.before(row);
+      if (b.dataset.act === 'down' && row.nextElementSibling) row.nextElementSibling.after(row);
+      if (b.dataset.act === 'remove') row.remove();
+      refresh();
+      if (b.isConnected) b.focus();
+    });
+    // the preview's links go nowhere while you edit
+    preview.addEventListener('click', e => { if (e.target.closest('a')) e.preventDefault(); });
+
+    document.getElementById('add').addEventListener('click', () => {
+      addRow().querySelector('input').focus();
+      refresh();
+    });
+
+    async function load() {
+      setStatus('loading...');
+      const res = await fetch('/api/people/list');
+      if (!res.ok) throw new Error('load failed (' + res.status + ')');
+      const { list } = await res.json();
+      rows.replaceChildren();
+      list.forEach(p => addRow(p));
+      refresh();
+      setStatus(list.length + (list.length === 1 ? ' friend' : ' friends') + ' loaded');
+    }
+
+    async function save(btn) {
+      btn.disabled = true;
+      setStatus('saving...');
+      try {
+        // the session cookie is the auth, like projectsEdit
+        const res = await fetch('/api/people/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ list: readList() }),
+        });
+        if (res.status === 401) return location.href = '/auth/?next=/peopleEdit.html';
+        if (res.status === 403) return setStatus('not your account');
+        const data = await res.json().catch(() => ({}));
+        // the server says which person is wrong
+        if (!res.ok) return setStatus(data.error || 'save failed (' + res.status + ')');
+        rows.replaceChildren();
+        data.list.forEach(p => addRow(p));
+        refresh();
+        setStatus('saved ' + data.list.length + (data.list.length === 1 ? ' friend' : ' friends'));
+      } catch (err) {
+        console.error(err);
+        setStatus("couldn't save, try again");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // open to anyone, but the list and saving are owner only
+      let me = null;
+      try {
+        const res = await fetch('/auth/me');
+        if (res.ok) me = await res.json();
+      } catch (err) {}
+
+      const saveBtn = document.getElementById('save');
+      if (!me || !me.admin) {
+        const note = document.getElementById('readonly-note');
+        note.innerHTML = me
+          ? 'signed in as ' + esc(me.name) + ', but the friends list is owner only.'
+          : 'the friends list is owner only. <a href="/auth/?next=/peopleEdit.html">log in</a>';
+        note.hidden = false;
+        saveBtn.disabled = true;
+        saveBtn.title = 'owner only';
+        addRow();
+        return;
+      }
+      saveBtn.addEventListener('click', e => save(e.currentTarget));
+      try {
+        await load();
+      } catch (err) {
+        console.error(err);
+        setStatus("couldn't load the list, try refreshing");
+      }
+    });
+  </script>
+</body>
+</html>

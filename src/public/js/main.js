@@ -362,16 +362,17 @@
   }
 
   // my friends, hidden like the guestbook. the list comes from /api/people on the first open, so it is not in the
-  // page and a visit that never opens it never asks. an empty list stays closed
+  // page and a visit that never opens it never asks. an empty list says so instead of opening to nothing
+  const peopleNote = text => `<p class="small-p">${text}</p>`;
   let peopleLoad = null;
   async function toPeople() {
     const people = document.getElementById('people');
     const list = people.querySelector('dl');
     peopleLoad ??= fetch('/api/people')
       .then(res => { if (!res.ok) throw new Error(res.status); return res.json(); })
-      .then(({ html }) => { list.innerHTML = html; return !!html; })
-      .catch(() => { list.insertAdjacentHTML('afterend', `<p class="small-p">couldn't load this, try again in a bit</p>`); return true; });
-    if (!await peopleLoad) return;
+      .then(({ html }) => html ? (list.innerHTML = html) : list.insertAdjacentHTML('afterend', peopleNote('nobody here yet')))
+      .catch(() => list.insertAdjacentHTML('afterend', peopleNote("couldn't load this, try again in a bit")));
+    await peopleLoad;
     people.hidden = false;
     people.scrollIntoView();
     setSidebar(false);
