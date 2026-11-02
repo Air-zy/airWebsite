@@ -30,6 +30,8 @@ router.get('/anime3/coords',       require('./anime3/coords.js')           );
 router.get('/rblx',                require('./api_rblx.js')                );
 // the live roblox numbers in how i started on the home page
 router.get('/roblox-stats',        require('./api_robloxStats.js')         );
+// the people i like list, fetched when the home page section is opened
+router.get('/people',              require('./api_people.js')              );
 // visitor ips and user agents, owner only
 router.get('/logs',                requireAdmin, require('./api_logs.js') );
 router.get('/headers',             require('./api_headers.js')             );

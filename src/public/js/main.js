@@ -331,6 +331,22 @@
     setSidebar(false);
   }
 
+  // people i like, hidden like the guestbook. the list comes from /api/people on the first open, so it is not in the
+  // page and a visit that never opens it never asks. an empty list stays closed
+  let peopleLoad = null;
+  async function toPeople() {
+    const people = document.getElementById('people');
+    const list = people.querySelector('dl');
+    peopleLoad ??= fetch('/api/people')
+      .then(res => { if (!res.ok) throw new Error(res.status); return res.json(); })
+      .then(({ html }) => { list.innerHTML = html; return !!html; })
+      .catch(() => { list.insertAdjacentHTML('afterend', `<p class="small-p">couldn't load this, try again in a bit</p>`); return true; });
+    if (!await peopleLoad) return;
+    people.hidden = false;
+    people.scrollIntoView();
+    setSidebar(false);
+  }
+
   // signing needs an account. the popup logs you in without leaving the page, then the note goes out
   const loginDialog = document.getElementById('login-dialog');
   const loginFrame = loginDialog.querySelector('iframe');
@@ -361,8 +377,9 @@
     sessionStorage.removeItem('note');
   } catch {} // storage can be blocked, the note is lost then
 
-  // google comes back to /home#guestbook
+  // google comes back to /home#guestbook, and /home#people is the link to send people
   if (location.hash === '#guestbook') toGuestbook();
+  if (location.hash === '#people') toPeople();
 
   // the address bar follows the guestbook so a refresh or shared link lands back on it.
   // a line a third down counts, so a board taller than the screen still crosses it
@@ -407,10 +424,12 @@
     window.history.replaceState(null, '', '/home' + location.search + location.hash);
   }
 
-  // the nav, the side bar and leave a note say where they go with data-to, guestbook and contact do more than scroll
+  // the nav, the side bar, leave a note and people i like say where they go with data-to. most just scroll there,
+  // these three do more
+  const opens = { guestbook: toGuestbook, contact: toContact, people: toPeople };
   addEventListener('click', e => {
     const to = e.target.closest('[data-to]')?.dataset.to;
-    if (to) (to === 'guestbook' ? toGuestbook : to === 'contact' ? toContact : goTo)(to);
+    if (to) (opens[to] || goTo)(to);
   });
   menuIcon.addEventListener('click', menuTrigger);
 })();

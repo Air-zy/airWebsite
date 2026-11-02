@@ -30,7 +30,8 @@ const about = [
 ];
 
 // people i like, in the order they show. url and why can be left out, why takes the same {phrase|role|url} marks
-// as about. the section stays off the page until someone is in here
+// as about. not in the page: /api/people sends it when someone opens the section from the small link by the
+// copyright or /home#people. no link while the list is empty
 const people = [
   // { name: 'someone', url: 'https://example.com', why: 'taught me {C++|tech}' },
 ];
@@ -61,9 +62,7 @@ const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const person = p => `<div><dt>${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.name)}</a>` : esc(p.name)}</dt>`
   + (p.why ? `<dd>${colorize(esc(p.why))}</dd>` : '') + '</div>';
-const peopleSection = list => list.length
-  ? `<section class="txt-section" id="people"><h2>people i like</h2><dl class="people">${list.map(person).join('')}</dl></section>`
-  : '';
+const peopleList = list => list.map(person).join('');
 
 const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
@@ -72,6 +71,8 @@ module.exports = {
   repo: 'Air-zy/airWebsite',
   accent: '#cebe78',   // the terminal headings and the animation pane
   about: about.map(plain),
+  // the rows of the people i like list, what /api/people answers with
+  peopleHtml: peopleList(people),
   skills,
 
   // the shapes index.html asks for by name, see the <!--#token--> comments in it.
@@ -82,8 +83,8 @@ module.exports = {
 
     skills: Object.entries(skills).map(skillGroup).join(''),
 
-    // the whole section, or nothing while the list is empty
-    people: peopleSection(people),
+    // as quiet as the copyright it sits in front of, and gone while the list is empty
+    peopleLink: people.length ? '<button class="people-link" data-to="people">people i like</button> · ' : '',
 
     nav: nav.map(navItem).join(' '),
     sideNav: nav.map(navItem).join(' '),
@@ -133,9 +134,10 @@ if (require.main === module) {
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
   a.ok(html.includes('id="adapt"'), 'main.js animates this one, it stays in the page');
 
-  // people i like: nothing at all while empty, a link only when there is a url, the reason only when there is one
-  a.strictEqual(peopleSection([]), '', 'an empty list leaves no heading behind');
-  const two = peopleSection([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
+  // people i like: a link only when there is a url, the reason only when there is one, and no way in while empty
+  a.strictEqual(peopleList([]), '');
+  a.strictEqual(module.exports.html.peopleLink === '', people.length === 0, 'the link shows exactly when someone is listed');
+  const two = peopleList([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
   a.ok(two.includes('<a href="https://x.y/?a=1&amp;b=2" target="_blank">a&lt;b</a>'), 'linked and escaped');
   a.ok(two.includes('<dd>made <span class="hl-accent">this</span></dd>'), 'the reason takes the about marks');
   a.ok(two.includes('<dt>c</dt></div>'), 'no url is a plain name and no reason is no dd');
