@@ -371,7 +371,7 @@ article p {
   color: var(--text-grey);
 }
 
-/* people i like, a name and a line on why. the markup comes from site.js */
+/* people i like, a name and a line on why. the rows come from /api/people, built in site.js */
 .people {
   margin: 0;
 }
@@ -718,6 +718,19 @@ article p {
   height: 1em;
   fill: currentColor;
   vertical-align: -0.125em;
+}
+/* the way into people i like, as quiet as the copyright it sits in front of */
+.people-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.people-link:hover {
+  color: var(--text-normal);
+  text-decoration: underline;
 }
 .chat-button .icon {
   font-size: 1.3em;
