@@ -1,7 +1,7 @@
 // the breakdown. click the 🤓 by the name and the whole site falls apart. a crack runs out of it along the wall, and when
 // it snaps, more cracks run down the whole page and everything breaks as the shock gets to it. words and letters go
-// crooked, hang off one corner, get misspelled or drop onto whatever's below them and pile up, the ones on a crack rip in
-// half, links, buttons and pictures come loose and the plant tips over. then a glitchy mechanical spider made of lines
+// crooked, hang off one corner, get misspelled or fall right off the bottom of the screen, the ones on a crack rip in
+// half, links, buttons and pictures come loose and the plant tips over and drops. then a glitchy mechanical spider made of lines
 // and ascii climbs over the page and fixes all of it with its legs. it jabs the crooked ones straight, reels the fallen
 // ones back up on a thread, welds the ripped ones back together and closes the cracks it walks over.
 //
@@ -42,8 +42,6 @@
   const SKIP = 'script, style, textarea, dialog, #adapt';
   // these move as one piece. all other text breaks word by word, and big text letter by letter
   const RIGID = 'nav .nav-item, .menu-icon, .bubble, .flower canvas, main img, main svg, main button, main .sticky';
-  // what falling things land on: the tops of these, and the bottom of the first screen
-  const LEDGES = 'h2, .project-container, .skills > div, .note, .plate, .footer-top, .footer-bottom, #board-form, .people';
   const SCROLL_KEYS = [' ', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'];
   const BROKEN = new Set(['crook', 'typo', 'hang', 'fall', 'topple']);
   // typos: the keys around each key, and the glitchy look-alikes
@@ -282,26 +280,11 @@
     return null;
   }
 
-  // what falls lands on the next ledge below where it started: a heading, a project's dotted line, a picture, the
-  // footer, or the bottom of the first screen. past the end of every ledge, the bottom of the page
-  function ledges(r) {
-    const out = [];
-    for (const e of main.querySelectorAll(LEDGES)) {
-      const b = e.getBoundingClientRect();
-      if (b.width > 1 && b.height > 0) out.push({ x0: b.left, x1: b.right, y: b.top + r.dy });
-    }
-    const hero = document.getElementById('s1')?.getBoundingClientRect();
-    if (hero?.height) out.push({ x0: 0, x1: r.W, y: hero.bottom + r.dy });
-    return out.sort((a, b) => a.y - b.y);
-  }
-  function floorAt(r, x, from) {
-    for (const l of r.ledges) if (l.y >= from && x >= l.x0 && x <= l.x1) return l.y;
-    return r.bottom;
-  }
-
   function collect(r) {
     const { W, origin } = r;
     const real = b => b.width > 1 && b.height > 1;
+    // actually showing. what's in a closed details still has a box to measure, so the box alone doesn't say
+    const shown = e => (e.checkVisibility ? e.checkVisibility({ visibilityProperty: true }) : !e.closest('details:not([open]) > :not(summary)'));
     const dist = b => Math.hypot(b.left + b.width / 2 - origin.x, b.top + b.height / 2 - origin.y);
     // near the 🤓 things break harder
     const near = d => clamp(1.15 - d / 1600, 0.35, 1);
@@ -310,7 +293,7 @@
     for (const e of document.querySelectorAll(RIGID)) {
       if (e.parentElement.closest(RIGID)) continue;
       const cb = e.getBoundingClientRect(), inNav = nav.contains(e);
-      if (!real(cb) || cb.width > W * 0.8 || getComputedStyle(e).visibility !== 'visible') continue;
+      if (!real(cb) || cb.width > W * 0.8 || !shown(e)) continue;
       const b = toPage(r, cb), d = dist(b), q = near(d), A = elementActor(r, e, b, d), x = Math.random();
       A.q = q;
       A.nav = inNav;
@@ -327,9 +310,8 @@
       const walk = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
       for (let n; (n = walk.nextNode());) {
         const parent = n.parentElement;
-        if (!/\S/.test(n.data) || parent.closest(SKIP) || parent.closest(RIGID)) continue;
+        if (!/\S/.test(n.data) || parent.closest(SKIP) || parent.closest(RIGID) || !shown(parent)) continue;
         const cs = getComputedStyle(parent);
-        if (cs.visibility !== 'visible') continue;
         const letter = parseFloat(cs.fontSize) >= 21;
         for (const m of n.data.matchAll(letter ? /\S/gu : /\S+/g)) {
           const range = document.createRange();
@@ -437,11 +419,6 @@
     if (tf !== A.tf) A.node.style.transform = A.tf = tf;
   }
 
-  function corners(A) {
-    const c = Math.cos(A.a), s = Math.sin(A.a), w = A.w / 2, h = A.h / 2;
-    return [[-w, -h], [w, -h], [w, h], [-w, h]].map(([x, y]) => ({ rx: c * x - s * y, ry: s * x + c * y }));
-  }
-
   // a damped spring toward a pose
   function spring(A, tx, ty, ta, k, z, dt) {
     const c = 2 * Math.sqrt(k) * z;
@@ -454,66 +431,40 @@
   }
 
 
-  // hanging off a pin. gravity turns it about the pin, and it can't swing through the ledge under it
-  function swing(r, A, dt) {
+  // hanging off a pin. gravity turns it about the pin
+  function swing(A, dt) {
     const { x, y, rx, ry } = A.pin, k2 = (A.w * A.w + A.h * A.h) / 12 + rx * rx + ry * ry;
     const at = a => [x + Math.cos(a) * rx - Math.sin(a) * ry, y + Math.sin(a) * rx + Math.cos(a) * ry];
     A.va += ((at(A.a)[0] - x) * GRAVITY / k2) * dt;
     A.va *= Math.exp(-dt * (A.mode === 'topple' ? 0.4 : 1.1));
-    const before = A.a;
     A.a += A.va * dt;
     [A.cx, A.cy] = at(A.a);
-    if (corners(A).some(p => A.cy + p.ry > A.floor)) {
-      A.a = before;
-      A.va *= -0.3;
-      [A.cx, A.cy] = at(A.a);
-    }
   }
 
-  // falling free, a box that bounces off the ledge it lands on and the sides of the screen. each corner that goes
-  // through gets an impulse back out, with friction, so it tumbles and settles like a thing would
-  function fall(r, A, dt) {
+  // falling free. there's no ground, it keeps going, tumbling, until it's off the screen
+  function fall(A, dt) {
     A.vy += GRAVITY * dt;
     A.cx += A.vx * dt;
     A.cy += A.vy * dt;
     A.a += A.va * dt;
-    const I = (A.w * A.w + A.h * A.h) / 12, floor = floorAt(r, A.cx, A.from);
-    let up = 0, side = 0;
-    for (const { rx, ry } of corners(A)) {
-      const x = A.cx + rx, y = A.cy + ry;
-      if (y > floor) { up = Math.max(up, y - floor); contact(A, rx, ry, 0, -1, I); }
-      if (x < 0) { side = Math.max(side, -x); contact(A, rx, ry, 1, 0, I); }
-      if (x > r.W) { side = Math.min(side, r.W - x); contact(A, rx, ry, -1, 0, I); }
-    }
-    A.cy -= up;
-    A.cx += side;
-    // asleep once it's lying still, so it stops being touched every frame
-    A.rest = up && Math.hypot(A.vx, A.vy) < 20 && Math.abs(A.va) < 0.3 ? (A.rest || 0) + dt : 0;
-    if (A.rest > 0.4) A.sleep = true;
-  }
-  function contact(A, rx, ry, nx, ny, I) {
-    const vn = (A.vx - A.va * ry) * nx + (A.vy + A.va * rx) * ny;
-    if (vn >= 0) return;
-    const rn = rx * ny - ry * nx, j = (-(vn < -60 ? 1.28 : 1) * vn) / (1 + (rn * rn) / I);
-    A.vx += j * nx;
-    A.vy += j * ny;
-    A.va += (rn * j) / I;
-    const tx = -ny, ty = nx, rt = rx * ty - ry * tx;
-    const vt = (A.vx - A.va * ry) * tx + (A.vy + A.va * rx) * ty;
-    const jt = clamp(-vt / (1 + (rt * rt) / I), -0.6 * j, 0.6 * j);
-    A.vx += jt * tx;
-    A.vy += jt * ty;
-    A.va += (rt * jt) / I;
   }
 
+  // off the bottom of the screen or out the side, it's gone. it's put back where it was, hidden, until the spider reels
+  // it in, so nothing lying far below the page makes it longer to scroll
+  function lose(A) {
+    A.mode = 'lost';
+    A.node.style.visibility = 'hidden';
+    A.cx = A.hx;
+    A.cy = A.hy;
+    A.a = A.vx = A.vy = A.va = 0;
+    pose(A);
+  }
 
   // the shock gets to it
   function hit(r, A) {
     const dx = A.hx - r.origin.x, dy = A.hy - r.origin.y, d = Math.hypot(dx, dy) || 1;
     const nx = dx / d, ny = dy / d, q = A.q, size = Math.sqrt(A.w * A.h);
     A.mode = A.fate === 'launch' ? 'fall' : A.fate;
-    A.from = A.hy + A.h / 2 - 2;
-    A.floor = A.nav ? Infinity : floorAt(r, A.hx, A.from);
     if (A.fate === 'typo') A.node.textContent = A.wrong;
     if (A.fate === 'launch') {
       // the 🤓 itself pops off
@@ -558,13 +509,20 @@
   }
 
   // jabbed by the spider: everything in the group springs home. a word's home is measured again first, in case
-  // something above it changed size since. the ones that ended up far away get a thread
+  // something above it changed size since. the ones that fell off the screen come back up from below it, and the
+  // ones that ended up far away get a thread
   function fix(r, c, L) {
     r.thud = Math.max(r.thud, 2.4);
-    r.rings.push({ x: c.x, y: c.y, t: r.t });
     sparks(r, c.x, c.y, 16);
+    glyphs(r, c.x, c.y, 7, 150);
     for (const A of c.members) {
       if (A.mode === 'home' || A.mode === 'done') continue;
+      if (A.mode === 'lost') {
+        A.cx = clamp(A.hx + rand(-120, 120), 0, r.W);
+        A.cy = r.view.bottom + Math.hypot(A.w, A.h) / 2 + 30;
+        A.a = rand(-2, 2);
+        A.node.style.visibility = '';
+      }
       if (!A.own) {
         const b = A.span.getBoundingClientRect();
         A.hx = b.left - r.sh.x + A.ox;
@@ -573,7 +531,6 @@
       A.reel = Math.hypot(A.cx - A.hx, A.cy - A.hy) > 70;
       if (A.reel && L) r.threads.push({ A, L });
       A.mode = 'fix';
-      A.sleep = false;
       A.a = wrapAngle(A.a);
       A.glow = 1;
       if (A.fate === 'typo') A.decode = r.t;
@@ -581,7 +538,7 @@
   }
 
   function update(r, A, t, dt) {
-    if (A.mode === 'done' || A.mode === 'held') return;
+    if (A.mode === 'done' || A.mode === 'held' || A.mode === 'lost') return;
     if (A.mode === 'still') {
       if (t >= A.hit) hit(r, A);
       else if (t < r.at.snap) {
@@ -605,20 +562,20 @@
       spring(A, A.hx + A.dx, A.hy + A.dy, A.ta, 220, 0.3, dt);
     }
     else if (A.mode === 'hang' || A.mode === 'topple') {
-      swing(r, A, dt);
-      if (A.snapAt && t > A.snapAt) {
-        // it lets go, carrying on the way it was swinging
+      swing(A, dt);
+      // a hanging one sometimes gives way, and the plant drops once it's tipped too far to stand. either carries on the
+      // way it was swinging
+      if ((A.snapAt && t > A.snapAt) || (A.mode === 'topple' && Math.abs(A.a) > 1.1)) {
         A.mode = 'fall';
         A.vx = -A.va * (A.cy - A.pin.y);
         A.vy = A.va * (A.cx - A.pin.x);
         A.va *= 1.5;
-        A.from = A.cy + Math.max(...corners(A).map(p => p.ry)) - 2;
         chips(r, A.pin.x, A.pin.y, 3, 120, A.col);
       }
     } else if (A.mode === 'fall') {
-      if (A.sleep) return;
-      fall(r, A, dt / 2);
-      fall(r, A, dt / 2);
+      fall(A, dt);
+      const reach = Math.hypot(A.w, A.h) / 2;
+      if (A.cy - reach > r.view.bottom || A.cx + reach < -20 || A.cx - reach > r.W + 20) return lose(A);
     } else if (A.mode === 'fix') {
       spring(A, A.hx, A.hy, 0, A.reel ? 120 : 260, A.reel ? 0.7 : 0.42, dt);
       if (A.decode != null) {
@@ -636,8 +593,9 @@
       }
     }
     if (A.glow > 0) {
-      A.glow = Math.max(0, A.glow - dt * 1.6);
-      A.node.style.filter = A.glow ? `drop-shadow(0 0 ${(6 * A.glow).toFixed(1)}px color-mix(in srgb,${C.tech} ${Math.round(A.glow * 90)}%,transparent))` : '';
+      // fixed, it flashes white hot like a weld and cools back down
+      A.glow = Math.max(0, A.glow - dt * 2.2);
+      A.node.style.filter = A.glow ? `brightness(${(1 + 1.6 * A.glow * A.glow).toFixed(2)})` : '';
     }
     if (A.mode === 'home') {
       // back where it belongs. a ripped one waits for its other half, then they're welded
@@ -686,11 +644,17 @@
 
   // ---------- particles
 
-  // bits off broken things, they drop and bounce on the ledge below
+  // bits off broken things, they drop away
   function chips(r, x, y, n, power, col) {
-    const floor = floorAt(r, x, y);
     for (let i = 0; i < n; i++) {
-      r.parts.push({ x, y, vx: rand(-1, 1) * power, vy: rand(-1.4, 0.3) * power, s: rand(1.4, 3.4), col, life: rand(1, 2.2), floor });
+      r.parts.push({ x, y, vx: rand(-1, 1) * power, vy: rand(-1.4, 0.3) * power, s: rand(1.4, 3.4), col, life: rand(1, 2.2) });
+    }
+  }
+  // characters kicked out where a foot comes down
+  function glyphs(r, x, y, n, power) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, Math.PI * 2), v = rand(0.4, 1) * power;
+      r.glyphs.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, ch: pick('*+x#%/\\'), t: r.t, life: rand(0.3, 0.55), col: Math.random() < 0.25 ? C.accent : C.tech });
     }
   }
   // off a jab, they fly up off the page and fall back
@@ -875,7 +839,7 @@
     // lands with a thud, feet down where they'd stand
     for (const L of s.legs) L.f = restOf(s, L);
     r.thud = Math.max(r.thud, 3);
-    r.rings.push({ x: s.x, y: s.y, t: r.t, big: true });
+    glyphs(r, s.x, s.y, 12, 260);
     chips(r, s.x, s.y, 10, 160, C.grey);
     r.silk.until = r.t;
   }
@@ -1158,7 +1122,7 @@
       W, H, calm, origin, root, layer, canvas, wall, skip, dpr, ctx: canvas.getContext('2d'), wctx: wall.getContext('2d'),
       mainTop, dy, bottom: main.scrollHeight, maxScroll: main.scrollHeight - main.clientHeight, at: { snap: calm ? 0 : T_CRACK, spider: T_CRACK + T_SPIDER },
       view: { top: scroll0, bottom: scroll0 + H - mainTop }, oy: mainTop - scroll0, sh: { x: 0, y: 0 },
-      cracks: [], ledges: [], actors: [], wrapped: [], clusters: [], parts: [], rings: [], threads: [], welds: [],
+      cracks: [], actors: [], wrapped: [], clusters: [], parts: [], glyphs: [], threads: [], welds: [],
       spider: null, silk: null, thud: 0, t: 0, user: -Infinity, expect: scroll0, healEnd: Infinity,
       phase: { x: rand(0, 9), y: rand(0, 9) }, t0: performance.now(), last: performance.now(),
       // the camera shake moves these, they get their own style back after
@@ -1173,7 +1137,6 @@
         run.cracks.push(crackDown(run, { x, y: crackAt(across, x) }));
       }
     }
-    run.ledges = ledges(run);
     collect(run);
     group(run);
     if (calm) for (const A of run.actors) hit(run, A);
@@ -1432,18 +1395,19 @@
       drawShadow(g, s);
     }
 
-    // jabs and landings: rings on the page
-    r.rings = r.rings.filter(q => t - q.t < 0.5);
-    for (const q of r.rings) {
-      const p = (t - q.t) / 0.5;
-      g.strokeStyle = C.tech;
-      g.lineWidth = 1.4;
-      for (const [k, d] of [[1, 0], [0.6, 0.1]]) {
-        g.globalAlpha = Math.max(0, 1 - p - d) * 0.9;
-        g.beginPath();
-        g.arc(q.x, q.y, 4 + ease(p) * 46 * k * (q.big ? 2.4 : 1), 0, 7);
-        g.stroke();
-      }
+    // the characters a jab or a landing kicks out, slowing and fading
+    r.glyphs = r.glyphs.filter(q => t - q.t < q.life);
+    g.font = `11px ${MONO}`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (const q of r.glyphs) {
+      q.x += q.vx * dt;
+      q.y += q.vy * dt;
+      q.vx *= Math.exp(-dt * 5);
+      q.vy *= Math.exp(-dt * 5);
+      g.globalAlpha = 1 - (t - q.t) / q.life;
+      g.fillStyle = q.col;
+      g.fillText(q.ch, q.x, q.y);
     }
     g.globalAlpha = 1;
 
@@ -1491,7 +1455,6 @@
       q.vy += GRAVITY * 0.8 * dt;
       q.x += q.vx * dt;
       q.y += q.vy * dt;
-      if (q.y > q.floor - q.s) { q.y = q.floor - q.s; q.vy *= -0.3; q.vx *= 0.6; }
       g.fillStyle = q.col;
       g.fillRect(q.x, q.y, q.s, q.s);
     }
