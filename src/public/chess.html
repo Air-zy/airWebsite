@@ -106,6 +106,25 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 :is(#engine, #level, #multipv) :is(option, optgroup) { background: var(--panel); }
 #multipv { margin-left: auto; color: var(--mute); font-weight: 400; font-size: 12px; }
 #multipv:hover { color: var(--hi); }
+/* the engine's settings button sits by its name, a line shorter than the info under it, so it takes no width */
+#ceval .pick { display: flex; align-items: center; gap: 6px; }
+#optBtn { flex: none; padding: 0; border: 0; background: none; color: var(--mute); cursor: pointer; }
+#optBtn:hover, #optBtn[aria-expanded=true] { color: var(--hi); }
+#optBtn svg { display: block; width: 14px; height: 14px; fill: currentColor; }
+
+/* the engine's own options, the ones the page doesn't set itself. a changed one's name lights up */
+#opts { display: none; padding: 8px 12px 10px; background: var(--sunk); border-bottom: 1px solid var(--line); font-size: 12px; }
+body:not([data-mode=edit]):has(#optBtn[aria-expanded=true]) #opts { display: block; }
+#optList { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px 14px; }
+#optList label { display: flex; align-items: center; justify-content: space-between; gap: 4px; color: var(--mute); }
+#optList .changed { color: var(--hi); }
+#optList input {
+  width: 4.6em; padding: 2px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+}
+#optFoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; color: var(--mute); }
+#optFoot b { color: var(--hi); }
+#optReset:disabled { color: var(--faint); cursor: default; }
 
 /* fight mode: who you are and the hints switch */
 #fightBar { display: none; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; background: #d850001c; border-bottom: 1px solid var(--line); }
@@ -245,13 +264,19 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     <div id="ceval">
       <input type="checkbox" id="on" class="switch" checked autocomplete="off" title="engine (l)" aria-label="engine on">
       <b id="score"></b>
-      <div class="meta"><select id="engine" aria-label="engine">
-        <option value="xaggd240tm">Verity</option><option value="aggex25s">Sukuna</option><option value="v39" selected>Gojo</option>
-      </select><span id="info"></span></div>
+      <div class="meta"><div class="pick"><select id="engine" aria-label="engine">
+        <option value="verity">Verity</option><option value="sukuna">Sukuna</option><option value="gojo" selected>Gojo</option>
+      </select><button id="optBtn" title="the engine's own settings" aria-label="engine settings" aria-expanded="false" aria-controls="opts" hidden><svg
+        viewBox="0 0 16 16"><path d="M1 3.25h14v1.5H1zM9 1.5h2.5v5H9zM1 7.25h14v1.5H1zM3.5 5.5H6v5H3.5zM1 11.25h14v1.5H1zM10 9.5h2.5v5H10z"/></svg></button></div>
+      <span id="info"></span></div>
       <select id="multipv" aria-label="lines" title="how many lines the engine shows">
         <option value="1">1 line</option><option value="2">2 lines</option><option value="3" selected>3 lines</option>
         <option value="4">4 lines</option><option value="5">5 lines</option>
       </select>
+    </div>
+    <div id="opts" role="group" aria-label="engine settings">
+      <div id="optList"></div>
+      <div id="optFoot"><span><b id="optName"></b>'s own settings</span><button type="button" class="chip" id="optReset">defaults</button></div>
     </div>
     <div id="fightBar">
       <i id="sideKing"></i><span>you play <b id="side">white</b></span>

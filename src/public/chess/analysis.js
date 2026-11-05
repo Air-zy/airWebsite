@@ -272,12 +272,55 @@ function preview() {
 
 const wasm = {};  // engine folder -> its compiled chess.wasm
 
-// a worker running the chosen engine, a folder under engines/ holding just its chess.wasm (the worker and its glue are
-// shared). the wasm is compiled once and handed over, a failed compile is dropped so the next worker tries again
-function spawn() {
-  const dir = `/chess/engines/${el.engine.value}/`, w = new Worker('/chess/engines/engine.worker.js');
+// the options a visitor changed on an engine, name -> value. the rest stay at the engine's own defaults
+const tuned = e => { try { return JSON.parse(localStorage['chess.opts.' + e] || '{}') || {}; } catch { return {}; } };
+const retune = (e, t) => { try { localStorage['chess.opts.' + e] = JSON.stringify(t); } catch {} };
+
+// a worker running an engine, a folder under engines/ holding just its chess.wasm (the worker and its glue are shared).
+// the wasm is compiled once and handed over, a failed compile is dropped so the next worker tries again. every worker
+// gets the changed options first, so analysis, fights and reviews all play with them
+function spawn(engine = el.engine.value, set = tuned(engine)) {
+  const dir = `/chess/engines/${engine}/`, w = new Worker('/chess/engines/engine.worker.js');
   (wasm[dir] ??= WebAssembly.compileStreaming(fetch(dir + 'chess.wasm'))).then(m => w.postMessage(m), () => { delete wasm[dir]; w.onerror(); });
+  for (const [k, v] of Object.entries(set)) w.postMessage(`setoption name ${k} value ${v}`);
   return w;
+}
+
+// an engine's own options come from its reply to uci, so a new build's show up without touching the page. the page
+// sets MultiPV itself (the lines picker) and Hash goes with the worker each move anyway, so those two stay out. a
+// worker asks once per engine, with nothing set: the reply gives an option's current value as its default. avy: only
+// spin options get a control, the engines have no other kind yet
+const OPTION = /^option name (.+?) type spin default (-?\d+) min (-?\d+) max (-?\d+)/, OWN = ['Hash', 'MultiPV'];
+const optionsOf = {};  // engine folder -> a promise of its options, [{ name, def, min, max }], null if it didn't load
+function options(engine) {
+  return optionsOf[engine] ??= new Promise(done => {
+    const w = spawn(engine, {}), list = [];
+    w.onmessage = e => {
+      const m = OPTION.exec(e.data);
+      if (m && !OWN.includes(m[1])) list.push({ name: m[1], def: +m[2], min: +m[3], max: +m[4] });
+      if (e.data === 'uciok') { w.terminate(); done(list); }
+    };
+    w.onerror = () => { delete optionsOf[engine]; w.terminate(); done(null); };
+    w.postMessage('uci');
+  });
+}
+
+const clamp = (o, v) => Math.min(o.max, Math.max(o.min, Math.round(v)));
+// the settings panel for the chosen engine, its button only shows when the engine has options. a saved value the
+// engine doesn't take any more is dropped and the rest are clamped to its range, in case a new build changed them. an
+// engine that didn't load says nothing about its options, so its saved ones stay for the next try
+async function drawOpts() {
+  const e = el.engine.value, list = await options(e);
+  if (e !== el.engine.value) return;
+  el.optBtn.hidden = !list?.length;
+  if (!list?.length) return el.optBtn.ariaExpanded = false;
+  const t = tuned(e), keep = {};
+  for (const o of list) if (Number.isFinite(t[o.name]) && clamp(o, t[o.name]) !== o.def) keep[o.name] = clamp(o, t[o.name]);
+  retune(e, keep);
+  el.optName.textContent = el.engine.selectedOptions[0].text;
+  el.optList.innerHTML = list.map(o => `<label title="default ${o.def}, ${o.min} to ${o.max}"${o.name in keep ? ' class="changed"' : ''}>${o.name}
+    <input type="number" name="${o.name}" min="${o.min}" max="${o.max}" data-def="${o.def}" value="${keep[o.name] ?? o.def}"></label>`).join('');
+  el.optReset.disabled = !Object.keys(keep).length;
 }
 
 const position = n => `position fen ${root.fen} moves ${path(n).join(' ')}`;
@@ -592,7 +635,7 @@ onkeydown = e => {
   press(e.key);
 };
 // the buttons take no focus, so space stays "play the best move"
-el.ctrl.onmousedown = el.pvMore.onmousedown = e => e.preventDefault();
+el.ctrl.onmousedown = el.pvMore.onmousedown = el.optBtn.onmousedown = e => e.preventDefault();
 el.pvMore.onclick = () => { el.pvMore.ariaExpanded = el.pv.classList.toggle('open'); };
 el.ctrl.onclick = e => { const k = e.target.closest('button')?.dataset.key; if (k) press(k); };
 el.moves.onclick = e => { const id = e.target.closest('[data-id]')?.dataset.id; if (id) goto(nodes[id]); };
@@ -618,10 +661,26 @@ for (const s of [el.engine, el.multipv, el.level]) {
   s.onchange = () => {
     try { localStorage['chess.' + s.id] = s.value; } catch {}
     s.blur();
-    if (s === el.engine) resetReview();
+    if (s === el.engine) { resetReview(); drawOpts(); }
     goto(cur);
   };
 }
+
+// a changed option is saved for that engine (back at its default it's forgotten) and, like another engine, starts the
+// search and the review again. an emptied box goes back to the default
+el.optBtn.onclick = () => { el.optBtn.ariaExpanded = el.optBtn.ariaExpanded !== 'true'; };
+el.optList.onchange = e => {
+  const i = e.target, def = +i.dataset.def, t = tuned(el.engine.value);
+  const v = i.value === '' ? def : clamp({ min: +i.min, max: +i.max }, +i.value);
+  i.value = v;
+  if (v === def) delete t[i.name]; else t[i.name] = v;
+  retune(el.engine.value, t);
+  i.parentNode.classList.toggle('changed', v !== def);
+  el.optReset.disabled = !Object.keys(t).length;
+  resetReview();
+  goto(cur);
+};
+el.optReset.onclick = () => { retune(el.engine.value, {}); drawOpts(); resetReview(); goto(cur); };
 
 // the palette: the hand and eraser are in the page, a row of pieces goes after each
 for (const c of 'wb') (c === 'w' ? el.hand : el.eraser).insertAdjacentHTML('afterend', [...'kqrbnp'].map(t =>
@@ -661,3 +720,4 @@ el.shapes.innerHTML = `<defs>${Object.entries(BRUSH).map(([k, c]) =>
 try { newRoot(decodeURIComponent(location.hash.slice(1)).replaceAll('_', ' ') || START); } catch { newRoot(START); }
 orient();
 goto(root);
+drawOpts();
