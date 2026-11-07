@@ -229,9 +229,10 @@ function drawEval() {
   // your move in a fight without hints: nothing runs, the last eval stays up
   const quiet = !end && blind() && game.turn() === you(), best = pvs[0];
   // verity's first fight move waits on its model, the size is the model's 3.4 MB and the engine's 1.8 MB wasm
-  const loading = engineMoves() && hunting() && !hunter?.warm;
+  const loading = engineMoves() && hunting() && !hunter?.warm, on = el.on.checked || engineMoves();
+  const big = on && !loaded.has(`/chess/engines/${el.engine.value}/`) && BIG[el.engine.value];
   let white = null, score = '', info = quiet ? 'your move' : loading ? 'loading its model, ~5 MB the first time'
-    : el.on.checked || engineMoves() ? 'thinking' : 'engine off';
+    : big || (on ? 'thinking' : 'engine off');
   if (end) {
     white = end === 'checkmate' ? +(game.turn() === 'b') : .5;  // white's share of the gauge
     score = ['0-1', '½-½', '1-0'][white * 2];
@@ -274,8 +275,13 @@ function preview() {
   shown = s;
 }
 
-const wasm = {};  // engine folder -> its compiled chess.wasm
-const compiled = dir => wasm[dir] ??= WebAssembly.compileStreaming(fetch(dir + 'chess.wasm'));
+// engine folder -> its compiled chess.wasm, and the folders whose compile is done. the panel redraws once one is, so a
+// slow first download's note (BIG) goes
+const wasm = {}, loaded = new Set();
+const compiled = dir => wasm[dir] ??= WebAssembly.compileStreaming(fetch(dir + 'chess.wasm'))
+  .then(m => { loaded.add(dir); drawEval(); return m; });
+// what the panel says while an engine too big to come in at once downloads: cynical's wasm carries its human net
+const BIG = { cynical: 'loading its human net, ~40 MB the first time' };
 
 // the options a visitor changed on an engine, name -> value. the rest stay at the engine's own defaults
 const tuned = e => { try { return JSON.parse(localStorage['chess.opts.' + e] || '{}') || {}; } catch { return {}; } };
