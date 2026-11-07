@@ -134,6 +134,10 @@ body:not([data-mode=edit]):has(#optBtn[aria-expanded=true]) #opts { display: blo
 #fightBar b { color: var(--hi); }
 #sideKing { flex: none; width: 24px; height: 24px; background-size: cover; }
 #fightBar label { display: flex; align-items: center; gap: 6px; color: #d3a98c; font-size: 12px; cursor: pointer; }
+/* verity sets its own pace in a fight (analysis.js, hunt), so its note takes the strength picker's place */
+#fightBar #hunt { display: none; color: #d3a98c; font-size: 12px; cursor: help; }
+body:has(#engine [value=verity]:checked) #hunt { display: inline; }
+body:has(#engine [value=verity]:checked) #strength { display: none; }
 
 /* a row per engine line like lichess, its score then the moves. the arrow opens the lines that don't fit, the moves are
    inline blocks so an open line only wraps between them */
@@ -280,7 +284,8 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     </div>
     <div id="fightBar">
       <i id="sideKing"></i><span>you play <b id="side">white</b></span>
-      <label title="how hard the engine searches each move">strength <select id="level">
+      <span id="hunt" title="Verity guesses from the board how much sooner each of its moves mates a 1400, and picks the move that mates you soonest. Under a second a move, after a ~5 MB download the first time">plays to mate a 1400</span>
+      <label id="strength" title="how hard the engine searches each move">strength <select id="level">
         <optgroup label="search depth">
           <option value="depth 1">depth 1</option>
           <option value="depth 2">depth 2</option>

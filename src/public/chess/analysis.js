@@ -6,7 +6,8 @@ const NAMES = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: '
 // arrow colours like lichess: right drag is green, shift red, alt blue, both yellow. the engine's best line is blue and
 // its other lines grey
 const BRUSH = { g: '#15781b', r: '#882020', b: '#003088', y: '#e68f00', k: '#4a4a4a' };
-const INFO = /^info depth (\d+)(?: multipv (\d+))? score (cp|mate) (-?\d+) .*?nps (\d+) .*?pv ?(.*)/, BEST = /^bestmove (\S+)/;
+// verity's fight player prints no nps, just the depth, score and its move
+const INFO = /^info depth (\d+)(?: multipv (\d+))? score (cp|mate) (-?\d+)(?: .*?nps (\d+))? .*?pv ?(.*)/, BEST = /^bestmove (\S+)/;
 // the king and rook squares each castling flag needs
 const CASTLE = { K: ['e1', 'h1'], Q: ['e1', 'a1'], k: ['e8', 'h8'], q: ['e8', 'a8'] };
 // review: how deep each position is searched, the grades and the material values for spotting a sacrifice
@@ -227,7 +228,10 @@ function drawEval() {
     : game.isInsufficientMaterial() ? 'insufficient material' : game.isDraw() ? 'fifty moves' : '';
   // your move in a fight without hints: nothing runs, the last eval stays up
   const quiet = !end && blind() && game.turn() === you(), best = pvs[0];
-  let white = null, score = '', info = quiet ? 'your move' : el.on.checked || engineMoves() ? 'thinking' : 'engine off';
+  // verity's first fight move waits on its model, the size is the model's 3.4 MB and the engine's 1.8 MB wasm
+  const loading = engineMoves() && hunting() && !hunter?.warm;
+  let white = null, score = '', info = quiet ? 'your move' : loading ? 'loading its model, ~5 MB the first time'
+    : el.on.checked || engineMoves() ? 'thinking' : 'engine off';
   if (end) {
     white = end === 'checkmate' ? +(game.turn() === 'b') : .5;  // white's share of the gauge
     score = ['0-1', '½-½', '1-0'][white * 2];
@@ -235,7 +239,7 @@ function drawEval() {
   } else if (best) {
     white = (1 + chance(best)) / 2;
     score = fmt(best);
-    info = `depth ${best.depth} · ${Math.round(best.nps / 1000).toLocaleString()} kn/s`;
+    info = `depth ${best.depth}` + (best.nps ? ` · ${Math.round(best.nps / 1000).toLocaleString()} kn/s` : '');
   }
   if (!quiet) el.score.textContent = score;
   el.info.textContent = info;
@@ -271,20 +275,67 @@ function preview() {
 }
 
 const wasm = {};  // engine folder -> its compiled chess.wasm
+const compiled = dir => wasm[dir] ??= WebAssembly.compileStreaming(fetch(dir + 'chess.wasm'));
 
 // the options a visitor changed on an engine, name -> value. the rest stay at the engine's own defaults
 const tuned = e => { try { return JSON.parse(localStorage['chess.opts.' + e] || '{}') || {}; } catch { return {}; } };
 const retune = (e, t) => { try { localStorage['chess.opts.' + e] = JSON.stringify(t); } catch {} };
 
-// a worker running an engine, a folder under engines/ holding just its chess.wasm (the worker and its glue are shared).
+// a worker running an engine, a folder under engines/ holding its chess.wasm (the worker and its glue are shared).
 // the wasm is compiled once and handed over, a failed compile is dropped so the next worker tries again. every worker
 // gets the changed options first, so analysis, fights and reviews all play with them
 function spawn(engine = el.engine.value, set = tuned(engine)) {
   const dir = `/chess/engines/${engine}/`, w = new Worker('/chess/engines/engine.worker.js');
-  (wasm[dir] ??= WebAssembly.compileStreaming(fetch(dir + 'chess.wasm'))).then(m => w.postMessage(m), () => { delete wasm[dir]; w.onerror(); });
+  compiled(dir).then(m => w.postMessage(m), () => { delete wasm[dir]; w.onerror(); });
   for (const [k, v] of Object.entries(set)) w.postMessage(`setoption name ${k} value ${v}`);
   return w;
 }
+
+// a fight against verity goes through engines/verity/verityb.worker.js (VerityB) instead: the same engine, but at each
+// move its top 12 within 5 pawns of the best get a bonus from boosted trees (vbmodel.bin), a guess from the board at
+// how many moves sooner each one mates a ~1400, and the best total is played. no human model runs at play time. its go
+// takes no limits (node counted, under a second a move), so the strength picker steps aside. analysis and reviews stay
+// on the plain engine. one worker lasts the whole fight: its isready loads the trees while you think and the engine
+// keeps its hash, so unlike the others it isn't killed on every move. a move can't be cut short either, so the answers
+// come back in the order they were asked and one for a position you've since left is dropped. asked holds, per command
+// still running, the node of a go or null for the isready
+let hunter = null, asked = [];
+const hunting = () => mode === 'fight' && el.engine.value === 'verity';
+
+function hunt() {
+  if (hunter) return;
+  const dir = '/chess/engines/verity/', w = hunter = new Worker(dir + 'verityb.worker.js');
+  // the page's compiled wasm goes first, before any command, or the worker fetches its own (as it does if that failed)
+  const up = compiled(dir).then(m => w.postMessage(m), () => { delete wasm[dir]; });
+  w.send = c => up.then(() => w.postMessage(c));
+  for (const [k, v] of Object.entries(tuned('verity'))) w.send(`setoption name ${k} value ${v}`);
+  asked.push(null);
+  w.send('isready');
+  w.onmessage = e => {
+    if (w !== hunter) return;
+    const l = e.data, n = asked[0], best = BEST.exec(l), failed = l.startsWith('info string error');
+    if (!best && !failed && l !== 'readyok') {
+      const info = n && parse(l, n);
+      if (info && n === cur) { pvs = [info]; drawEval(); drawShapes(); }
+      return;
+    }
+    asked.shift();
+    if (failed) return fail(l);
+    w.warm = true;
+    if (best && n === cur && engineMoves() && hunting()) goto(child(n, best[1]));
+    else if (!best) drawEval();  // loaded, the note goes
+  };
+  w.onerror = () => fail('');
+}
+
+// a failed load (the model's download, most likely) drops the worker, the next move starts a fresh one
+function fail(why) {
+  if (why) console.warn('verity:', why);
+  unhunt();
+  el.info.textContent = 'Verity failed to load, try another move';
+}
+const unhunt = () => { hunter?.terminate(); hunter = null; asked = []; };
+const ask = n => { hunt(); if (!asked.includes(n)) { asked.push(n); hunter.send(position(n)); hunter.send('go'); } };
 
 // an engine's own options come from its reply to uci, so a new build's show up without touching the page. the page
 // sets MultiPV itself (the lines picker) and Hash goes with the worker each move anyway, so those two stay out. a
@@ -338,11 +389,13 @@ function analyse() {
   worker?.terminate();
   worker = null;
   pvs = [];
+  if (hunting()) hunt(); else unhunt();
   drawEval();
   drawShapes();
   const plays = engineMoves();
   if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === you())) return;
   timer = setTimeout(() => {
+    if (plays && hunting()) return ask(cur);
     const n = cur, w = worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
     let got = [];
     w.onmessage = e => {
@@ -667,7 +720,8 @@ for (const s of [el.engine, el.multipv, el.level]) {
 }
 
 // a changed option is saved for that engine (back at its default it's forgotten) and, like another engine, starts the
-// search and the review again. an emptied box goes back to the default
+// search and the review again. verity's fight worker starts over too, it only takes options when it starts. an emptied
+// box goes back to the default
 el.optBtn.onclick = () => { el.optBtn.ariaExpanded = el.optBtn.ariaExpanded !== 'true'; };
 el.optList.onchange = e => {
   const i = e.target, def = +i.dataset.def, t = tuned(el.engine.value);
@@ -678,9 +732,10 @@ el.optList.onchange = e => {
   i.parentNode.classList.toggle('changed', v !== def);
   el.optReset.disabled = !Object.keys(t).length;
   resetReview();
+  unhunt();
   goto(cur);
 };
-el.optReset.onclick = () => { retune(el.engine.value, {}); drawOpts(); resetReview(); goto(cur); };
+el.optReset.onclick = () => { retune(el.engine.value, {}); drawOpts(); resetReview(); unhunt(); goto(cur); };
 
 // the palette: the hand and eraser are in the page, a row of pieces goes after each
 for (const c of 'wb') (c === 'w' ? el.hand : el.eraser).insertAdjacentHTML('afterend', [...'kqrbnp'].map(t =>
