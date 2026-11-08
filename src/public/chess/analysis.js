@@ -16,16 +16,18 @@ const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 
 const el = Object.fromEntries([...document.querySelectorAll('[id]')].map(e => [e.id, e]));
 let root, cur, game, nodes, flipped = false, sel = null, dests = new Map(), drag = null, draw = null;
+// your side in a fight. a fight starts with the bottom side, then only the fight bar's toggle changes it (el.sideBtn),
+// flipping the board just turns the view
+let side = 'w';
 let worker = null, reviewer = null, timer, pvs = [], mode = '';  // pvs: the engine's lines, best first. mode: '', 'fight' or 'edit'
 // edit mode: the position being edited (it may not be legal yet), the palette tool ('' the hand, 'x' the eraser or a
 // piece like 'wn') and what a held pointer paints (null when nothing, '' when erasing)
 let edit = null, tool = '', brush = null, brushed;
 
-const you = () => flipped ? 'b' : 'w';
-// in a fight the engine plays the top side when it's that side's turn at the end of a line, so stepping back through
+// in a fight the engine plays the other side when it's that side's turn at the end of a line, so stepping back through
 // the game doesn't make it move. without hints nothing runs on your move and its line and arrow stay hidden
 const blind = () => mode === 'fight' && !el.hints.checked;
-const engineMoves = () => mode === 'fight' && game.turn() !== you() && !cur.children.length;
+const engineMoves = () => mode === 'fight' && game.turn() !== side && !cur.children.length;
 // lines the engine searches: one when it plays the move, never more than there are moves (it prints just that many)
 const want = () => engineMoves() ? 1 : Math.min(el.multipv.value, game.moves().length);
 
@@ -144,8 +146,11 @@ function orient() {
     return `<span class="rank${lt}" style="top:${i * 12.5}%">${at(7, i)[1]}</span><span class="file${lt}" style="left:${i * 12.5}%">${at(i, 7)[0]}</span>`;
   }).join('');
   el.gauge.classList.toggle('flip', flipped);
-  el.side.textContent = flipped ? 'black' : 'white';
-  el.sideKing.style.backgroundImage = img(you() + 'k');
+}
+
+function drawSide() {
+  el.side.textContent = side === 'b' ? 'black' : 'white';
+  el.sideKing.style.backgroundImage = img(side + 'k');
 }
 
 function select(sq) {
@@ -227,7 +232,7 @@ function drawEval() {
   const end = game.isCheckmate() ? 'checkmate' : game.isStalemate() ? 'stalemate'
     : game.isInsufficientMaterial() ? 'insufficient material' : game.isDraw() ? 'fifty moves' : '';
   // your move in a fight without hints: nothing runs, the last eval stays up
-  const quiet = !end && blind() && game.turn() === you(), best = pvs[0];
+  const quiet = !end && blind() && game.turn() === side, best = pvs[0];
   // verity's first fight move waits on its model, the size is the model's 3.4 MB and the engine's 1.8 MB wasm
   const loading = engineMoves() && hunting() && !hunter?.warm, on = el.on.checked || engineMoves();
   const big = on && !loaded.has(`/chess/engines/${el.engine.value}/`) && BIG[el.engine.value];
@@ -395,11 +400,12 @@ function analyse() {
   worker?.terminate();
   worker = null;
   pvs = [];
+  el.deeper.hidden = true;
   if (hunting()) hunt(); else unhunt();
   drawEval();
   drawShapes();
   const plays = engineMoves();
-  if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === you())) return;
+  if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === side)) return;
   timer = setTimeout(() => {
     if (plays && hunting()) return ask(cur);
     const n = cur, w = worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
@@ -408,8 +414,9 @@ function analyse() {
       if (w !== worker) return;
       // it searches the start position instead, so its lines wouldn't fit this one
       if (e.data.startsWith('info string invalid fen')) { worker = null; w.terminate(); el.info.textContent = 'the engine refused this position'; return; }
-      const info = parse(e.data, n), best = plays && BEST.exec(e.data);
-      if (best) return goto(child(n, best[1]));
+      // a bestmove in analysis means its 30s ran out, the + then lets it search on (el.deeper)
+      const info = parse(e.data, n), best = BEST.exec(e.data);
+      if (best) return plays ? goto(child(n, best[1])) : (el.deeper.hidden = false);
       if (!info || !el.on.checked) return;
       // the lines of a depth come one by one from line 1 and show once they're all in, so depths don't mix. they're in
       // search order, a later one can score a little higher, so they get sorted
@@ -428,6 +435,10 @@ function analyse() {
     w.postMessage(`go ${plays ? el.level.value : 'movetime 30000'}`);
   }, 150);
 }
+
+// the + after analysis stopped: the same worker searches the position again with no limit, its hash gets it back to
+// the depth it had in a moment. it runs until you leave the position, the next one is capped again
+el.deeper.onclick = () => { el.deeper.hidden = true; worker?.postMessage('go infinite'); };
 
 const reviewing = () => el.reviewBtn.ariaPressed === 'true';
 const lead = fen => [...fen.split(' ')[0]].reduce((s, c) => s + (VALUE[c.toLowerCase()] ?? 0) * (c < 'a' ? 1 : -1), 0);  // white's material lead
@@ -540,6 +551,7 @@ function setMode(m) {
     edit = null;
   }
   mode = mode === m ? '' : m;
+  if (mode === 'fight') { side = flipped ? 'b' : 'w'; drawSide(); }
   document.body.dataset.mode = mode;
   el.fightBtn.ariaPressed = mode === 'fight';
   el.editBtn.ariaPressed = mode === 'edit';
@@ -628,7 +640,7 @@ el.board.onpointerdown = e => {
   if (e.button !== 0) return;
   if (cur.shapes.length) { cur.shapes = []; drawShapes(); }
   if (dests.has(sq)) return tryMove(sel, sq);
-  if (game.get(sq)?.color !== game.turn() || mode === 'fight' && game.turn() !== you()) return select(null);
+  if (game.get(sq)?.color !== game.turn() || mode === 'fight' && game.turn() !== side) return select(null);
   drag = { from: sq, el: el.pieces.querySelector(`.piece:not(.gone)[data-sq="${sq}"]`), x: e.clientX, y: e.clientY, wasSel: sel === sq };
   select(sq);
 };
@@ -680,7 +692,7 @@ const keys = {
   ArrowLeft: () => cur.parent, ArrowRight: () => cur.children[0],
   ArrowUp: () => root, Home: () => root, ArrowDown: lineEnd, End: lineEnd,
   ' ': () => pvs[0] && child(cur, pvs[0].pv[0]),
-  f: () => { flipped = !flipped; orient(); drawBoard(true); if (mode === 'fight') analyse(); },  // in a fight that swaps sides
+  f: () => { flipped = !flipped; orient(); drawBoard(true); },
   l: () => el.on.click(),
   p: () => setMode('fight'),
   e: () => setMode('edit'),
@@ -694,7 +706,7 @@ onkeydown = e => {
   press(e.key);
 };
 // the buttons take no focus, so space stays "play the best move"
-el.ctrl.onmousedown = el.pvMore.onmousedown = el.optBtn.onmousedown = e => e.preventDefault();
+el.ctrl.onmousedown = el.pvMore.onmousedown = el.optBtn.onmousedown = el.deeper.onmousedown = el.sideBtn.onmousedown = e => e.preventDefault();
 el.pvMore.onclick = () => { el.pvMore.ariaExpanded = el.pv.classList.toggle('open'); };
 el.ctrl.onclick = e => { const k = e.target.closest('button')?.dataset.key; if (k) press(k); };
 el.moves.onclick = e => { const id = e.target.closest('[data-id]')?.dataset.id; if (id) goto(nodes[id]); };
@@ -710,6 +722,15 @@ el.pv.onclick = e => {
   let n = cur;
   for (const u of pvs[l].pv.slice(0, +i + 1)) n = child(n, u);
   goto(n);
+};
+
+// switching sides turns the board so yours is at the bottom, then the engine moves if it's now its turn (or stops)
+el.sideBtn.onclick = () => {
+  side = side === 'w' ? 'b' : 'w';
+  if (flipped !== (side === 'b')) keys.f();
+  select(null);
+  drawSide();
+  analyse();
 };
 
 el.on.onchange = el.hints.onchange = analyse;
@@ -780,5 +801,6 @@ el.shapes.innerHTML = `<defs>${Object.entries(BRUSH).map(([k, c]) =>
   `<marker id="h-${k}" orient="auto" markerWidth="4" markerHeight="4" refX="2.05" refY="2"><path d="M0,0V4L3,2Z" fill="${c}"/></marker>`).join('')}</defs><g></g>`;
 try { newRoot(decodeURIComponent(location.hash.slice(1)).replaceAll('_', ' ') || START); } catch { newRoot(START); }
 orient();
+drawSide();
 goto(root);
 drawOpts();

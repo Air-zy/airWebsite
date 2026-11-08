@@ -106,11 +106,13 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 :is(#engine, #level, #multipv) :is(option, optgroup) { background: var(--panel); }
 #multipv { margin-left: auto; color: var(--mute); font-weight: 400; font-size: 12px; }
 #multipv:hover { color: var(--hi); }
-/* the engine's settings button sits by its name, a line shorter than the info under it, so it takes no width */
-#ceval .pick { display: flex; align-items: center; gap: 6px; }
-#optBtn { flex: none; padding: 0; border: 0; background: none; color: var(--mute); cursor: pointer; }
-#optBtn:hover, #optBtn[aria-expanded=true] { color: var(--hi); }
-#optBtn svg { display: block; width: 14px; height: 14px; fill: currentColor; }
+/* the engine's settings button sits by its name, a line shorter than the info under it, so it takes no width. the +
+   that searches on once analysis stops (analysis.js, analyse) sits after the info */
+#ceval :is(.pick, .status) { display: flex; align-items: center; gap: 6px; }
+:is(#optBtn, #deeper) { flex: none; padding: 0; border: 0; background: none; color: var(--mute); cursor: pointer; }
+:is(#optBtn, #deeper):hover, #optBtn[aria-expanded=true] { color: var(--hi); }
+:is(#optBtn, #deeper) svg { display: block; width: 14px; height: 14px; fill: currentColor; }
+#deeper svg { width: 12px; height: 12px; }
 
 /* the engine's own options, the ones the page doesn't set itself. a changed one's name lights up */
 #opts { display: none; padding: 8px 12px 10px; background: var(--sunk); border-bottom: 1px solid var(--line); font-size: 12px; }
@@ -133,6 +135,13 @@ body:not([data-mode=edit]):has(#optBtn[aria-expanded=true]) #opts { display: blo
 [data-mode=fight]:has(#hints:not(:checked)) #pvRow { display: none; }
 #fightBar b { color: var(--hi); }
 #sideKing { flex: none; width: 24px; height: 24px; background-size: cover; }
+/* your side is a toggle (analysis.js, sideBtn): it switches sides and turns the board, the flip button only the view */
+#sideBtn {
+  display: flex; align-items: center; gap: 6px; margin-right: auto; padding: 2px 8px 2px 2px; border: 0; border-radius: 3px;
+  background: none; cursor: pointer; transition: background-color .12s;
+}
+#sideBtn:hover { background: #d8500033; }
+#sideBtn svg { flex: none; width: 12px; height: 12px; fill: #d3a98c; }
 #fightBar label { display: flex; align-items: center; gap: 6px; color: #d3a98c; font-size: 12px; cursor: pointer; }
 /* verity sets its own pace in a fight (analysis.js, hunt), so its note takes the strength picker's place */
 #fightBar #hunt { display: none; color: #d3a98c; font-size: 12px; cursor: help; }
@@ -272,7 +281,8 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
         <option value="cynical">Cynical</option><option value="verity">Verity</option><option value="sukuna">Sukuna</option><option value="gojo" selected>Gojo</option>
       </select><button id="optBtn" title="the engine's own settings" aria-label="engine settings" aria-expanded="false" aria-controls="opts" hidden><svg
         viewBox="0 0 16 16"><path d="M1 3.25h14v1.5H1zM9 1.5h2.5v5H9zM1 7.25h14v1.5H1zM3.5 5.5H6v5H3.5zM1 11.25h14v1.5H1zM10 9.5h2.5v5H10z"/></svg></button></div>
-      <span id="info"></span></div>
+      <div class="status"><span id="info"></span><button id="deeper" title="keep searching, with no time limit" aria-label="keep searching"
+        hidden><svg viewBox="0 0 16 16"><path d="M7 1.5h2v5.5h5.5v2H9v5.5H7V9H1.5V7H7z"/></svg></button></div></div>
       <select id="multipv" aria-label="lines" title="how many lines the engine shows">
         <option value="1">1 line</option><option value="2">2 lines</option><option value="3" selected>3 lines</option>
         <option value="4">4 lines</option><option value="5">5 lines</option>
@@ -283,7 +293,8 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
       <div id="optFoot"><span><b id="optName"></b>'s own settings</span><button type="button" class="chip" id="optReset">defaults</button></div>
     </div>
     <div id="fightBar">
-      <i id="sideKing"></i><span>you play <b id="side">white</b></span>
+      <button id="sideBtn" title="switch sides"><i id="sideKing"></i><span>you play <b id="side">white</b></span><svg viewBox="0 0 16 16"
+        aria-hidden="true"><path d="M2 4.25h9V2l3.5 3L11 8V5.75H2zM14 11.75H5V14l-3.5-3L5 8v2.25h9z"/></svg></button>
       <span id="hunt" title="Verity guesses from the board how much sooner each of its moves mates a 1400, and picks the move that mates you soonest. Under a second a move, after a ~5 MB download the first time">plays to mate a 1400</span>
       <label id="strength" title="how hard the engine searches each move">strength <select id="level">
         <optgroup label="search depth">
