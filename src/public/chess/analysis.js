@@ -6,8 +6,10 @@ const NAMES = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: '
 // arrow colours like lichess: right drag is green, shift red, alt blue, both yellow. the engine's best line is blue and
 // its other lines grey
 const BRUSH = { g: '#15781b', r: '#882020', b: '#003088', y: '#e68f00', k: '#4a4a4a' };
-// verity's fight player prints no nps, just the depth, score and its move
-const INFO = /^info depth (\d+)(?: multipv (\d+))? score (cp|mate) (-?\d+)(?: .*?nps (\d+))? .*?pv ?(.*)/, BEST = /^bestmove (\S+)/;
+// verity's fight player prints no nps, just the depth, score and its move. seldepth (the deepest ply the search reached,
+// captures and checks included) is optional too, an engine that prints it gets "depth 10/18" in the panel
+const INFO = /^info depth (\d+)(?: seldepth (\d+))?(?: multipv (\d+))? score (cp|mate) (-?\d+)(?: .*?nps (\d+))? .*?pv ?(.*)/;
+const BEST = /^bestmove (\S+)/;
 // the king and rook squares each castling flag needs
 const CASTLE = { K: ['e1', 'h1'], Q: ['e1', 'a1'], k: ['e8', 'h8'], q: ['e8', 'a8'] };
 // review: how deep each position is searched, the grades and the material values for spotting a sacrifice
@@ -245,7 +247,7 @@ function drawEval() {
   } else if (best) {
     white = (1 + chance(best)) / 2;
     score = fmt(best);
-    info = `depth ${best.depth}` + (best.nps ? ` · ${Math.round(best.nps / 1000).toLocaleString()} kn/s` : '');
+    info = `depth ${best.depth}` + (best.sel ? '/' + best.sel : '') + (best.nps ? ` · ${Math.round(best.nps / 1000).toLocaleString()} kn/s` : '');
   }
   if (!quiet) el.score.textContent = score;
   el.info.textContent = info;
@@ -386,10 +388,12 @@ async function drawOpts() {
 }
 
 const position = n => `position fen ${root.fen} moves ${path(n).join(' ')}`;
-// an engine info line at node n in white's view: depth, which line (1 without multipv), cp or mate, nps and the moves
+// an engine info line at node n in white's view: depth, seldepth (0 without), which line (1 without multipv), cp or
+// mate, nps and the moves
 const parse = (line, n) => {
   const m = INFO.exec(line);
-  return m && { depth: +m[1], k: +(m[2] ?? 1), [m[3]]: m[4] * (n.ply % 2 ? -1 : 1), nps: +m[5], pv: m[6].split(' ').filter(Boolean) };
+  return m && { depth: +m[1], sel: +(m[2] ?? 0), k: +(m[3] ?? 1), [m[4]]: m[5] * (n.ply % 2 ? -1 : 1), nps: +m[6],
+    pv: m[7].split(' ').filter(Boolean) };
 };
 
 // avy: the wasm build can't take a stop mid search, so a new position kills the worker and starts a fresh one and the
