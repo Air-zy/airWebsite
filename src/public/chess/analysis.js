@@ -23,8 +23,8 @@ const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }, SIDE = { w: 'white', b: 'black' 
 const el = Object.fromEntries([...document.querySelectorAll('[id]')].map(e => [e.id, e]));
 let root, cur, game, nodes, flipped = false, sel = null, dests = new Map(), drag = null, draw = null;
 // your side in a fight. a fight starts with the bottom side, then only the fight bar's toggle changes it (el.sideBtn),
-// flipping the board just turns the view
-let side = 'w';
+// flipping the board just turns the view. the fight's clocks (null without) and your premoves, [{ from, to }] in order
+let side = 'w', clock = null, pres = [];
 let worker = null, reviewer = null, timer, pvs = [], mode = '';  // pvs: the engine's lines, best first. mode: '', 'fight' or 'edit'
 // edit mode: the position being edited (it may not be legal yet), the palette tool ('' the hand, 'x' the eraser or a
 // piece like 'wn') and what a held pointer paints (null when nothing, '' when erasing)
@@ -33,7 +33,7 @@ let edit = null, tool = '', brush = null, brushed;
 // in a fight the engine plays the other side when it's that side's turn at the end of a line, so stepping back through
 // the game doesn't make it move. without hints nothing runs on your move and its line and arrow stay hidden
 const blind = () => mode === 'fight' && !el.hints.checked;
-const engineMoves = () => mode === 'fight' && game.turn() !== side && !cur.children.length;
+const engineMoves = () => mode === 'fight' && game.turn() !== side && !cur.children.length && !clock?.flag;
 // lines the engine searches: one when it plays the move, never more than there are moves (it prints just that many)
 const want = () => engineMoves() ? 1 : Math.min(el.multipv.value, game.moves().length);
 
@@ -42,6 +42,7 @@ function newRoot(fen) {
   const err = fenError(fen);
   if (err) throw new Error(err);
   resetReview();
+  if (mode === 'fight') resetClock();
   const g = new Chess(fen);
   root = { id: 0, fen: g.fen(), ply: (g.moveNumber() - 1) * 2 + (g.turn() === 'b'), children: [], shapes: [] };
   nodes = [root];
@@ -81,7 +82,7 @@ function sqAt(e) {
 
 // moves animate because piece elements get reused: one already in place stays, otherwise the nearest leftover of
 // the same kind slides over. new ones appear, captured ones fade out
-function syncPieces(fresh, box = el.pieces, g = edit || game) {
+function syncPieces(fresh, box = el.pieces, g = edit || (pres.length ? planned() : game)) {
   if (fresh) box.replaceChildren();
   const left = [...box.querySelectorAll('.piece:not(.gone)')], todo = [];
   for (const p of g.board().flat()) {
@@ -127,7 +128,8 @@ function drawTag() {
 function drawSquares() {
   drawTag();
   if (edit) return el.squares.replaceChildren();
-  const extra = [];
+  // each premove's squares once, a square two premoves share would show darker
+  const extra = [...new Set(pres.flatMap(p => [p.from, p.to]))].map(sq => [sq, 'pre']);
   if (sel) extra.push([sel, 'sel'], ...[...dests].map(([sq, cap]) => [sq, cap ? 'dest cap' : 'dest']));
   if (drag?.over && dests.has(drag.over)) extra.push([drag.over, 'hover']);
   el.squares.innerHTML = marks(cur.uci, game, extra);
@@ -169,17 +171,68 @@ function drawSide() {
   el.sideKing.style.backgroundImage = img(side + 'k');
 }
 
-function select(sq) {
+// a piece picked up: its legal moves, or premoving (on the engine's turn) every square it could reach on an empty board
+// from where your premoves so far leave it, since the engine's moves may still open or close any of them
+let premoving = false;
+function select(sq, early = false) {
   sel = sq;
-  dests = new Map(sq ? game.moves({ square: sq, verbose: true }).map(m => [m.to, !!m.captured]) : []);
+  premoving = !!sq && early;
+  dests = !sq ? new Map() : premoving ? reach(sq, planned()) : new Map(game.moves({ square: sq, verbose: true }).map(m => [m.to, !!m.captured]));
   drawSquares();
 }
 
-// a move made on the board, a pawn reaching the last rank asks for the piece first
+// the board as your premoves leave it, like chess.com shows it: each played in turn from the real position with the
+// engine's replies left out. a king's two-square move takes its rook along, a pawn reaching the last rank queens
+function planned() {
+  const f = game.fen().split(' ');
+  f[1] = side;
+  f[3] = '-';
+  const g = new Chess(f.join(' '), { skipValidation: true });
+  for (const p of pres) {
+    const piece = g.get(p.from);
+    if (!piece) break;
+    g.remove(p.from);
+    if (piece.type === 'k' && Math.abs(FILES.indexOf(p.to[0]) - FILES.indexOf(p.from[0])) === 2) {
+      const r = p.from[1], rook = g.get((p.to[0] === 'g' ? 'h' : 'a') + r);
+      if (rook?.type === 'r') { g.remove((p.to[0] === 'g' ? 'h' : 'a') + r); g.put(rook, (p.to[0] === 'g' ? 'f' : 'd') + r); }
+    }
+    g.put(piece.type === 'p' && /[18]/.test(p.to[1]) ? { type: 'q', color: piece.color } : piece, p.to);
+  }
+  return g;
+}
+
+// where the piece on sq in g could go on an empty board, castling and pawn captures included, like lichess's premoves
+const JUMPS = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
+function reach(sq, g) {
+  const p = g.get(sq), f = FILES.indexOf(sq[0]), r = +sq[1], out = new Map();
+  const add = (x, y) => x >= 0 && x < 8 && y >= 1 && y <= 8 && out.set(FILES[x] + y, false);
+  const rays = dirs => { for (const [dx, dy] of dirs) for (let i = 1; i < 8; i++) add(f + dx * i, r + dy * i); };
+  if (p.type === 'n') for (const [dx, dy] of JUMPS) add(f + dx, r + dy);
+  if ('bq'.includes(p.type)) rays(RAYS.b);
+  if ('rq'.includes(p.type)) rays(RAYS.r);
+  if (p.type === 'k') {
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (dx || dy) add(f + dx, r + dy);
+    if (sq === (p.color === 'w' ? 'e1' : 'e8')) { add(f + 2, r); add(f - 2, r); }
+  }
+  if (p.type === 'p') {
+    const d = p.color === 'w' ? 1 : -1;
+    add(f, r + d);
+    if (r === (p.color === 'w' ? 2 : 7)) add(f, r + 2 * d);
+    add(f - 1, r + d);
+    add(f + 1, r + d);
+  }
+  return out;
+}
+
+// a move made on the board, a pawn reaching the last rank asks for the piece first. on the engine's turn it's a
+// premove instead, queued after any others. the board redraws as the premoves leave it (planned), which also puts a
+// dragged piece where it belongs
 function tryMove(from, to) {
+  const early = premoving;
   select(null);
+  if (early) { pres.push({ from, to }); play('premove'); return drawBoard(); }
   if (game.moves({ square: from, verbose: true }).some(m => m.to === to && m.promotion)) promote(from, to);
-  else goto(child(cur, from + to));
+  else goto(child(cur, from + to), true);
 }
 
 // q n r b in a column from the promotion square inward like lichess, a click anywhere else cancels
@@ -192,7 +245,7 @@ function promote(from, to) {
     e.stopPropagation();
     el.promo.hidden = true;
     const p = e.target.dataset.p;
-    p ? goto(child(cur, from + to + p)) : drawBoard();
+    p ? goto(child(cur, from + to + p), true) : drawBoard();
   };
 }
 
@@ -246,8 +299,10 @@ const fmt = l => {
 };
 
 function drawEval() {
+  // a fight lost on time ends where it was lost
+  const out = clock?.flag && mode === 'fight' && !cur.children.length && clock.flag;
   const end = game.isCheckmate() ? 'checkmate' : game.isStalemate() ? 'stalemate'
-    : game.isInsufficientMaterial() ? 'insufficient material' : game.isDraw() ? 'fifty moves' : '';
+    : game.isInsufficientMaterial() ? 'insufficient material' : game.isDraw() ? 'fifty moves' : out ? `${SIDE[out]} ran out of time` : '';
   // your move in a fight without hints: nothing runs, the last eval stays up
   const quiet = !end && blind() && game.turn() === side, best = pvs[0];
   // verity's first fight move waits on its model, the size is the model's 3.4 MB and the engine's 1.8 MB wasm
@@ -256,7 +311,7 @@ function drawEval() {
   let white = null, score = '', info = quiet ? 'your move' : loading ? 'loading its model, ~5 MB the first time'
     : big || (on ? 'thinking' : 'engine off');
   if (end) {
-    white = end === 'checkmate' ? +(game.turn() === 'b') : .5;  // white's share of the gauge
+    white = end === 'checkmate' ? +(game.turn() === 'b') : out ? +(out === 'b') : .5;  // white's share of the gauge
     score = ['0-1', '½-½', '1-0'][white * 2];
     info = end;
   } else if (best) {
@@ -350,7 +405,7 @@ function hunt() {
     asked.shift();
     if (failed) return fail(l);
     w.warm = true;
-    if (best && n === cur && engineMoves() && hunting()) goto(child(n, best[1]));
+    if (best && n === cur && engineMoves() && hunting()) goto(child(n, best[1]), true);
     else if (!best) drawEval();  // loaded, the note goes
   };
   w.onerror = () => fail('');
@@ -435,7 +490,7 @@ function analyse() {
       if (e.data.startsWith('info string invalid fen')) { worker = null; w.terminate(); el.info.textContent = 'the engine refused this position'; return; }
       // a bestmove in analysis means its 30s ran out, the + then lets it search on (el.deeper)
       const info = parse(e.data, n), best = BEST.exec(e.data);
-      if (best) return plays ? goto(child(n, best[1])) : (el.deeper.hidden = false);
+      if (best) return plays ? goto(child(n, best[1]), true) : (el.deeper.hidden = false);
       if (!info || !el.on.checked) return;
       // the lines of a depth come one by one from line 1 and show once they're all in, so depths don't mix. they're in
       // search order, a later one can score a little higher, so they get sorted
@@ -449,9 +504,9 @@ function analyse() {
     w.onerror = () => { el.info.textContent = 'engine failed to load, try another move'; };
     w.postMessage(`setoption name MultiPV value ${lines}`);
     w.postMessage(position(n));
-    // a fight move searches as the strength picker says (its values are go args), analysis is capped so an idle tab
-    // doesn't spin the fan forever
-    w.postMessage(`go ${plays ? el.level.value : 'movetime 30000'}`);
+    // a fight move searches as the strength picker says (its values are go args) and within its clock, analysis is
+    // capped so an idle tab doesn't spin the fan forever
+    w.postMessage(`go ${plays ? limits() : 'movetime 30000'}`);
   }, 150);
 }
 
@@ -971,8 +1026,9 @@ function drawNote(here) {
 // move sounds, chess.com's (sounds/, their names). stepping forward onto a move plays it: a check, else a promotion,
 // castling or capture, else a plain move (in a fight the engine's moves sound like an opponent's), and the game end
 // with it. stepping back plays the move taken back, without the game end. web audio, fetched on the first click or key
-// since browsers only play sound after one. a missing file stays silent, a missing move-opponent plays move-self
-const SOUNDS = ['move-self', 'move-opponent', 'capture', 'castle', 'move-check', 'promote', 'game-end'];
+// since browsers only play sound after one. a missing file stays silent, a missing move-opponent plays move-self.
+// setting a premove has its own (tryMove)
+const SOUNDS = ['move-self', 'move-opponent', 'capture', 'castle', 'move-check', 'promote', 'game-end', 'premove'];
 let audio = null;
 const sounds = {};
 function warm() {
@@ -996,9 +1052,82 @@ function sound(n, back) {
   if (!back && new Chess(n.fen).isGameOver()) play('game-end');
 }
 
-function goto(n) {
+// fight clocks (the fight bar's picker): minutes + seconds added a move. each side's time left in ms, the side whose
+// clock runs (null until the fight's first move and once it's over) and since when, and the side that ran out (flag),
+// which ends the fight. a clock only runs while the game is at the end of its line, stepping back through it pauses
+// both. the engine's searches keep to its clock (limits)
+let ticker = 0;
+const running = () => !!clock?.on && !clock.flag && mode === 'fight' && !cur.children.length;
+const left = c => clock[c] - (running() && clock.on === c ? performance.now() - clock.since : 0);
+function resetClock() {
+  const [m, i] = el.clock.value.split('+').map(Number);
+  clock = mode === 'fight' && m ? { inc: i * 1000, w: m * 6e4, b: m * 6e4, on: null, since: 0, flag: null } : null;
+  pres = [];
+  tick();
+}
+// before a goto: the running clock is charged up to now. a move played (made, not stepped to) adds the mover's
+// increment once the clocks have started and hands the clock to the other side, none when the game's over. the move
+// is already in the tree by then (child), so the line counts as ended before it if that move is cur's only one
+function clockMove(n, made) {
+  if (!clock || clock.flag) return;
+  const now = performance.now();
+  if (clock.on && mode === 'fight' && cur.children.every(c => made && c === n)) clock[clock.on] -= now - clock.since;
+  clock.since = now;
+  if (!made) return;
+  const mover = n.parent.ply % 2 ? 'b' : 'w';
+  if (clock.on) clock[mover] += clock.inc;
+  clock.on = new Chess(n.fen).isGameOver() ? null : other(mover);
+}
+// redraws the clocks, a tenth of a second at a time while one runs, and calls it when one runs out
+function tick() {
+  clearTimeout(ticker);
+  drawClocks();
+  if (!running()) return;
+  if (left(clock.on) <= 0) return flag(clock.on);
+  ticker = setTimeout(tick, 100);
+}
+function flag(c) {
+  clock[c] = 0;
+  clock.flag = c;
+  pres = [];
+  play('game-end');
+  analyse();
+  drawClocks();
+  drawBoard();
+}
+// m:ss, and under ten seconds 0:09.8 like lichess
+const hms = t => t >= 1e4 ? `${Math.floor(t / 6e4)}:${String(Math.floor(t / 1e3) % 60).padStart(2, '0')}`
+  : `0:0${Math.floor(t / 1e3)}.${Math.floor(t / 100) % 10}`;
+function drawClocks() {
+  document.body.classList.toggle('clocked', !!clock);
+  if (!clock) return;
+  for (const [e, c] of [[el.myClock, side], [el.oppClock, other(side)]]) {
+    const t = Math.max(0, left(c));
+    e.lastChild.textContent = hms(t);
+    e.firstChild.textContent = c === clock.flag ? 'out of time' : c === side ? 'you' : el.engine.selectedOptions[0].text;
+    e.classList.toggle('on', running() && clock.on === c);
+    e.classList.toggle('low', t < 1e4);
+    e.classList.toggle('out', c === clock.flag);
+  }
+}
+// the go args for an engine move: the strength picker's, and with a clock also a twenty-fifth of the engine's time plus
+// most of the increment, never closer than a second to running out (half of what's left under two)
+function limits() {
+  const lv = el.level.value;
+  if (!clock) return lv;
+  const t = left(other(side)), b = Math.round(Math.max(50, Math.min(t / 25 + clock.inc * .8, t > 2e3 ? t - 1e3 : t / 2)));
+  return lv.startsWith('movetime') ? `movetime ${Math.min(+lv.split(' ')[1], b)}` : `${lv} movetime ${b}`;
+}
+
+// made: a move played on the board or by the engine, rather than stepped to, it runs the clocks. the engine's move
+// plays the first queued premove right after it when that's still legal, else the whole queue goes, like chess.com.
+// your own moves keep the queue, stepping anywhere drops it
+function goto(n, made = false) {
   if (n.parent && n.parent === cur) sound(n);
   else if (cur?.parent && cur.parent === n) sound(cur, true);
+  if (mode === 'fight') clockMove(n, made);
+  const engine = made && mode === 'fight' && (n.parent.ply % 2 ? 'b' : 'w') !== side;
+  if (!made) pres = [];
   cur = n;
   game = new Chess(n.fen);
   sel = null;
@@ -1013,7 +1142,14 @@ function goto(n) {
   el.pgn.classList.remove('bad');
   if (reviewing()) review();
   drawReview();
+  tick();
   history.replaceState(null, '', n.fen === START ? location.pathname : '#' + n.fen.replaceAll(' ', '_'));
+  if (engine && pres.length) {
+    const [p, ...rest] = pres;
+    const m = game.turn() === side && !n.children.length && !clock?.flag && game.moves({ square: p.from, verbose: true }).find(m => m.to === p.to);
+    if (!m) { pres = []; drawBoard(); }
+    else setTimeout(() => { if (cur === n) { pres = rest; goto(child(n, p.from + p.to + (m.promotion ? 'q' : '')), true); } });
+  }
 }
 
 // fight and edit take over the panel, the same button again goes back to analysis. leaving edit keeps the position
@@ -1027,6 +1163,7 @@ function setMode(m) {
   }
   mode = mode === m ? '' : m;
   if (mode === 'fight') { side = flipped ? 'b' : 'w'; drawSide(); }
+  resetClock();
   document.body.dataset.mode = mode;
   el.fightBtn.ariaPressed = mode === 'fight';
   el.editBtn.ariaPressed = mode === 'edit';
@@ -1108,6 +1245,8 @@ el.board.onpointerdown = e => {
   if (!sq) return;
   el.board.setPointerCapture(e.pointerId);
   if (edit) return editDown(e, sq);
+  // a right click drops the premoves like chess.com, else it draws
+  if (e.button === 2 && pres.length) { pres = []; select(null); return drawBoard(); }
   if (e.button === 2) {
     draw = { from: sq, to: sq, color: 'grby'[(e.shiftKey || e.ctrlKey) + 2 * (e.altKey || e.metaKey)] };
     return drawShapes();
@@ -1115,9 +1254,13 @@ el.board.onpointerdown = e => {
   if (e.button !== 0) return;
   if (cur.shapes.length) { cur.shapes = []; drawShapes(); }
   if (dests.has(sq)) return tryMove(sel, sq);
-  if (game.get(sq)?.color !== game.turn() || mode === 'fight' && game.turn() !== side) return select(null);
+  // on the engine's turn your pieces pick up as premoves, from where the premoves so far leave them. a click anywhere
+  // else drops them all. a fight lost on time takes no more moves
+  const early = engineMoves() && (pres.length ? planned() : game).get(sq)?.color === side;
+  if (pres.length && !early) { pres = []; drawBoard(); }
+  if (!early && (game.get(sq)?.color !== game.turn() || mode === 'fight' && (game.turn() !== side || clock?.flag))) return select(null);
   drag = { from: sq, el: el.pieces.querySelector(`.piece:not(.gone)[data-sq="${sq}"]`), x: e.clientX, y: e.clientY, wasSel: sel === sq };
-  select(sq);
+  select(sq, early);
 };
 el.board.onpointermove = e => {
   const sq = sqAt(e);
@@ -1206,12 +1349,23 @@ el.pv.onclick = e => {
   goto(n);
 };
 
-// switching sides turns the board so yours is at the bottom, then the engine moves if it's now its turn (or stops)
+// switching sides turns the board so yours is at the bottom and starts the clocks over, then the engine moves if it's
+// now its turn (or stops)
 el.sideBtn.onclick = () => {
   side = side === 'w' ? 'b' : 'w';
   if (flipped !== (side === 'b')) keys.f();
   select(null);
   drawSide();
+  resetClock();
+  analyse();
+};
+
+// the clock picker remembers its choice like the others, and a new one starts the clocks over
+try { if ([...el.clock.options].some(o => o.value === localStorage['chess.clock'])) el.clock.value = localStorage['chess.clock']; } catch {}
+el.clock.onchange = () => {
+  try { localStorage['chess.clock'] = el.clock.value; } catch {}
+  el.clock.blur();
+  resetClock();
   analyse();
 };
 
@@ -1281,6 +1435,18 @@ el.load.onclick = () => {
 
 el.shapes.innerHTML = `<defs>${Object.entries(BRUSH).map(([k, c]) =>
   `<marker id="h-${k}" orient="auto" markerWidth="4" markerHeight="4" refX="2.05" refY="2"><path d="M0,0V4L3,2Z" fill="${c}"/></marker>`).join('')}</defs><g></g>`;
+// the board's squares are a whole number of screen pixels, else the squares' pattern (a background the browser rounds
+// tile by tile) and the highlights (placed square by square) land up to a pixel apart. the size the css gives (--b) is
+// trimmed to fit, again on every resize and zoom, which changes the pixel ratio
+const main = document.querySelector('main');
+function snap() {
+  main.style.removeProperty('--b');
+  const b = el.board.getBoundingClientRect().width, d = devicePixelRatio || 1;
+  main.style.setProperty('--b', Math.floor(b * d / 8) * 8 / d + 'px');
+}
+addEventListener('resize', snap);
+snap();
+
 try { newRoot(decodeURIComponent(location.hash.slice(1)).replaceAll('_', ' ') || START); } catch { newRoot(START); }
 orient();
 drawSide();

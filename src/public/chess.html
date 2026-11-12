@@ -63,6 +63,8 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 .squares .last { background: #9bc70069; }
 .squares .sel { background: #14551e80; }
 .squares .hover { background: #14551e4d; }
+/* premoves' squares, red like chess.com's */
+.squares .pre { background: #dc282899; }
 .squares .dest { background: radial-gradient(#14551e80 19%, transparent 20%); }
 .squares .cap { background: radial-gradient(transparent 79%, #14551e4d 80%); }
 .squares .check { background: radial-gradient(ellipse at center, #f00 0, #e70000 25%, #a9000000 89%); }
@@ -110,8 +112,8 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 .switch:focus-visible { outline-offset: 2px; }
 #score { min-width: 3.4em; color: var(--hi); font: 700 24px/1 "Bricolage Grotesque", system-ui; font-variant-numeric: tabular-nums; }
 #ceval .meta { display: flex; flex-direction: column; min-width: 0; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
-#engine, #level, #multipv { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 700; cursor: pointer; }
-:is(#engine, #level, #multipv) :is(option, optgroup) { background: var(--panel); }
+#engine, #level, #multipv, #clock { padding: 0; border: 0; background: none; color: var(--hi); font-weight: 700; cursor: pointer; }
+:is(#engine, #level, #multipv, #clock) :is(option, optgroup) { background: var(--panel); }
 #multipv { margin-left: auto; color: var(--mute); font-weight: 400; font-size: 12px; }
 #multipv:hover { color: var(--hi); }
 /* the engine's settings button sits by its name, a line shorter than the info under it, so it takes no width. the +
@@ -151,6 +153,19 @@ body:not([data-mode=edit]):has(#optBtn[aria-expanded=true]) #opts { display: blo
 #sideBtn:hover { background: #d8500033; }
 #sideBtn svg { flex: none; width: 12px; height: 12px; fill: #d3a98c; }
 #fightBar label { display: flex; align-items: center; gap: 6px; color: #d3a98c; font-size: 12px; cursor: pointer; }
+/* fight clocks, the engine's at the top of the panel and yours at the bottom like lichess. the running one lights up,
+   under ten seconds it turns red */
+.clock { display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; background: var(--sunk); border-bottom: 1px solid var(--line); }
+#myClock { border-bottom: 0; border-top: 1px solid var(--line); }
+[data-mode=fight].clocked .clock { display: flex; }
+.clock span { color: var(--mute); font-size: 12px; }
+.clock b {
+  min-width: 4.6em; padding: 3px 10px; border-radius: 3px; background: var(--raise); color: var(--mute); text-align: right;
+  font: 700 22px/1.2 "Bricolage Grotesque", system-ui; font-variant-numeric: tabular-nums;
+}
+.clock.on b { background: var(--hi); color: var(--bg); }
+.clock.low.on b, .clock.out b { background: #ca3431; color: #fff; }
+.clock.out span { color: var(--bad); }
 /* verity sets its own pace in a fight (analysis.js, hunt), so its note takes the strength picker's place */
 #fightBar #hunt { display: none; color: #d3a98c; font-size: 12px; cursor: help; }
 body:has(#engine [value=verity]:checked) #hunt { display: inline; }
@@ -344,8 +359,14 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
           <option value="movetime 10000">10s</option>
         </optgroup>
       </select></label>
+      <label title="a clock for the fight, minutes + seconds added each move">clock <select id="clock">
+        <option value="">none</option>
+        <option value="1+0">1+0</option><option value="3+0">3+0</option><option value="3+2">3+2</option><option value="5+0">5+0</option>
+        <option value="5+3">5+3</option><option value="10+0">10+0</option><option value="10+5">10+5</option><option value="15+10">15+10</option>
+      </select></label>
       <label title="the engine's eval and best line on your move too">hints <input type="checkbox" id="hints" class="switch" autocomplete="off"></label>
     </div>
+    <div id="oppClock" class="clock"><span></span><b></b></div>
     <div id="pvRow">
       <div id="pv"></div>
       <button id="pvMore" title="whole line" aria-label="whole line" aria-expanded="false" hidden><svg viewBox="0 0 16 16"><path d="m3 6 5 5 5-5z"/></svg></button>
@@ -387,6 +408,7 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
         <button type="button" class="chip" id="done">analyse</button>
       </div>
     </form>
+    <div id="myClock" class="clock"><span></span><b></b></div>
     <div id="ctrl">
       <button class="nav" data-key="Home" title="first (↑)"><svg viewBox="0 0 16 16"><path d="M12 3 6 8l6 5zM4 3h2v10H4z"/></svg></button>
       <button class="nav" data-key="ArrowLeft" title="back (←)"><svg viewBox="0 0 16 16"><path d="M11 3 5 8l6 5z"/></svg></button>
