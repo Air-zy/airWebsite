@@ -82,6 +82,14 @@ body:has(#on:not(:checked)) :is(#gauge, #pvRow), [data-mode=edit] #gauge { visib
 #shapes { z-index: 1; pointer-events: none; }
 [data-mode=edit] #shapes { display: none; }
 
+/* the current move's grade on the top right corner of its square, like chess.com, sized with the board */
+#tags { z-index: 1; pointer-events: none; }
+#tags > div { position: absolute; top: 0; left: 0; width: 12.5%; height: 12.5%; }
+#tags .g {
+  position: absolute; top: 0; right: 0; width: 38%; height: 38%; margin: 0; translate: 30% -30%;
+  box-shadow: 0 1px 4px #0b090799; font-size: calc(var(--b) / 8 * .22);
+}
+
 #promo { z-index: 3; background: #0b090780; }
 #promo .piece {
   cursor: pointer; background-color: #b0aba3; background-size: 80%; background-position: center; border-radius: 50%;
@@ -175,35 +183,59 @@ body:has(#engine [value=verity]:checked) #strength { display: none; }
 #moves > .mv, #moves > i { padding: 3px 10px; }
 #moves i { color: var(--faint); font-style: normal; }
 .mv { cursor: pointer; color: var(--text); }
-#moves > .mv { font-weight: 700; }
+/* a move's badge sits at the right edge of its cell, so the badges line up down the column */
+#moves > .mv { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+#moves > .mv .g { margin-left: auto; }
 .mv:hover { background: var(--tint); color: var(--hi); }
 .mv.cur { background: var(--blue); color: var(--hi); }
-.mv em { margin-left: 2px; font-style: normal; font-weight: 700; }
-.mv.cur em { color: var(--hi); }
-body:not(:has(#reviewBtn[aria-pressed=true])) .mv em { display: none; }
+body:not(:has(#reviewBtn[aria-pressed=true])) .mv .g { display: none; }
 #moves:empty::before { content: "play a move on the board, or import a PGN below"; padding: 12px; color: var(--mute); font-size: 13px; grid-column: 1 / -1; }
 .vars { grid-column: 1 / -1; padding: 4px 10px; background: var(--sunk); border-block: 1px solid var(--line); color: var(--mute); font-size: 13px; }
 .vars .mv { padding: 0 2px; border-radius: 3px; }
 #moves, #editor { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 
-/* review: grade colours like lichess, brilliant like chess.com. the graph is drawn in plies by win chance and stretched,
-   so its strokes don't scale */
-.brilliant { color: #2ec4b6; } .inaccuracy { color: #56b4e9; } .mistake { color: #e69f00; } .blunder { color: #e86464; }
+/* review: grade colours like chess.com's. the graph is drawn in plies by win chance and stretched, so its strokes don't
+   scale */
+.brilliant { --c: #26c2a3; } .great { --c: #5c8bb0; } .inaccuracy { --c: #f7c631; } .mistake { --c: #e58f2a; } .miss { --c: #ff7769; }
+.blunder { --c: #ca3431; }
+/* a grade's badge, its sign on a disc of its colour like chess.com. the ring keeps it off the current move's blue, top
+   alignment and the negative margin keep a move's row as tall as the others */
+.g {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-block: -1px; border-radius: 50%; background: var(--c);
+  box-shadow: 0 0 0 1.5px #0b090759; color: #fff; font: 700 14px/1 "Bricolage Grotesque", system-ui; letter-spacing: -.06em; vertical-align: top;
+}
 #review { display: none; border-bottom: 1px solid var(--line); }
 body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display: block; }
-#graph { display: block; width: 100%; height: 64px; background: var(--sunk); cursor: pointer; }
+#graph { display: block; width: 100%; height: 76px; background: var(--sunk); cursor: pointer; }
 #graph:empty { display: none; }
 #graph * { vector-effect: non-scaling-stroke; }
 #graph .area { fill: #d9d3c8; }
 #graph .curve { fill: none; stroke: var(--hi); stroke-width: 1; }
-#graph line { stroke: currentColor; stroke-width: 3; }
+#graph line { stroke: var(--c); stroke-width: 3; }
 #graph .mid { stroke: var(--fire); stroke-width: 1; opacity: .6; }
 #graph .here { stroke: var(--hi); stroke-width: 1.5; opacity: .9; }
-#stats { display: grid; grid-template-columns: auto auto repeat(4, 1fr); align-items: center; gap: 4px 12px; padding: 8px 12px; font-size: 12px; font-variant-numeric: tabular-nums; }
-#stats b { color: var(--hi); }
-#stats b + span { color: var(--hi); font-weight: 700; }
-#stats .none { color: var(--mute); }
-#stats p { grid-column: 1 / -1; margin: 2px 0 0; color: var(--mute); }
+/* a table: the badges head the grade columns, a row per side */
+#stats {
+  display: grid; grid-template-columns: auto auto repeat(6, 1fr); align-items: center; justify-items: center; gap: 9px 10px; padding: 12px;
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+#stats > b { justify-self: start; color: var(--hi); }
+#stats b + span { justify-self: start; color: var(--hi); font-weight: 700; }
+#stats .n { color: var(--text); font-weight: 700; }
+#stats .none { color: var(--faint); font-weight: 400; }
+#stats p { grid-column: 1 / -1; justify-self: start; margin: 0; color: var(--mute); }
+#stats .open { color: var(--text); font-size: 13px; }
+#stats .open b { margin-right: 6px; color: var(--mute); font-weight: 400; }
+/* the note on the move you're on. its height holds still so the moves below don't jump as you step through */
+#note { min-height: 5.2em; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 13px; }
+#note p { margin: 0; }
+#note > p > .g { margin-right: 7px; }
+#note .ev { float: right; margin-left: 10px; color: var(--mute); font-size: 12px; font-variant-numeric: tabular-nums; }
+#note .best { margin-top: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--mute); }
+#note .best b { margin-right: 4px; font-weight: 400; }
+#note .best span { display: inline-block; padding: 1px 3px; border-radius: 3px; color: var(--text); cursor: pointer; }
+#note .best span:hover { color: var(--hi); background: var(--tint); }
+#note .quiet { color: var(--mute); }
 
 /* edit mode swaps the engine, line and moves for the palette and the position's settings */
 #editor { display: none; flex: 1; flex-direction: column; gap: 12px; padding: 12px; overflow-y: auto; }
@@ -271,6 +303,7 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     <div id="squares" class="squares"></div>
     <div id="pieces"></div>
     <svg id="shapes" viewBox="0 0 8 8"></svg>
+    <div id="tags"></div>
     <div id="promo" hidden></div>
   </div>
   <aside id="tools">
@@ -321,6 +354,7 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     <div id="review">
       <svg id="graph" preserveAspectRatio="none" role="img" aria-label="eval graph of the game, click to go to a move"></svg>
       <div id="stats" aria-live="polite"></div>
+      <div id="note"></div>
     </div>
     <div id="moves"></div>
     <form id="editor" aria-label="edit position">

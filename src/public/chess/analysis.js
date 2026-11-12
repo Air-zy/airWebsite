@@ -12,9 +12,13 @@ const INFO = /^info depth (\d+)(?: seldepth (\d+))?(?: multipv (\d+))? score (cp
 const BEST = /^bestmove (\S+)/;
 // the king and rook squares each castling flag needs
 const CASTLE = { K: ['e1', 'h1'], Q: ['e1', 'a1'], k: ['e8', 'h8'], q: ['e8', 'a8'] };
-// review: how deep each position is searched, the grades and the material values for spotting a sacrifice
-const DEPTH = 12, GRADES = { brilliant: '!!', inaccuracy: '?!', mistake: '?', blunder: '??' };
-const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+// review: how deep each position is searched. 12, but cynical's human net makes every node several times slower: a 26
+// move game took 29s at its 7 (59s at 8) where gojo's 12 took 3s
+const DEPTH = { cynical: 7 };
+// the grades, in the stats' order: their sign and name
+const GRADES = { brilliant: ['!!', 'brilliant'], great: ['!', 'great move'], inaccuracy: ['?!', 'inaccuracy'], mistake: ['?', 'mistake'],
+  blunder: ['??', 'blunder'], miss: ['X', 'missed win'] };
+const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 }, SIDE = { w: 'white', b: 'black' }, other = c => c === 'w' ? 'b' : 'w';
 
 const el = Object.fromEntries([...document.querySelectorAll('[id]')].map(e => [e.id, e]));
 let root, cur, game, nodes, flipped = false, sel = null, dests = new Map(), drag = null, draw = null;
@@ -111,7 +115,17 @@ function marks(uci, g, extra = []) {
   return [...m, ...extra].map(([sq, c]) => `<i class="${c}" style="transform:${pos(sq)}"></i>`).join('');
 }
 
+// the current move's grade on its square while reviewing (chess.html, #tags), redrawn only when it changes
+let tagged = '';
+function drawTag() {
+  const g = reviewing() && !edit && cur.score?.grade, key = g ? `${cur.id} ${g} ${flipped}` : '';
+  if (key === tagged) return;
+  tagged = key;
+  el.tags.innerHTML = g ? `<div style="transform:${pos(cur.uci.slice(2, 4))}">${badge(g)}</div>` : '';
+}
+
 function drawSquares() {
+  drawTag();
   if (edit) return el.squares.replaceChildren();
   const extra = [];
   if (sel) extra.push([sel, 'sel'], ...[...dests].map(([sq, cap]) => [sq, cap ? 'dest cap' : 'dest']));
@@ -195,7 +209,8 @@ function line(n, fmt) {
   return s.trim();
 }
 
-const mark = n => n.score?.grade ? `<em class="${n.score.grade}" title="${n.score.grade}">${GRADES[n.score.grade]}</em>` : '';
+const badge = g => `<em class="g ${g}" title="${GRADES[g][1]}">${GRADES[g][0]}</em>`;
+const mark = n => n.score?.grade ? badge(n.score.grade) : '';
 const mvHtml = (n, label) =>
   `<span class="mv${n === cur ? ' cur' : ''}" data-id="${n.id}">${label ? num(n.parent.ply) + ' ' : ''}${n.san}${mark(n)}</span>`;
 
@@ -445,35 +460,75 @@ function analyse() {
 el.deeper.onclick = () => { el.deeper.hidden = true; worker?.postMessage('go infinite'); };
 
 const reviewing = () => el.reviewBtn.ariaPressed === 'true';
+const depth = () => DEPTH[el.engine.value] ?? 12;
 const lead = fen => [...fen.split(' ')[0]].reduce((s, c) => s + (VALUE[c.toLowerCase()] ?? 0) * (c < 'a' ? 1 : -1), 0);  // white's material lead
 const accuracy = loss => Math.min(100, Math.max(0, 103.1668 * Math.exp(-0.04354 * loss * 50) - 3.1669));  // lichess's, per move
 
 // review: one worker scores the main line position by position. a search to a fixed depth ends by itself, so unlike
 // live analysis the worker lives through the whole game and keeps its hash. the next position is always the first
-// unscored one, so moves added meanwhile get picked up. a score is white's win chance (-1..1), the best move and the line
+// unscored one, so moves added meanwhile get picked up. a score is white's win chance (-1..1), the engine's cp or mate
+// in white's view (null when it gave none), the best move and the line. once every position is scored, a second pass:
+// the ones whose next move could be great (wantsAlt) are searched again for two lines, alt is their win chances (null
+// when it wasn't needed or there's one legal move), and a brilliant move's sacrifice is taken to find the answer that
+// makes it work, refute (its line, [] if there's none). a second pass because two lines split the search, and those
+// searches in the same hash, made the scores wobble. it starts once the opening book is in
 function review() {
   if (reviewer) return;
-  const w = reviewer = spawn();
-  let n, last;
+  if (!book) return void loadBook().then(() => reviewing() && review());
+  const w = reviewer = spawn(), d = depth();
+  let n, lines, kind, multi = 1;
   const next = () => {
-    n = walk(root).find(n => !n.score);
+    const line = walk(root);
+    kind = (n = line.find(n => !n.score)) ? 'score' : (n = line.find(wantsAlt)) ? 'alt'
+      : (n = line.find(n => n.score.grade === 'brilliant' && n.score.refute === undefined)) ? 'refute' : '';
     if (!n) { w.terminate(); reviewer = null; return drawReview(); }
     const g = new Chess(n.fen);
-    if (g.isGameOver()) return scored(n, { win: g.isCheckmate() ? (g.turn() === 'w' ? -1 : 1) : 0, mate: g.isCheckmate(), pv: [] }), next();
-    last = null;
-    w.postMessage(position(n));
-    w.postMessage(`go depth ${DEPTH}`);
+    if (kind === 'score' && g.isGameOver()) return scored(n, { win: g.isCheckmate() ? (g.turn() === 'w' ? -1 : 1) : 0, cp: null, mate: null, pv: [], alt: null }), next();
+    const k = kind === 'alt' ? 2 : 1;
+    if (k !== multi) w.postMessage(`setoption name MultiPV value ${multi = k}`);
+    lines = [];
+    w.postMessage(kind === 'refute' ? `position fen ${root.fen} moves ${[...path(n), n.score.sac.uci].join(' ')}` : position(n));
+    w.postMessage(`go depth ${d}`);
   };
   w.onmessage = e => {
     if (w !== reviewer) return;
-    last = parse(e.data, n) ?? last;
-    const best = BEST.exec(e.data);
+    // the sacrifice taken is a ply past n
+    const at = kind === 'refute' ? { ply: n.ply + 1 } : n, info = parse(e.data, at), best = BEST.exec(e.data);
+    if (info) lines[info.k - 1] = info;
     if (!best) return;
-    scored(n, { win: last ? chance(last) : n.parent?.score.win ?? 0, mate: last?.mate != null, best: best[1], pv: last?.pv ?? [] });
+    // the last depth's lines, best first (they come in search order, a later one can score a little higher)
+    const side = at.ply % 2 ? -1 : 1, [top, alt] = lines.filter(Boolean).sort((a, b) => side * (worth(b) - worth(a)));
+    if (kind === 'alt') {
+      n.score.alt = top && alt ? { top: chance(top), next: chance(alt) } : null;
+      upgrade(n.children[0]);
+    } else if (kind === 'refute') {
+      n.score.refute = top?.pv ?? [];
+      delete n.score.note;
+      drawReview();
+    } else scored(n, { win: top ? chance(top) : n.parent?.score.win ?? 0, cp: top?.cp ?? null, mate: top?.mate ?? null, best: best[1], pv: top?.pv ?? [] });
     next();
   };
   w.onerror = () => { reviewer = null; el.stats.textContent = 'engine failed to load, press review again'; };
   next();
+}
+
+// a scored position needs its two lines when the main line goes on with the engine's move, played from a level or
+// better game and not obvious (grade). decided once, the move after the last one waits until it's played
+function wantsAlt(n) {
+  const c = n.children[0];
+  if (n.score.alt !== undefined || !c) return false;
+  if (c.uci === n.score.best && (n.ply % 2 ? -1 : 1) * n.score.win >= -.15 && !obvious(c)) return true;
+  n.score.alt = null;
+  return false;
+}
+
+// a move graded nothing that turns out great once its position's two lines are in
+function upgrade(n) {
+  if (!n?.score || n.score.grade || n.score.book || !great(n)) return;
+  n.score.grade = 'great';
+  delete n.score.note;
+  el.moves.querySelector(`[data-id="${n.id}"]`)?.insertAdjacentHTML('beforeend', mark(n));
+  drawReview();
 }
 
 function scored(n, s) {
@@ -483,6 +538,22 @@ function scored(n, s) {
   drawReview();
 }
 
+// the opening book: the named positions of lichess's chess-openings (CC0, github.com/lichess-org/chess-openings), as
+// "<the first four fen fields>\t<eco> <name>" in openings.tsv. fetched when a review first starts, empty if that fails
+let book = null, booking = null;
+const loadBook = () => booking ??= fetch('/chess/openings.tsv').then(r => r.ok ? r.text() : '').catch(() => '')
+  .then(t => { book = new Map(t.split('\n').filter(Boolean).map(l => l.split('\t'))); });
+const named = n => book.get(n.fen.split(' ', 4).join(' '));
+// a book move's opening, '' if it isn't one: it follows book moves from the start position and lands on a named
+// position, or on one between two (a named one comes within the next 6 plies of the main line), which keeps the last name
+function bookOf(n) {
+  const prev = n.parent.parent ? n.parent.score.book : n.parent.fen === START ? '' : null;
+  if (prev == null || n.parent.parent && !prev) return '';
+  if (named(n)) return named(n);
+  const ahead = walk(n).slice(1, 7).find(named);
+  return ahead ? prev || named(ahead) : '';
+}
+
 const stopReview = () => { reviewer?.terminate(); reviewer = null; };
 // scores belong to one engine and one tree
 function resetReview() {
@@ -490,44 +561,444 @@ function resetReview() {
   for (const n of nodes ?? []) delete n.score;
 }
 
-// lichess's grades on the win chance the mover gave away. brilliant is our guess at chess.com's: the engine's own move,
-// a piece or more down after the reply and still down two moves later, from a position that wasn't already won (unless
-// the sacrifice mates) and isn't lost after
+// lichess's grades on the win chance the mover gave away. brilliant is our take on chess.com's: a sacrifice (sacrifice)
+// that is the engine's move or close to it, by a mover who isn't worse after it and wasn't already a rook up (no
+// sacrifice needed then). close is within .04 of the win chance, and in a won position, where the win chance hardly
+// moves, also keeping three quarters of the score. a mate the mover had has to be kept, so only the engine's move counts
+// book moves get no grade, like chess.com, and stay out of the accuracy.
+// missed win, chess.com's miss: the other side's last move was a mistake or blunder that left the mover clearly better,
+// and this move gives a mistake's worth or more of it back, but no further than where the game stood before it.
+// great comes later, from the second pass (great, upgrade)
 function grade(n) {
-  const s = n.parent.ply % 2 ? -1 : 1, before = s * n.parent.score.win, after = s * n.score.win;
-  const loss = n.score.loss = Math.max(0, before - after);
-  if (loss >= .1) return n.score.grade = loss >= .3 ? 'blunder' : loss >= .2 ? 'mistake' : 'inaccuracy';
-  const g = new Chess(n.fen), was = s * lead(n.parent.fen);
-  const down = n.score.pv.slice(0, 4).map(u => (g.move(uciMove(u)), s * lead(g.fen()) - was));
-  if (n.uci === n.parent.score.best && down[0] <= -2 && down.at(-1) <= -2 && after > -.3 && (before < .7 || n.score.mate && after > 0))
-    n.score.grade = 'brilliant';
+  const S = n.score, P = n.parent.score, G = n.parent.parent?.score, s = n.parent.ply % 2 ? -1 : 1;
+  const before = s * P.win, after = s * S.win, loss = S.loss = Math.max(0, before - after);
+  if ((S.book = bookOf(n))) return;
+  if (loss >= .2 && /mistake|blunder/.test(P.grade) && before >= .3 && G && after >= s * G.win - .15) return S.grade = 'miss';
+  if (loss >= .1) return S.grade = loss >= .3 ? 'blunder' : loss >= .2 ? 'mistake' : 'inaccuracy';
+  const mating = Math.sign(P.mate ?? 0) === s, cpLoss = P.cp != null && S.cp != null ? s * (P.cp - S.cp) : 0;
+  const close = n.uci === P.best || !mating && loss <= .04 && cpLoss <= Math.max(50, Math.abs(P.cp ?? 0) / 4);
+  if (close && after > -.2 && s * lead(n.parent.fen) < 5 && (S.sac = sacrifice(n))) S.grade = 'brilliant';
+}
+
+// great, chess.com's: the engine's move, when the next best gives up a mistake's worth or more and isn't winning, both
+// from the position's two line search, from a game the mover is level in or better. an only move that's plain to see
+// doesn't count (obvious)
+function great(n) {
+  const P = n.parent.score, A = P.alt, s = n.parent.ply % 2 ? -1 : 1;
+  return !!A && n.uci === P.best && s * (A.top - A.next) >= .2 && s * A.next <= .5 && s * P.win >= -.15 && !obvious(n);
+}
+
+// an only move anyone would find: a way out of check, a mate, taking back on the square the other side just took on,
+// a capture that wins material outright (a free pawn too), moving a piece that was hanging out of the way, or quietly
+// meeting every threat there was (the other side could win something if the mover passed, and can't after it). a check
+// stops every capture for a move, so it isn't meeting threats
+function obvious(n) {
+  const g = new Chess(n.parent.fen), to = n.uci.slice(2, 4);
+  if (g.inCheck()) return true;
+  const m = g.move(uciMove(n.uci));
+  if (g.isCheckmate()) return true;
+  if (n.parent.parent && n.parent.uci.slice(2, 4) === to && new Chess(n.parent.parent.fen).get(to)) return true;
+  if (m.captured && took(m) - see(g, to) > 0) return true;
+  const pass = flip(n.parent.fen, other(m.color));
+  return pass && see(pass, m.from) >= 2 || !!meets(n.parent.fen, g, m);
+}
+
+// a sacrifice: after the move the other side can win one of the mover's pieces by taking it (offers), and the mover
+// didn't have to allow that. a fork or a trapped piece loses something whatever is played, so it has to give up more
+// than the least it could have (forced). it's the piece and the capture that takes it, or null. the engine's own line
+// isn't used, a sound sacrifice is usually best declined. the capture is kept as san (by) and uci (for the search of
+// what answers it, review)
+function sacrifice(n) {
+  const g = new Chess(n.parent.fen), [top] = offers(g, g.move(uciMove(n.uci)));
+  if (!top || top.net <= forced(n.parent.fen)) return null;
+  const cap = g.moves({ verbose: true }).filter(m => m.to === top.sq && m.captured).sort((a, b) => cost(a.piece) - cost(b.piece))[0];
+  return { ...top, by: cap.san, uci: cap.lan };
+}
+
+// the mover's pieces (no king or pawn) that the side to move in g can now win by capturing them, after the mover's move
+// m: two points or more and more than m itself took, so trades don't count. the most it nets first
+function offers(g, m) {
+  const t = took(m), list = [];
+  for (const p of g.board().flat()) {
+    if (!p || p.color !== m.color || !(VALUE[p.type] > 1) || !g.isAttacked(p.square, g.turn())) continue;
+    const gain = see(g, p.square);
+    if (gain >= 2 && gain > t) list.push({ piece: p.type, sq: p.square, net: gain - t });
+  }
+  return list.sort((a, b) => b.net - a.net);
+}
+// what a move takes, a promotion counted as what it gains
+const took = m => (VALUE[m.captured] ?? 0) + (m.promotion ? VALUE[m.promotion] - 1 : 0);
+
+// the least the side to move in fen has to leave up for grabs, over all its moves (0 when one keeps everything)
+function forced(fen) {
+  const g = new Chess(fen);
+  let least = Infinity;
+  for (const m of g._moves()) {
+    g._makeMove(m);
+    least = Math.min(least, offers(g, m)[0]?.net ?? 0);
+    g._undoMove();
+    if (!least) break;
+  }
+  return least;
+}
+
+// static exchange: what the side to move wins by capturing on sq, both sides taking back with their cheapest piece and
+// either free to stop. legal moves only, so a pinned piece can't take and a king can't take a guarded piece. avy:
+// chess.js's private move list (_moves, _makeMove, _undoMove), its public moves() makes the san and fens of every move
+// and is ~40x slower here
+const cost = t => VALUE[t] ?? 99, x88 = sq => (8 - sq[1]) * 16 + FILES.indexOf(sq[0]);
+function see(g, sq, at = x88(sq)) {
+  const m = g._moves().filter(m => m.to === at && m.captured && (m.promotion ?? 'q') === 'q').sort((a, b) => cost(a.piece) - cost(b.piece))[0];
+  if (!m) return 0;
+  g._makeMove(m);
+  const v = VALUE[m.captured] + (m.promotion ? VALUE.q - 1 : 0) - see(g, sq, at);
+  g._undoMove();
+  return Math.max(0, v);
+}
+
+// a score as text, '' for a finished game
+const said = sc => sc.mate != null || sc.cp != null ? fmt(sc) : '';
+
+// a uci line from fen at ply p as san, numbered like the engine lines, up to a move that doesn't fit
+function sanLine(fen, p, uci) {
+  const g = new Chess(fen), out = [];
+  for (const [i, u] of uci.entries()) {
+    try { out.push((!i || (p + i) % 2 === 0 ? num(p + i) + ' ' : '') + g.move(uciMove(u)).san); } catch { break; }
+  }
+  return out;
+}
+
+// the material side c gains over a line from fen: its first four moves, then on while they capture so an exchange isn't
+// cut in half. the points, the pieces each side took, and k the moves it takes to get there: from then on the count
+// never falls short of its end, for whichever side comes out ahead
+function swing(fen, uci, c) {
+  const g = new Chess(fen), got = [], lost = [], nets = [0];
+  for (const u of uci.slice(0, 10)) {
+    let m;
+    try { m = g.move(uciMove(u)); } catch { break; }
+    if (nets.length > 4 && !m.captured) break;
+    if (m.captured) (m.color === c ? got : lost).push(m.captured);
+    nets.push(nets.at(-1) + (m.captured ? VALUE[m.captured] * (m.color === c ? 1 : -1) : 0));
+  }
+  const net = nets.at(-1), s = Math.sign(net) || 1;
+  let k = nets.length - 1;
+  while (k > 0 && s * nets[k - 1] >= s * net) k--;
+  return { net, got, lost, k };
+}
+
+// material won in words, from the pieces taken each way: what's left once both sides' takes of the same kind cancel (a
+// knight and a bishop count as one kind). one piece is named, one for one is "the queen for a piece" (a rook for a
+// minor piece is the exchange), pawns are counted, else it's the points' plain name or just material
+function amount(net, got = [], lost = []) {
+  const kind = t => t === 'b' ? 'n' : t, g = got.map(kind), l = [];
+  for (const t of lost.map(kind)) {
+    const i = g.indexOf(t);
+    if (i < 0) l.push(t); else g.splice(i, 1);
+  }
+  const one = t => ({ p: 'a pawn', n: 'a piece', r: 'a rook', q: 'the queen' })[t];
+  if (g.length === 1 && l.length <= 1) return !l.length ? one(g[0]) : g[0] === 'r' && l[0] === 'n' ? 'the exchange' : `${one(g[0])} for ${one(l[0])}`;
+  if (g.length > 1 && !l.length && g.every(t => t === 'p')) return `${['two', 'three', 'four'][g.length - 2] ?? g.length} pawns`;
+  return { 1: 'a pawn', 3: 'a piece', 4: 'a piece and a pawn' }[net] ?? 'material';
+}
+
+// tactics a move makes, each checked on the board after it (a) against the one before (b). the opposing pieces the
+// moved piece hits that are worth more than it or undefended, two or more is a fork
+function fork(a, m) {
+  const c = m.color, v = cost(m.promotion ?? m.piece);
+  const hit = a.board().flat().filter(p => p && p.color !== c && a.attackers(p.square, c).includes(m.to)
+    && (cost(p.type) > v || VALUE[p.type] > 1 && !a.attackers(p.square, other(c)).length));
+  return hit.length > 1 ? hit.sort((x, y) => cost(y.type) - cost(x.type)) : null;
+}
+// another piece of the mover's newly hitting the king, queen or a rook, the moved one stepped out of its way. castling
+// moves the rook too, so it doesn't count
+function discovered(b, a, m) {
+  if (/[kq]/.test(m.flags)) return null;
+  const c = m.color, big = a.board().flat().filter(p => p && p.color !== c && 'kqr'.includes(p.type)).sort((x, y) => cost(y.type) - cost(x.type));
+  for (const p of big) {
+    const was = b.attackers(p.square, c), now = a.attackers(p.square, c).filter(s => s !== m.to && !was.includes(s));
+    if (now.length) return { target: p, by: a.get(now[0]).type, double: a.attackers(p.square, c).includes(m.to) };
+  }
+  return null;
+}
+// a bishop, rook or queen move lining up two opposing pieces: a pin when the one behind is worth more (or is the king),
+// a skewer when the front one is the king or queen and the one behind a piece that's worth winning, undefended or worth
+// more than the piece skewering it
+const RAYS = { b: [[1, 1], [1, -1], [-1, 1], [-1, -1]], r: [[1, 0], [-1, 0], [0, 1], [0, -1]] };
+function pin(a, m) {
+  const t = m.promotion ?? m.piece, dirs = t === 'q' ? [...RAYS.b, ...RAYS.r] : RAYS[t];
+  for (const [df, dr] of dirs ?? []) {
+    let front = null;
+    for (let x = FILES.indexOf(m.to[0]) + df, y = +m.to[1] + dr; x >= 0 && x < 8 && y >= 1 && y <= 8; x += df, y += dr) {
+      const sq = FILES[x] + y, p = a.get(sq);
+      if (!p) continue;
+      if (p.color === m.color) break;
+      if (!front) { front = { ...p, square: sq }; continue; }
+      if (!'kp'.includes(front.type) && cost(p.type) > cost(front.type)) return { pin: true, front, back: { ...p, square: sq } };
+      if ('kq'.includes(front.type) && cost(front.type) > cost(p.type) && VALUE[p.type] >= 3
+        && (VALUE[p.type] > VALUE[t] || !a.attackers(sq, p.color).length)) return { pin: false, front, back: { ...p, square: sq } };
+      break;
+    }
+  }
+  return null;
+}
+// an opposing piece (a knight or more) the move leaves attacked and winnable, whose every move lands where the mover
+// can still win it, and that wasn't up for grabs before the move: trapped. defending it instead isn't looked at
+function trapped(b, a, m) {
+  const pass = !a.inCheck() && flip(a.fen(), m.color);
+  if (!pass) return null;
+  for (const p of a.board().flat()) {
+    if (!p || p.color === m.color || !(VALUE[p.type] >= 3) || see(pass, p.square) < 2 || see(b, p.square) >= 2) continue;
+    const at = x88(p.square);
+    if (a._moves().filter(x => x.from === at).every(x => {
+      a._makeMove(x);
+      const lost = see(a, alg(x.to)) >= 2;
+      a._undoMove();
+      return lost;
+    })) return p;
+  }
+  return null;
+}
+
+// fen as if the side to move passed and c moved instead (a null move), null when that can't be: the side to move is in
+// check, so passing would leave its king to be taken
+const alg = i => FILES[i & 7] + (8 - (i >> 4));
+function flip(fen, c) {
+  const f = fen.split(' ');
+  if (f[1] !== c && new Chess(fen).inCheck()) return null;
+  f[1] = c;
+  f[3] = '-';
+  try { return new Chess(f.join(' ')); } catch { return null; }
+}
+// a mate in one for the side to move in h, as san, or null
+function mateIn1(h) {
+  for (const x of h?._moves() ?? []) {
+    h._makeMove(x);
+    const mate = h.inCheck() && !h._moves().length;
+    h._undoMove();
+    if (mate) return new Chess(h.fen()).move({ from: alg(x.from), to: alg(x.to), promotion: x.promotion }).san;
+  }
+  return null;
+}
+// what side c threatens in a if it could move again: a mate in one, or pieces worth two points or more it can win that
+// it couldn't in b. none after a check, that's its own threat
+function threats(b, a, c) {
+  const t = !a.inCheck() && flip(a.fen(), c);
+  if (!t) return {};
+  const mate = mateIn1(t);
+  return mate ? { mate } : { hit: t.board().flat().filter(p => p && p.color !== c && p.type !== 'k' && t.isAttacked(p.square, c)
+    && see(t, p.square) >= 2 && !(b.get(p.square)?.type === p.type && see(b, p.square) >= 2)) };
+}
+// the threat a quiet move meets: the other side could win something if the mover passed and can't after the move. the
+// piece that stood to lose the most, or null
+function meets(fen, a, m) {
+  const pass = !a.inCheck() && flip(fen, other(m.color));
+  if (!pass) return null;
+  const mine = h => h.board().flat().filter(p => p && p.color === m.color && p.type !== 'k').map(p => ({ ...p, gain: see(h, p.square) }));
+  const was = mine(pass).filter(p => p.gain > 0).sort((x, y) => y.gain - x.gain);
+  return was.length && !mine(a).some(p => p.gain > 0) ? was[0] : null;
+}
+// an in-between move: the line's third move takes something the mover could already have taken, this move came first
+function between(b, m, line) {
+  const t = line[2]?.slice(2, 4);
+  return !!t && t !== m.to && b.moves({ verbose: true }).some(x => x.to === t && x.captured);
+}
+
+// what a move does, a phrase after "it", the strongest that fits: mate, a fork, a discovered attack, a pin or skewer, a
+// trapped piece, a capture that takes back or wins material, material its line wins within three moves (later it's the
+// line's doing, not the move's), a mate threat it stops, one it makes, a threat it meets, pieces it attacks, check,
+// promotion, castling, a trade (ahead of the attacks when it's an even one, what a trade then hits is beside the
+// point), else ''. line is the move and the engine's line after it, p the ply it's played at, prev the move before it
+// (taking the piece that just took on that square is taking back, unless it's worth far more than what it took)
+const the = p => p.type === 'k' ? 'the king' : `the ${NAMES[p.type]} on ${p.square}`;
+const before = n => n.parent?.parent ? new Chess(n.parent.parent.fen).move(uciMove(n.parent.uci)) : null;
+function what(fen, uci, p, line = [uci], prev = null) {
+  const b = new Chess(fen), a = new Chess(fen), m = a.move(uciMove(uci)), check = a.inCheck(), tail = check ? ' with check' : '';
+  if (a.isCheckmate()) return 'mates';
+  const f = fork(a, m);
+  if (f) return `forks ${f.map(the).join(' and ')}`;
+  const d = discovered(b, a, m);
+  if (d) return d.target.type !== 'k' ? `uncovers an attack on the ${NAMES[d.target.type]}${tail}`
+    : d.double ? 'gives double check' : `uncovers check from the ${NAMES[d.by]}`;
+  const l = pin(a, m);
+  if (l) return l.pin ? `pins ${the(l.front)} to the ${NAMES[l.back.type]}${tail}` : `skewers the ${NAMES[l.front.type]} and ${the(l.back)}`;
+  const tr = trapped(b, a, m);
+  if (tr) return `traps ${the(tr)}`;
+  if (m.captured && prev?.captured && prev.to === m.to && VALUE[m.captured] <= VALUE[prev.captured] + 2) return `takes the ${NAMES[m.captured]} back${tail}`;
+  const back = m.captured ? see(a, m.to) : 0, net = m.captured ? took(m) - back : 0;
+  if (net > 0) return `wins ${!back && m.captured !== 'p' ? `the ${NAMES[m.captured]}` : amount(net, [m.captured], back ? [m.piece] : [])}${tail}`;
+  const trade = !m.captured ? '' : m.piece === m.captured ? `trades ${NAMES[m.piece]}s` : `trades the ${NAMES[m.piece]} for the ${NAMES[m.captured]}`;
+  const w = line.length > 1 && swing(fen, line, m.color);
+  if (w && w.net >= 2 && w.k <= 3) return `wins ${amount(w.net, w.got, w.lost)}${w.k === 3 && between(b, m, line) ? ' with an in-between move' : ''}, `
+    + sanLine(fen, p, line.slice(0, w.k)).join(' ');
+  const danger = mateIn1(flip(fen, other(m.color)));
+  if (danger && !mateIn1(a)) return `stops ${danger}`;
+  const t = threats(b, a, m.color);
+  if (t.mate) return `threatens ${t.mate}`;
+  if (trade && !net && back) return trade;
+  const safe = meets(fen, a, m);
+  if (safe) return safe.square === m.from ? `saves the ${NAMES[safe.type]}` : `defends ${the(safe)}`;
+  if (t.hit?.length) return `attacks ${t.hit.sort((x, y) => cost(y.type) - cost(x.type)).map(the).join(' and ')}`;
+  if (check) return 'gives check';
+  if (m.promotion) return `promotes to a ${NAMES[m.promotion]}`;
+  if (/[kq]/.test(m.flags)) return 'castles';
+  return trade;
+}
+// a phrase that explains something, not just a check, castling or a trade
+const telling = d => /^(mates|forks|uncovers|gives double|pins|skewers|traps|wins|stops|threatens|saves|defends|attacks)/.test(d);
+
+// a move's note: what it is, what it does and why, and the engine's line from before it when it played something else
+function note(n) {
+  const S = n.score, P = n.parent.score, me = n.parent.ply % 2 ? 'b' : 'w', s = me === 'w' ? 1 : -1, x = s * S.win, p = n.parent.ply;
+  const best = P.best && new Chess(n.parent.fen).move(uciMove(P.best)).san, bestLine = P.pv[0] === P.best ? P.pv : [P.best];
+  const line = !best || n.uci === P.best ? null : bestLine.slice(0, 10);
+  if (new Chess(n.fen).isCheckmate()) return { text: `${n.san} is checkmate` };
+  if (S.book) return { text: `${n.san} is a book move, ${S.book.slice(S.book.indexOf(' ') + 1)}` };
+  const prev = before(n), does = what(n.parent.fen, n.uci, p, [n.uci, ...S.pv], prev);
+  const bestDoes = line ? what(n.parent.fen, P.best, p, bestLine, prev) : '';
+  // a brilliant move says what answers its sacrifice, once that's been searched (review), else how the game stands
+  if (S.grade === 'brilliant') {
+    const g = new Chess(n.fen), cap = g.move(uciMove(S.sac.uci)), R = S.refute ?? [];
+    const answer = R.length ? what(g.fen(), R[0], n.ply + 1, R, cap) : '';
+    return { text: `${n.san} is brilliant: ${S.sac.by} would win the ${NAMES[S.sac.piece]}, but ` + (telling(answer)
+      ? `${new Chess(g.fen()).move(uciMove(R[0])).san} ${answer}`
+      : Math.sign(S.mate ?? 0) === s ? 'it forces mate' : (x >= .15 ? `${SIDE[me]} is still ${x > .5 ? 'winning' : 'better'}` : `it's still about level`)
+        + (telling(does) && !does.startsWith('wins') ? `, and it ${does}` : '')) };
+  }
+  if (S.grade === 'great') return { text: `${n.san} is a great move: ${does ? `it ${does}, and ` : ''}nothing else `
+    + (s * P.win > .5 ? `keeps ${SIDE[me]} winning` : s * P.win >= .15 ? `keeps ${SIDE[me]} better` : 'holds the balance') };
+  if (S.grade === 'miss') return { text: `${n.san} is a missed win: ${best}${telling(bestDoes) ? `, which ${bestDoes},` : ''} would have punished `
+    + `${SIDE[other(me)]}'s ${P.grade}`, line };
+  if (S.grade) return { text: `${n.san} is ${S.grade === 'inaccuracy' ? 'an' : 'a'} ${S.grade}: ${reason(n, me, best, bestDoes)}`, line };
+  // ungraded: nothing much lost, also when the game was already decided either way
+  if (n.uci === P.best) return { text: `${n.san} is the best move${does ? `, it ${does}` : ''}` };
+  if (Math.sign(S.mate ?? 0) === -s) return { text: `${n.san} allows mate in ${Math.abs(S.mate)}, but ${SIDE[me]} was lost anyway`, line };
+  if (Math.sign(P.mate ?? 0) === s && Math.sign(S.mate ?? 0) === s) return { text: `${n.san} still mates, ${best} was quicker`, line };
+  return { text: `${n.san} is fine${telling(does) ? `, it ${does}` : ''}, but the engine preferred ${best}${telling(bestDoes) ? `, which ${bestDoes}` : ''}`, line };
+}
+
+// how a move turned the game, x and y the mover's win chance before and after
+function turned(x, y, me) {
+  const opp = SIDE[me === 'w' ? 'b' : 'w'], up = v => v > .5 ? 'win' : 'edge';
+  if (y <= -.15) return x <= -.15 ? `it lets ${opp}'s lead grow` : x >= .15 ? `it turns the game, ${opp} is ${y < -.5 ? 'winning' : 'better'} now`
+    : `it hands ${opp} ${y < -.5 ? 'a winning position' : 'the edge'}`;
+  if (x < .15) return `it gives ${opp} a small edge`;
+  return y >= .15 ? `it gives away some of ${SIDE[me]}'s lead` : `it throws away ${SIDE[me]}'s ${up(x)}`;
+}
+
+// why a graded move is bad, the first that fits: a mate it allows or misses, a draw it lets in, a piece it leaves
+// hanging, the tactic the other side answers with (and its next one, two steps of a combination), material the other
+// side's line wins, what the best move would have done, else how the game turned
+function reason(n, me, best, bestDoes) {
+  const S = n.score, P = n.parent.score, s = me === 'w' ? 1 : -1, end = new Chess(n.fen);
+  const reply = S.pv[0] && new Chess(n.fen).move(uciMove(S.pv[0])).san;
+  if (Math.sign(S.mate ?? 0) === -s) return Math.abs(S.mate) === 1 ? `it allows ${reply}` : `it allows mate in ${Math.abs(S.mate)}, starting with ${reply}`;
+  if (Math.sign(P.mate ?? 0) === s && Math.sign(S.mate ?? 0) !== s) return `it misses mate in ${Math.abs(P.mate)} with ${best}`;
+  if (end.isDraw()) return end.isStalemate() ? 'it stalemates' : 'it lets the game end in a draw';
+  const g = new Chess(n.parent.fen), m = g.move(uciMove(n.uci)), [hung] = offers(g, m);
+  if (hung) return `it leaves the ${NAMES[hung.piece]} on ${hung.sq} hanging`;
+  const answer = reply ? what(n.fen, S.pv[0], n.ply, S.pv, m) : '';
+  // the other side's move after that, in the position two plies on
+  let then = '', thenSan = '';
+  if (S.pv.length > 2) {
+    const h = new Chess(n.fen);
+    try {
+      h.move(uciMove(S.pv[0]));
+      const m2 = h.move(uciMove(S.pv[1]));
+      thenSan = new Chess(h.fen()).move(uciMove(S.pv[2])).san;
+      then = what(h.fen(), S.pv[2], n.ply + 2, S.pv.slice(2), m2);
+    } catch { then = ''; }
+  }
+  // the second step only counts when it attacks, a retreat or a defence isn't part of the combination
+  const verb = d => d.split(' ')[0], attacks = d => telling(d) && !/^(stops|saves|defends)/.test(d);
+  if (telling(answer)) return `it allows ${reply}, which ${answer}` + (attacks(then) && verb(then) !== verb(answer) ? `, then ${thenSan} ${then}` : '');
+  const w = swing(n.parent.fen, [n.uci, ...S.pv], me);
+  if (w.net <= -2) return `${SIDE[other(me)]} wins ${amount(-w.net, w.lost, w.got)} with ${sanLine(n.fen, n.ply, S.pv.slice(0, w.k - 1)).join(' ')}`;
+  if (telling(bestDoes)) return `it misses ${best}, which ${bestDoes}`;
+  if (attacks(then)) return `it allows ${reply} and then ${thenSan}, which ${then}`;
+  return turned(s * P.win, s * S.win, me);
 }
 
 // the eval graph (white's win chance, lichess style: white's area under the line) with the grades as ticks and where
 // you are, then per side accuracy (avy: a plain mean of lichess's per move accuracy, lichess weights it by volatility)
 // and grade counts. the stats are a live region kept busy while the review runs, so a screen reader hears the result once
 function drawReview() {
+  drawTag();
   if (!reviewing()) return;
   const line = walk(root);
   el.stats.ariaBusy = !!reviewer;
-  if (line.length < 2) { el.graph.replaceChildren(); el.stats.innerHTML = '<p>play or import a game to review it</p>'; return; }
+  if (line.length < 2) {
+    el.graph.replaceChildren();
+    el.note.replaceChildren();
+    el.stats.innerHTML = '<p>play or import a game to review it</p>';
+    return;
+  }
   const done = line.filter(n => n.score), pts = done.map((n, i) => `${i},${1 - n.score.win}`), here = line.indexOf(cur);
   el.graph.setAttribute('viewBox', `0 0 ${Math.max(line.length - 1, 1)} 2`);
   el.graph.innerHTML = `<line class="mid" x1="0" x2="${line.length}" y1="1" y2="1"/>`
     + (pts.length ? `<path class="area" d="M0,2L${pts.join('L')}L${pts.length - 1},2Z"/><path class="curve" d="M${pts.join('L')}"/>` : '')
     + done.map((n, i) => n.score.grade ? `<line class="${n.score.grade}" x1="${i}" x2="${i}" y1="0" y2=".45"/>` : '').join('')
     + (here < 0 ? '' : `<line class="here" x1="${here}" x2="${here}" y1="0" y2="2"/>`);
-  el.stats.innerHTML = ['white', 'black'].map((name, p) => {
-    const moves = done.filter(n => n.parent && n.parent.ply % 2 === p);
-    const acc = moves.length ? Math.round(moves.reduce((s, n) => s + accuracy(n.score.loss), 0) / moves.length) + '%' : '–';
-    return `<b>${name}</b><span>${acc}</span>` + Object.keys(GRADES).map(g => {
-      const k = moves.filter(n => n.score.grade === g).length;
-      return `<span class="${g}${k ? '' : ' none'}" title="${g}">${GRADES[g]} ${k}</span>`;
-    }).join('');
-  }).join('') + (done.length < line.length ? `<p>reviewing at depth ${DEPTH}, ${done.length} of ${line.length} positions</p>` : '');
+  // the opening is the last book move's, its eco code first
+  const open = done.findLast(n => n.score.book)?.score.book;
+  // a table: the grades' badges on top, then each side's accuracy and how many of each
+  el.stats.innerHTML = (open ? `<p class="open"><b>${open.replace(' ', '</b>')}</p>` : '') + '<i></i><i></i>' + Object.keys(GRADES).map(badge).join('')
+    + ['white', 'black'].map((name, p) => {
+      const moves = done.filter(n => n.parent && n.parent.ply % 2 === p && !n.score.book);
+      const acc = moves.length ? Math.round(moves.reduce((s, n) => s + accuracy(n.score.loss), 0) / moves.length) + '%' : '–';
+      return `<b>${name}</b><span>${acc}</span>` + Object.keys(GRADES).map(g => {
+        const k = moves.filter(n => n.score.grade === g).length;
+        return `<span class="n${k ? '' : ' none'}" title="${name}'s ${GRADES[g][1].replace(/y$/, 'ie')}s">${k}</span>`;
+      }).join('');
+    }).join('') + (!reviewer ? '' : `<p>reviewing at depth ${depth()}, `
+      + (done.length < line.length ? `${done.length} of ${line.length} positions</p>` : 'a second look at the key moves</p>'));
+  drawNote(here);
+}
+
+// the note on the move you're on: what it is and why, the engine's score before and after, and its line from before
+// the move when it wanted another (a click on one of its moves goes there, like the engine lines). noteLine is that
+// line and where it starts
+let noteLine = null;
+function drawNote(here) {
+  const n = cur, N = here > 0 && n.score && (n.score.note ??= note(n));
+  noteLine = N?.line ? { from: n.parent, uci: N.line } : null;
+  if (here < 0) return el.note.innerHTML = `<p class="quiet">side lines aren't reviewed, only the main line</p>`;
+  if (!N) return el.note.replaceChildren();
+  const ev = [n.parent.score, n.score].map(said);
+  el.note.innerHTML = (ev.every(Boolean) ? `<span class="ev">${ev.join(' → ')}</span>` : '') + `<p>${mark(n)}${N.text}</p>`
+    + (N.line ? `<p class="best"><b>best</b>${sanLine(n.parent.fen, n.parent.ply, N.line).map((s, i) => `<span data-i="${i}">${s}</span>`).join('')}</p>` : '');
+}
+
+// move sounds, chess.com's (sounds/, their names). stepping forward onto a move plays it: a check, else a promotion,
+// castling or capture, else a plain move (in a fight the engine's moves sound like an opponent's), and the game end
+// with it. stepping back plays the move taken back, without the game end. web audio, fetched on the first click or key
+// since browsers only play sound after one. a missing file stays silent, a missing move-opponent plays move-self
+const SOUNDS = ['move-self', 'move-opponent', 'capture', 'castle', 'move-check', 'promote', 'game-end'];
+let audio = null;
+const sounds = {};
+function warm() {
+  if (audio) return;
+  try { audio = new AudioContext(); } catch { return; }
+  for (const k of SOUNDS) sounds[k] = fetch(`/chess/sounds/${k}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+    .then(b => audio.decodeAudioData(b)).catch(() => null);
+}
+for (const t of ['pointerdown', 'keydown']) addEventListener(t, warm, { capture: true, once: true });
+const play = k => sounds[k]?.then(b => {
+  if (!b) return k === 'move-opponent' && play('move-self');
+  const s = audio.createBufferSource();
+  s.buffer = b;
+  s.connect(audio.destination);
+  s.start();
+});
+function sound(n, back) {
+  const m = new Chess(n.parent.fen).move(uciMove(n.uci));
+  play(/[+#]/.test(m.san) ? 'move-check' : m.promotion ? 'promote' : /[kq]/.test(m.flags) ? 'castle' : m.captured ? 'capture'
+    : mode === 'fight' && m.color !== side ? 'move-opponent' : 'move-self');
+  if (!back && new Chess(n.fen).isGameOver()) play('game-end');
 }
 
 function goto(n) {
+  if (n.parent && n.parent === cur) sound(n);
+  else if (cur?.parent && cur.parent === n) sound(cur, true);
   cur = n;
   game = new Chess(n.fen);
   sel = null;
@@ -717,6 +1188,13 @@ el.moves.onclick = e => { const id = e.target.closest('[data-id]')?.dataset.id; 
 el.graph.onclick = e => {
   const r = el.graph.getBoundingClientRect(), line = walk(root);
   goto(line[Math.round((e.clientX - r.left) / r.width * (line.length - 1))]);
+};
+el.note.onclick = e => {
+  const i = e.target.closest('[data-i]')?.dataset.i;
+  if (!noteLine || i == null) return;
+  let n = noteLine.from;
+  for (const u of noteLine.uci.slice(0, +i + 1)) n = child(n, u);
+  goto(n);
 };
 el.pv.onpointermove = e => { if (e.pointerType !== 'touch') { hoverAt = [e.clientX, e.clientY]; preview(); } };
 el.pv.onpointerleave = () => { hoverAt = null; preview(); };

@@ -32,13 +32,14 @@ app.use(express.json());
 // brotli quality, by what is being sent. pages and api answers are squeezed fresh on every request, so 5: the same
 // cpu as the package default of 4 and about 6% smaller. js, css and svg only change on deploy and cloudflare keeps
 // them 4h, so they get 11, the smallest brotli makes (about 14% under 4), and the slow squeeze happens about once per
-// file. no size floor for those, the small worker.js otherwise went out as cloudflare's bigger gzip
+// file. no size floor for those, the small worker.js otherwise went out as cloudflare's bigger gzip. the chess
+// openings' tsv only changes on deploy too
 const zlib = require('zlib');
 const compression = require('compression');
 const brotli = quality => ({ params: { [zlib.constants.BROTLI_PARAM_QUALITY]: quality } });
 const compressPage = compression({ threshold: 1024, brotli: brotli(5) });
 const compressAsset = compression({ threshold: 0, brotli: brotli(11) });
-app.use((req, res, next) => (/\.(js|css|svg)$/.test(req.path) ? compressAsset : compressPage)(req, res, next));
+app.use((req, res, next) => (/\.(js|css|svg|tsv)$/.test(req.path) ? compressAsset : compressPage)(req, res, next));
 
 app.use(require('./routes/middleware/cookieParser.js'));
 app.use(require('./routes/middleware/auth.js').attachUser);
