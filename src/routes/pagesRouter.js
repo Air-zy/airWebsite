@@ -2,7 +2,8 @@ const path = require('path');
 const router = require('express').Router();
 
 const PRODUCTION_PUBLIC_DIRECTORY = path.join(__dirname, '../dist');
-const page = file => (req, res) => res.sendFile(file, { root: PRODUCTION_PUBLIC_DIRECTORY });
+// the page's .br from the boot (modules/precompress.js), or the page itself until that's written
+const page = file => require('../modules/precompress.js').page(file, PRODUCTION_PUBLIC_DIRECTORY);
 
 // / and /home are the same page on purpose, same for /change and /coinsort
 router.get('/',           page('/index.html'));

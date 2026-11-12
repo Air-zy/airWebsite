@@ -29,13 +29,8 @@ app.set('trust proxy', 1);
 app.use(require('./routes/middleware/reqLogger.js'));
 app.use(express.json());
 
-// js, css, svg, tsv, wasm and bin only change on deploy, so they're squeezed once after the boot minify and sent from
-// their .br (modules/precompress.js). until theirs is written they go through the compression below
-const precompressed = require('./modules/precompress.js');
-app.use(precompressed.serve(PRODUCTION_PUBLIC_DIRECTORY));
-
-// brotli quality, by what is being sent. pages and api answers are squeezed fresh on every request, so 5: the same
-// cpu as the package default of 4 and about 6% smaller. the assets get 11, the smallest brotli makes (about 14% under
+// brotli quality, by what is being sent. api answers, and pages before their .br is ready (precompressed, below), are
+// squeezed fresh on every request, so 5: the same cpu as the package default of 4 and about 6% smaller. the assets get 11, the smallest brotli makes (about 14% under
 // 4), only for the seconds before their .br is ready. no size floor for those, the small worker.js otherwise went out
 // as cloudflare's bigger gzip
 const zlib = require('zlib');
@@ -54,6 +49,11 @@ app.use(require('./routes/middleware/terminal.js').middleware);
 // only this site may frame the login pages (the guestbook popup), anyone else is clickjacking
 app.use('/auth', (req, res, next) => { res.set('Content-Security-Policy', "frame-ancestors 'self'"); next(); });
 
+// js, css, svg, tsv, wasm, bin and the pages only change on deploy, so they're squeezed once after the boot minify and
+// sent from their .br (modules/precompress.js), here for what static serves and in pagesRouter for the routes. until a
+// file's .br is written it goes through the compression above. compression leaves an answer that has its own encoding
+const precompressed = require('./modules/precompress.js');
+app.use(precompressed.serve);
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
 // after static so css and js dont eat the budget, a few refreshes used to hit 30. after the logger so a 429 gets logged
