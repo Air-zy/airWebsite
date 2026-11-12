@@ -368,11 +368,15 @@ const BIG = { cynical: 'loading its human net, ~40 MB the first time' };
 const tuned = e => { try { return JSON.parse(localStorage['chess.opts.' + e] || '{}') || {}; } catch { return {}; } };
 const retune = (e, t) => { try { localStorage['chess.opts.' + e] = JSON.stringify(t); } catch {} };
 
+// the engines whose wasm needs its own glue (built with other imports), it sits next to their chess.wasm
+const GLUE = ['loosefast'];
+
 // a worker running an engine, a folder under engines/ holding its chess.wasm (the worker and its glue are shared).
 // the wasm is compiled once and handed over, a failed compile is dropped so the next worker tries again. every worker
 // gets the changed options first, so analysis, fights and reviews all play with them
 function spawn(engine = el.engine.value, set = tuned(engine)) {
-  const dir = `/chess/engines/${engine}/`, w = new Worker('/chess/engines/engine.worker.js' + V);
+  const dir = `/chess/engines/${engine}/`;
+  const w = new Worker('/chess/engines/engine.worker.js' + V + (GLUE.includes(engine) ? `#${engine}/` : ''));
   compiled(dir).then(m => w.postMessage(m), () => { delete wasm[dir]; w.onerror(); });
   for (const [k, v] of Object.entries(set)) w.postMessage(`setoption name ${k} value ${v}`);
   return w;
