@@ -1,6 +1,10 @@
 // analysis board. rules and san from lib/chess.js, the board is our own, the engine is a uci web worker (engines/)
 import { Chess } from './lib/chess.js';
 
+// the ?v= chess.html loads this with (a hash of the chess files, config/site.js), passed on to what this loads so a
+// cached old copy of any of them isn't mixed with a new page
+const V = new URL(import.meta.url).search;
+
 const START = new Chess().fen(), FILES = 'abcdefgh';
 const NAMES = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' };
 // arrow colours like lichess: right drag is green, shift red, alt blue, both yellow. the engine's best line is blue and
@@ -368,7 +372,7 @@ const retune = (e, t) => { try { localStorage['chess.opts.' + e] = JSON.stringif
 // the wasm is compiled once and handed over, a failed compile is dropped so the next worker tries again. every worker
 // gets the changed options first, so analysis, fights and reviews all play with them
 function spawn(engine = el.engine.value, set = tuned(engine)) {
-  const dir = `/chess/engines/${engine}/`, w = new Worker('/chess/engines/engine.worker.js');
+  const dir = `/chess/engines/${engine}/`, w = new Worker('/chess/engines/engine.worker.js' + V);
   compiled(dir).then(m => w.postMessage(m), () => { delete wasm[dir]; w.onerror(); });
   for (const [k, v] of Object.entries(set)) w.postMessage(`setoption name ${k} value ${v}`);
   return w;
@@ -387,7 +391,7 @@ const hunting = () => mode === 'fight' && el.engine.value === 'verity';
 
 function hunt() {
   if (hunter) return;
-  const dir = '/chess/engines/verity/', w = hunter = new Worker(dir + 'verityb.worker.js');
+  const dir = '/chess/engines/verity/', w = hunter = new Worker(dir + 'verityb.worker.js' + V);
   // the page's compiled wasm goes first, before any command, or the worker fetches its own (as it does if that failed)
   const up = compiled(dir).then(m => w.postMessage(m), () => { delete wasm[dir]; });
   w.send = c => up.then(() => w.postMessage(c));
@@ -596,7 +600,7 @@ function scored(n, s) {
 // the opening book: the named positions of lichess's chess-openings (CC0, github.com/lichess-org/chess-openings), as
 // "<the first four fen fields>\t<eco> <name>" in openings.tsv. fetched when a review first starts, empty if that fails
 let book = null, booking = null;
-const loadBook = () => booking ??= fetch('/chess/openings.tsv').then(r => r.ok ? r.text() : '').catch(() => '')
+const loadBook = () => booking ??= fetch('/chess/openings.tsv' + V).then(r => r.ok ? r.text() : '').catch(() => '')
   .then(t => { book = new Map(t.split('\n').filter(Boolean).map(l => l.split('\t'))); });
 const named = n => book.get(n.fen.split(' ', 4).join(' '));
 // a book move's opening, '' if it isn't one: it follows book moves from the start position and lands on a named
@@ -1034,7 +1038,7 @@ const sounds = {};
 function warm() {
   if (audio) return;
   try { audio = new AudioContext(); } catch { return; }
-  for (const k of SOUNDS) sounds[k] = fetch(`/chess/sounds/${k}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+  for (const k of SOUNDS) sounds[k] = fetch(`/chess/sounds/${k}.mp3${V}`).then(r => r.ok ? r.arrayBuffer() : Promise.reject())
     .then(b => audio.decodeAudioData(b)).catch(() => null);
 }
 for (const t of ['pointerdown', 'keydown']) addEventListener(t, warm, { capture: true, once: true });

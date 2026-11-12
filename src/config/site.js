@@ -99,6 +99,11 @@ module.exports = {
     v: version(['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js', 'og.png']),
     // the 🤓 easter egg's own, so changing it doesn't make everyone download the rest again
     vBreak: version(['js/breakdown.js']),
+    // the chess page's (chess.html loads analysis.js with it, analysis.js passes it on to the workers, the opening book
+    // and the sounds). the engines' wasm stays out, a new cynical would make everyone download its 43 MB with a new
+    // page, and the files the workers load by name (chess.js, rules.js, verityb.js) can't carry it
+    vChess: version(['chess/analysis.js', 'chess/engines/engine.worker.js', 'chess/engines/verity/verityb.worker.js', 'chess/openings.tsv',
+      ...fs.readdirSync(__dirname + '/../public/chess/sounds').sort().map(f => 'chess/sounds/' + f)]),
   },
 };
 
@@ -106,10 +111,12 @@ module.exports = {
 if (require.main === module) {
   const a = require('assert');
   const html = fs.readFileSync(__dirname + '/../public/index.html', 'utf8');
+  const chess = fs.readFileSync(__dirname + '/../public/chess.html', 'utf8');
 
-  // every token the page asks for has to exist here, and every shape has to be used
-  const used = [...html.matchAll(/<!--#(\w+)-->/g)].map(m => m[1]);
+  // every token a page asks for has to exist here, and every shape has to be used by one of them
+  const used = [...(html + chess).matchAll(/<!--#(\w+)-->/g)].map(m => m[1]);
   a.ok(used.length, 'index.html lost its tokens');
+  a.ok(chess.includes('analysis.js?v=<!--#vChess-->'), 'the chess page loads its script versioned');
   for (const k of used) a.ok(k in module.exports.html, `no such token ${k}`);
   for (const k of Object.keys(module.exports.html)) a.ok(used.includes(k), `${k} is dead`);
 
