@@ -29,11 +29,15 @@ app.set('trust proxy', 1);
 app.use(require('./routes/middleware/reqLogger.js'));
 app.use(express.json());
 
+// js, css, svg, tsv, wasm and bin only change on deploy, so they're squeezed once after the boot minify and sent from
+// their .br (modules/precompress.js). until theirs is written they go through the compression below
+const precompressed = require('./modules/precompress.js');
+app.use(precompressed.serve(PRODUCTION_PUBLIC_DIRECTORY));
+
 // brotli quality, by what is being sent. pages and api answers are squeezed fresh on every request, so 5: the same
-// cpu as the package default of 4 and about 6% smaller. js, css and svg only change on deploy and cloudflare keeps
-// them 4h, so they get 11, the smallest brotli makes (about 14% under 4), and the slow squeeze happens about once per
-// file. no size floor for those, the small worker.js otherwise went out as cloudflare's bigger gzip. the chess
-// openings' tsv only changes on deploy too
+// cpu as the package default of 4 and about 6% smaller. the assets get 11, the smallest brotli makes (about 14% under
+// 4), only for the seconds before their .br is ready. no size floor for those, the small worker.js otherwise went out
+// as cloudflare's bigger gzip
 const zlib = require('zlib');
 const compression = require('compression');
 const brotli = quality => ({ params: { [zlib.constants.BROTLI_PARAM_QUALITY]: quality } });
@@ -86,5 +90,8 @@ app.listen(PORT, err => {
   require('./modules/minify.js').startMinify({
     src: path.join(__dirname, './public'),
     dest: PRODUCTION_PUBLIC_DIRECTORY
-  }).then(resolveMinify);
+  }).then(() => {
+    resolveMinify();
+    precompressed.precompress(PRODUCTION_PUBLIC_DIRECTORY).catch(err => console.error('[precompress]', err));
+  });
 });
