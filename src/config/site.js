@@ -104,6 +104,11 @@ module.exports = {
     // page, and the files the workers load by name (chess.js, rules.js, verityb.js) can't carry it
     vChess: version(['chess/analysis.js', 'chess/engines/engine.worker.js', 'chess/engines/verity/verityb.worker.js', 'chess/openings.tsv',
       ...fs.readdirSync(__dirname + '/../public/chess/sounds').sort().map(f => 'chess/sounds/' + f)]),
+    // each engine's build, folder:hash with a space between, on the chess page's engine picker. the page keeps a wasm
+    // in its cache storage under its hash, so a new build is the only download (analysis.js)
+    vWasm: fs.readdirSync(__dirname + '/../public/chess/engines', { withFileTypes: true })
+      .filter(d => d.isDirectory() && fs.existsSync(`${__dirname}/../public/chess/engines/${d.name}/chess.wasm`))
+      .map(d => `${d.name}:${version([`chess/engines/${d.name}/chess.wasm`])}`).join(' '),
   },
 };
 

@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analysis board</title>
 <meta name="description" content="chess analysis board running my own engine in the browser">
+<!-- analysis.js asks for lib/chess.js only once it's in, and the pieces only once that's in too, a round trip each on a
+     first visit. these start them with the page -->
+<link rel="modulepreload" href="/chess/lib/chess.js">
+<link rel="preload" as="image" href="/chess/pieces/wk.svg"><link rel="preload" as="image" href="/chess/pieces/wq.svg">
+<link rel="preload" as="image" href="/chess/pieces/wr.svg"><link rel="preload" as="image" href="/chess/pieces/wb.svg">
+<link rel="preload" as="image" href="/chess/pieces/wn.svg"><link rel="preload" as="image" href="/chess/pieces/wp.svg">
+<link rel="preload" as="image" href="/chess/pieces/bk.svg"><link rel="preload" as="image" href="/chess/pieces/bq.svg">
+<link rel="preload" as="image" href="/chess/pieces/br.svg"><link rel="preload" as="image" href="/chess/pieces/bb.svg">
+<link rel="preload" as="image" href="/chess/pieces/bn.svg"><link rel="preload" as="image" href="/chess/pieces/bp.svg">
 <style>
 @font-face {
   font-family: "Bricolage Grotesque";
@@ -325,7 +334,7 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     <div id="ceval">
       <input type="checkbox" id="on" class="switch" checked autocomplete="off" title="engine (l)" aria-label="engine on">
       <b id="score"></b>
-      <div class="meta"><div class="pick"><select id="engine" aria-label="engine">
+      <div class="meta"><div class="pick"><select id="engine" aria-label="engine" data-wasm="<!--#vWasm-->">
         <option value="cynical">Cynical</option><option value="verity">Verity</option><option value="sukuna">Sukuna</option><option value="gojo" selected>Gojo</option><option value="loosefast">LooseFast</option>
       </select><button id="optBtn" title="the engine's own settings" aria-label="engine settings" aria-expanded="false" aria-controls="opts" hidden><svg
         viewBox="0 0 16 16"><path d="M1 3.25h14v1.5H1zM9 1.5h2.5v5H9zM1 7.25h14v1.5H1zM3.5 5.5H6v5H3.5zM1 11.25h14v1.5H1zM10 9.5h2.5v5H10z"/></svg></button></div>

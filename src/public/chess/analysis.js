@@ -361,8 +361,28 @@ function preview() {
 // engine folder -> its compiled chess.wasm, and the folders whose compile is done. the panel redraws once one is, so a
 // slow first download's note (BIG) goes
 const wasm = {}, loaded = new Set();
-const compiled = dir => wasm[dir] ??= WebAssembly.compileStreaming(fetch(dir + 'chess.wasm'))
+const compiled = dir => wasm[dir] ??= WebAssembly.compileStreaming(download(dir))
   .then(m => { loaded.add(dir); drawEval(); return m; });
+
+// each engine's build, its folder's name -> a hash of its chess.wasm (config/site.js, on the engine picker)
+const BUILD = Object.fromEntries(el.engine.dataset.wasm.split(' ').map(p => p.split(':')));
+// an engine's wasm comes from the page's own cache storage when it holds this build, else from the server with a copy
+// going in and any other build of that engine coming out. the browser's http cache won't keep one file that big (over
+// 20 to 30 MB), so cynical's 43 MB came down again on every pick, and the small ones cost a round trip each visit to
+// check. no cache storage (some private windows) or no room in it means the plain download, as before
+async function download(dir) {
+  const url = new URL(`${dir}chess.wasm?v=${BUILD[dir.split('/')[3]] ?? ''}`, location).href, path = new URL(url).pathname;
+  let cache = null;
+  try { cache = await caches.open('engines'); } catch {}
+  const hit = await cache?.match(url).catch(() => null);
+  if (hit) return hit;
+  const res = await fetch(url);
+  // only a whole wasm gets in: put waits for the body, so a dropped download leaves nothing
+  if (cache && res.ok && res.headers.get('content-type') === 'application/wasm') cache.put(url, res.clone())
+    .then(() => cache.keys()).then(keys => keys.forEach(k => k.url !== url && new URL(k.url).pathname === path && cache.delete(k)))
+    .catch(() => {});
+  return res;
+}
 // what the panel says while an engine too big to come in at once downloads: cynical's wasm carries its human net
 const BIG = { cynical: 'loading its human net, ~40 MB the first time' };
 
