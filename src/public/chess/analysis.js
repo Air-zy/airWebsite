@@ -40,7 +40,7 @@ const blind = () => mode === 'fight' && !el.hints.checked;
 const engineMoves = () => mode === 'fight' && game.turn() !== side && !cur.children.length && !clock?.flag;
 // lines the engine searches: one when it plays the move, never more than there are moves (it prints just that many).
 // ONE searches one line whatever MultiPV says, so the panel waiting for a second line never showed it
-const ONE = ['loosefast'];
+const ONE = ['suimate'];
 const want = () => engineMoves() || ONE.includes(el.engine.value) ? 1 : Math.min(el.multipv.value, game.moves().length);
 
 // a node is a position: the move that made it, its fen and the lines after it, children[0] is the main one
@@ -391,7 +391,7 @@ const tuned = e => { try { return JSON.parse(localStorage['chess.opts.' + e] || 
 const retune = (e, t) => { try { localStorage['chess.opts.' + e] = JSON.stringify(t); } catch {} };
 
 // the engines whose wasm needs its own glue (built with other imports), it sits next to their chess.wasm
-const GLUE = ['loosefast'];
+const GLUE = ['suimate'];
 
 // a worker running an engine, a folder under engines/ holding its chess.wasm (the worker and its glue are shared).
 // the wasm is compiled once and handed over, a failed compile is dropped so the next worker tries again. every worker

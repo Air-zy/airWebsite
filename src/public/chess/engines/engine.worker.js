@@ -1,7 +1,7 @@
 // web worker around the emscripten glue chess.js (same folder), shared by every engine. the page compiles the chosen
 // engine's chess.wasm once and posts it here, uci commands go in and output lines come back. 'ready' comes once the
 // wasm is up, commands posted before that are queued. an engine built with other imports brings its own chess.js, the
-// page then names its folder in the url's hash (#loosefast/)
+// page then names its folder in the url's hash (#suimate/)
 const queue = [], uci = cmd => Module.ccall('uci', null, ['string'], [cmd]);
 let ready = false, gotWasm;
 const wasm = new Promise(r => gotWasm = r);
