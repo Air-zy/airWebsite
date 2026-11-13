@@ -38,8 +38,10 @@ let edit = null, tool = '', brush = null, brushed;
 // the game doesn't make it move. without hints nothing runs on your move and its line and arrow stay hidden
 const blind = () => mode === 'fight' && !el.hints.checked;
 const engineMoves = () => mode === 'fight' && game.turn() !== side && !cur.children.length && !clock?.flag;
-// lines the engine searches: one when it plays the move, never more than there are moves (it prints just that many)
-const want = () => engineMoves() ? 1 : Math.min(el.multipv.value, game.moves().length);
+// lines the engine searches: one when it plays the move, never more than there are moves (it prints just that many).
+// ONE searches one line whatever MultiPV says, so the panel waiting for a second line never showed it
+const ONE = ['loosefast'];
+const want = () => engineMoves() || ONE.includes(el.engine.value) ? 1 : Math.min(el.multipv.value, game.moves().length);
 
 // a node is a position: the move that made it, its fen and the lines after it, children[0] is the main one
 function newRoot(fen) {
