@@ -488,7 +488,7 @@ function analyse() {
   drawShapes();
   const plays = engineMoves();
   if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === side)) return;
-  timer = setTimeout(() => {
+  timer = setTimeout(function start(tries = 0) {
     if (plays && hunting()) return ask(cur);
     const n = cur, w = worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
     let got = [];
@@ -509,7 +509,15 @@ function analyse() {
       drawEval();
       drawShapes();
     };
-    w.onerror = () => { el.info.textContent = 'engine failed to load, try another move'; };
+    // a failed load (a dropped download of the wasm, cynical's 43 MB on a phone, or too little memory) starts again on
+    // the same position, twice, a little later each time. leaving the position clears the timer and the retry with it
+    w.onerror = () => {
+      if (w !== worker) return;
+      worker = null;
+      w.terminate();
+      if (tries < 2) timer = setTimeout(start, 2000 * (tries + 1), tries + 1);
+      el.info.textContent = tries < 2 ? 'engine failed to load, trying again' : 'engine failed to load, try another move';
+    };
     w.postMessage(`setoption name MultiPV value ${lines}`);
     w.postMessage(position(n));
     // a fight move searches as the strength picker says (its values are go args) and within its clock, analysis is

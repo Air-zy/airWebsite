@@ -7,7 +7,9 @@ let ready = false, gotWasm;
 const wasm = new Promise(r => gotWasm = r);
 self.Module = {
   print: line => postMessage(line), postRun: [() => { ready = true; postMessage('ready'); queue.splice(0).forEach(uci); }],
-  instantiateWasm: (imports, done) => wasm.then(m => WebAssembly.instantiate(m, imports)).then(done),
+  // a failed instantiate (a phone short on memory, most likely) is thrown again outside the promise, so it reaches the
+  // page's onerror instead of leaving the worker silent
+  instantiateWasm: (imports, done) => wasm.then(m => WebAssembly.instantiate(m, imports)).then(done, e => setTimeout(() => { throw e; })),
 };
 importScripts(location.hash.slice(1) + 'chess.js');
 onmessage = e => e.data instanceof WebAssembly.Module ? gotWasm(e.data) : ready ? uci(e.data) : queue.push(e.data);
