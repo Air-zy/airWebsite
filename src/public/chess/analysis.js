@@ -409,7 +409,7 @@ function spawn(engine = el.engine.value, set = tuned(engine)) {
 // how many moves sooner each one mates a ~1400, and the best total is played. no human model runs at play time. its go
 // takes no limits (node counted, under a second a move), so the strength picker steps aside. analysis and reviews stay
 // on the plain engine. one worker lasts the whole fight: its isready loads the trees while you think and the engine
-// keeps its hash, so unlike the others it isn't killed on every move. a move can't be cut short either, so the answers
+// keeps its hash, so like keeper (below) it isn't killed on every move. a move can't be cut short either, so the answers
 // come back in the order they were asked and one for a position you've since left is dropped. asked holds, per command
 // still running, the node of a go or null for the isready
 let hunter = null, asked = [];
@@ -449,6 +449,17 @@ function fail(why) {
 }
 const unhunt = () => { hunter?.terminate(); hunter = null; asked = []; };
 const ask = n => { hunt(); if (!asked.includes(n)) { asked.push(n); hunter.send(position(n)); hunter.send('go'); } };
+
+// a fight against an engine in KEEP plays all its moves on one worker (keeper) instead of a fresh one each move, so its
+// tables stay. suimate needs them: a selfmate it proved on one move it proves again a move shorter on the next, from an
+// empty table it just finds another mate in up to 10 (on the stuck endgame in its readme, mated after 61 of its moves
+// instead of 12). ucinewgame empties them when the position isn't the game going on two plies from its last search (a
+// new fight or position, a side switch, a takeback). a go can't be stopped, so leaving the position while it thinks
+// kills it like the others. analysis on your move still gets its own worker. busy is the node it's thinking on
+const KEEP = ['suimate'];
+let keeper = null;
+const keeps = () => mode === 'fight' && KEEP.includes(el.engine.value);
+const unkeep = () => { keeper?.terminate(); keeper = null; };
 
 // an engine's own options come from its reply to uci, so a new build's show up without touching the page. the page
 // sets MultiPV itself (the lines picker) and Hash goes with the worker each move anyway, so those two stay out. a
@@ -497,8 +508,8 @@ const parse = (line, n) => {
 };
 
 // avy: the wasm build can't take a stop mid search, so a new position kills the worker and starts a fresh one and the
-// hash goes with it. a pthreads build with stop would keep one worker. the wait lets arrow keys skim through moves
-// without spinning one up for each
+// hash goes with it (keeper aside). a pthreads build with stop would keep one worker. the wait lets arrow keys skim
+// through moves without spinning one up for each
 function analyse() {
   clearTimeout(timer);
   worker?.terminate();
@@ -506,21 +517,27 @@ function analyse() {
   pvs = [];
   el.deeper.hidden = true;
   if (hunting()) hunt(); else unhunt();
+  // one still thinking on this position goes on (a picker changed meanwhile)
+  if (!keeps() || keeper?.busy && (keeper.busy !== cur || !engineMoves())) unkeep();
   drawEval();
   drawShapes();
   const plays = engineMoves();
   if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === side)) return;
   timer = setTimeout(function start(tries = 0) {
     if (plays && hunting()) return ask(cur);
-    const n = cur, w = worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
+    const n = cur, keep = plays && keeps();
+    if (keep && keeper?.busy === n) return;
+    const w = keep ? keeper ??= spawn() : worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
+    const mine = () => keep ? w === keeper && w.busy === n : w === worker;
+    const drop = () => { if (keep) keeper = null; else worker = null; w.terminate(); };
     let got = [];
     w.onmessage = e => {
-      if (w !== worker) return;
+      if (!mine()) return;
       // it searches the start position instead, so its lines wouldn't fit this one
-      if (e.data.startsWith('info string invalid fen')) { worker = null; w.terminate(); el.info.textContent = 'the engine refused this position'; return; }
+      if (e.data.startsWith('info string invalid fen')) { drop(); el.info.textContent = 'the engine refused this position'; return; }
       // a bestmove in analysis means its 30s ran out, the + then lets it search on (el.deeper)
       const info = parse(e.data, n), best = BEST.exec(e.data);
-      if (best) return plays ? goto(child(n, best[1]), true) : (el.deeper.hidden = false);
+      if (best) { w.busy = null; return plays ? goto(child(n, best[1]), true) : (el.deeper.hidden = false); }
       if (!info || !el.on.checked) return;
       // the lines of a depth come one by one from line 1 and show once they're all in, so depths don't mix. they're in
       // search order, a later one can score a little higher, so they get sorted
@@ -534,12 +551,15 @@ function analyse() {
     // a failed load (a dropped download of the wasm, cynical's 43 MB on a phone, or too little memory) starts again on
     // the same position, twice, a little later each time. leaving the position clears the timer and the retry with it
     w.onerror = () => {
-      if (w !== worker) return;
-      worker = null;
-      w.terminate();
+      if (!mine()) return;
+      drop();
       if (tries < 2) timer = setTimeout(start, 2000 * (tries + 1), tries + 1);
       el.info.textContent = tries < 2 ? 'engine failed to load, trying again' : 'engine failed to load, try another move';
     };
+    if (keep) {
+      if (w.last && w.last !== n.parent?.parent) w.postMessage('ucinewgame');
+      w.last = w.busy = n;
+    }
     w.postMessage(`setoption name MultiPV value ${lines}`);
     w.postMessage(position(n));
     // a fight move searches as the strength picker says (its values are go args) and within its clock, analysis is
@@ -1421,8 +1441,8 @@ for (const s of [el.engine, el.multipv, el.level]) {
 }
 
 // a changed option is saved for that engine (back at its default it's forgotten) and, like another engine, starts the
-// search and the review again. verity's fight worker starts over too, it only takes options when it starts. an emptied
-// box goes back to the default
+// search and the review again. the fight workers that last (verity's, keeper) start over too, they only take options
+// when they start. an emptied box goes back to the default
 el.optBtn.onclick = () => { el.optBtn.ariaExpanded = el.optBtn.ariaExpanded !== 'true'; };
 el.optList.onchange = e => {
   const i = e.target, def = +i.dataset.def, t = tuned(el.engine.value);
@@ -1434,9 +1454,10 @@ el.optList.onchange = e => {
   el.optReset.disabled = !Object.keys(t).length;
   resetReview();
   unhunt();
+  unkeep();
   goto(cur);
 };
-el.optReset.onclick = () => { retune(el.engine.value, {}); drawOpts(); resetReview(); unhunt(); goto(cur); };
+el.optReset.onclick = () => { retune(el.engine.value, {}); drawOpts(); resetReview(); unhunt(); unkeep(); goto(cur); };
 
 // the palette: the hand and eraser are in the page, a row of pieces goes after each
 for (const c of 'wb') (c === 'w' ? el.hand : el.eraser).insertAdjacentHTML('afterend', [...'kqrbnp'].map(t =>
