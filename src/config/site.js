@@ -134,6 +134,8 @@ module.exports = {
     v: version(['css/main.css', 'js/main.js', 'js/dither.js', 'ROWA/r6.js', 'og.png']),
     // the 🤓 easter egg's own, so changing it doesn't make everyone download the rest again
     vBreak: version(['js/breakdown.js']),
+    // /roblox's own css and js. the page loads home's main.css and dither.js too, with v
+    vRoblox: version(['roblox/roblox.css', 'roblox/roblox.js', 'roblox/figure.worker.js', 'roblox/figure/rig.json']),
     // the chess page's (chess.html loads analysis.js with it, analysis.js passes it on to the workers, the opening book
     // and the sounds). the engines' wasm stays out, a new cynical would make everyone download its 43 MB with a new
     // page, and the files the workers load by name (chess.js, rules.js, verityb.js) can't carry it
@@ -152,11 +154,18 @@ if (require.main === module) {
   const a = require('assert');
   const html = fs.readFileSync(__dirname + '/../public/index.html', 'utf8');
   const chess = fs.readFileSync(__dirname + '/../public/chess.html', 'utf8');
+  const roblox = fs.readFileSync(__dirname + '/../public/roblox/roblox.html', 'utf8');
 
   // every token a page asks for has to exist here, and every shape has to be used by one of them
-  const used = [...(html + chess).matchAll(/<!--#(\w+)-->/g)].map(m => m[1]);
+  const used = [...(html + chess + roblox).matchAll(/<!--#(\w+)-->/g)].map(m => m[1]);
   a.ok(used.length, 'index.html lost its tokens');
   a.ok(chess.includes('analysis.js?v=<!--#vChess-->'), 'the chess page loads its script versioned');
+  // static sees the roblox folder before pagesRouter does, so /roblox 301s to /roblox/. a ./ path there only works because
+  // of that, absolute ones work at either
+  for (const m of roblox.matchAll(/(?:href|src)="([^"]+)"/g)) a.ok(!m[1].startsWith('.'), `relative path ${m[1]} in roblox.html`);
+  for (const f of ['/css/main.css?v=<!--#v-->', '/roblox/roblox.css?v=<!--#vRoblox-->', '/roblox/roblox.js?v=<!--#vRoblox-->'])
+    a.ok(roblox.includes(f), `roblox.html loads ${f}`);
+  for (const m of roblox.matchAll(/#i-([a-z0-9-]+)/g)) a.ok(module.exports.html.icons.includes(`id="${m[0].slice(1)}"`), `sprite lost ${m[1]}`);
   for (const k of used) a.ok(k in module.exports.html, `no such token ${k}`);
   for (const k of Object.keys(module.exports.html)) a.ok(used.includes(k), `${k} is dead`);
 

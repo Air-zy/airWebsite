@@ -1,0 +1,383 @@
+/* /roblox, on top of the home page's css/main.css. only what home doesn't have goes here, so the fonts, colours, nav,
+   grain, sections, skills, friends list and footer all come from there and change with it */
+:root {
+  /* the chart's other years, 3.3:1 on the ground so a bar still reads as a mark. the year that matters is --accent */
+  --bar: #6a6771;
+}
+
+/* home's first screen, shorter, as there's no plant to fill it. one column, the avatar is part of the name's line */
+#s1 {
+  --hero-h: min(calc(100dvh - var(--nav-h)), 460px);
+  --hero-pad-b: clamp(16px, 3vh, 40px);
+  grid-template-columns: minmax(0, 1fr);
+}
+/* the avatar stands at the end of the name like a character under its nametag. a flex baseline lines an image's
+   bottom up with the text's baseline, so its feet are on the line the letters sit on at any size. the font size is
+   the h1's, so its height is in the name's ems */
+.name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.12em;
+  font-size: clamp(44px, 8vw, 96px);
+}
+.name-row h1 {
+  font-size: 1em;
+}
+/* the figure, a button around the still with the live canvas laid over it once pressed. the still is the live
+   figure's own first frame in the same box, so the swap doesn't move a pixel. it's in the flow so its bottom is the
+   button's baseline, line-height 0 keeps the gap a line leaves under an image out. the frame has room around the
+   figure for every pose and angle, the feet are --below its height off the bottom, so it's moved down that much (a
+   translate percentage is of its own height) and they land on the baseline with the floor shadow just under it. the
+   margin takes back the frame's room on the left, so it stands as close to the name as before */
+.figure {
+  --below: 18.48%;
+  position: relative;
+  flex: none;
+  margin-left: -0.06em;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+  line-height: 0;
+  cursor: pointer;
+  translate: 0 var(--below);
+  /* a sideways drag spins it, an up and down one still scrolls the page */
+  touch-action: pan-y;
+  /* only down to the feet takes a press, the frame's bottom hangs over the sentence under the name */
+  pointer-events: none;
+}
+.figure::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 var(--below);
+  pointer-events: auto;
+}
+.figure img {
+  width: auto;
+  height: 2.2em;
+}
+.figure canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+.figure[data-state="loading"] {
+  cursor: progress;
+}
+.figure[data-state="live"] {
+  cursor: grab;
+}
+.figure[data-state="live"]:active {
+  cursor: grabbing;
+}
+.figure[data-state="live"] canvas {
+  opacity: 1;
+}
+.figure[data-state="live"] img {
+  visibility: hidden;
+}
+/* the sentence wraps at about the name's width, not the page's */
+.hero-text .lede {
+  max-width: 27em;
+}
+.hero-text .comment {
+  max-width: 34em;
+  margin: 0.75em 0 0;
+}
+
+/* a section with pictures or a grid in it takes the page's width, its text keeps the reading measure */
+.txt-section.wide {
+  max-width: none;
+}
+.wide > p,
+.wide > h2 {
+  max-width: var(--measure);
+}
+/* the years and what it was, under a game's heading */
+.dates {
+  margin: -0.4em 0 1.2em;
+  font-size: 0.8rem;
+  color: var(--text-grey);
+}
+.list-title {
+  margin: 56px 0 0;
+}
+
+/* the ROWA pictures, one wide then two that share a row at the same height. each takes the share of the row its
+   width to height ratio (--r) asks for, so neither gets cropped */
+.shots {
+  display: grid;
+  gap: 8px;
+  margin: 32px 0;
+}
+.shot {
+  display: block;
+}
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.wide-shot img {
+  aspect-ratio: 2.4;
+  object-fit: cover;
+}
+.shot-row {
+  display: flex;
+  gap: 8px;
+}
+.shot-row .shot {
+  flex: var(--r) 1 0;
+  min-width: 0;
+}
+
+/* a game, its icon and name with its years and visits under it. the name only underlines on hover, like the
+   projects on home */
+.games {
+  display: grid;
+  /* three across at full width, so a name as long as "Build Bots3 - Force Shields!" still fits on one line */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 24px 32px;
+  margin: 32px 0;
+  padding: 0;
+  list-style: none;
+}
+.games a {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-rows: 1fr 1fr;
+  column-gap: 14px;
+  text-decoration: none;
+}
+.games img,
+.no-icon {
+  grid-row: 1 / span 2;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+}
+/* a game i never gave an icon, a dotted square like the lines between projects */
+.no-icon {
+  box-sizing: border-box;
+  border: 1px dotted var(--text-grey);
+}
+.g-name {
+  align-self: end;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.games a:hover .g-name {
+  text-decoration: underline;
+}
+.g-meta {
+  align-self: start;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--text-grey);
+}
+
+/* a youtube video as its picture until it's clicked, then roblox.js puts the player in the same box */
+.videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+.video {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--frame-bcol);
+  color: var(--text-normal);
+  text-decoration: none;
+}
+.video img,
+.video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+.play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 64px;
+  height: 44px;
+  translate: -50% -50%;
+  border-radius: 12px;
+  background: rgb(19 18 23 / 0.8);
+  transition: background-color 0.2s;
+}
+.play::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -35% -50%;
+  border-style: solid;
+  border-width: 10px 0 10px 17px;
+  border-color: transparent transparent transparent var(--text-normal);
+}
+.video:hover .play,
+.video:focus-visible .play {
+  background: var(--bg-col);
+}
+.v-title {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  background: rgb(19 18 23 / 0.8);
+}
+
+/* games a year. a column per year, the bar grows up from one hairline, its height a share of --max. the top 32px
+   is room for the peak's number and a tooltip over the tallest bar */
+.years {
+  max-width: var(--measure);
+  margin: 40px 0 0;
+}
+.years h3 {
+  margin: 0;
+}
+.years .small-p {
+  margin: 4px 0 0;
+}
+.cols {
+  --plot: 160px;
+  --axis: 24px;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cols li {
+  --h: max(2px, calc(var(--v) / var(--max) * var(--plot)));
+  position: relative;
+  height: calc(var(--plot) + var(--axis) + 32px);
+}
+.cols li:focus-visible {
+  outline-offset: -1px;
+}
+.cols li::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: var(--axis);
+  left: 0;
+  height: 1px;
+  background: var(--frame-bcol2);
+}
+.bar {
+  position: absolute;
+  bottom: var(--axis);
+  left: 50%;
+  width: min(24px, 60%);
+  height: var(--h);
+  translate: -50% 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--bar);
+}
+.cols li:hover .bar,
+.cols li:focus .bar {
+  background: var(--text-grey);
+}
+.cols .peak .bar {
+  background: var(--accent);
+}
+.year {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  font-size: 0.75rem;
+  line-height: var(--axis);
+  text-align: center;
+  color: var(--text-grey);
+  font-variant-numeric: tabular-nums;
+}
+.val,
+.tip {
+  position: absolute;
+  bottom: calc(var(--axis) + var(--h) + 6px);
+  left: 50%;
+  translate: -50% 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.tip {
+  padding: 3px 8px;
+  background: var(--frame-bcol2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+/* the ends hang inward so a tooltip never runs off the chart */
+.cols li:first-child .tip {
+  left: 0;
+  translate: none;
+}
+.cols li:last-child .tip {
+  right: 0;
+  left: auto;
+  translate: none;
+}
+.cols li:hover .tip,
+.cols li:focus .tip {
+  opacity: 1;
+}
+.cols li:hover .val,
+.cols li:focus .val {
+  opacity: 0;
+}
+.as-table {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.as-table summary {
+  color: var(--text-grey);
+}
+.as-table table {
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.as-table th,
+.as-table td {
+  padding: 2px 0 2px 24px;
+  text-align: right;
+}
+.as-table th:first-child,
+.as-table td:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.footer-bottom .chat-button {
+  text-decoration: none;
+}
+
+@media (max-width: 600px) {
+  /* no room for two pictures side by side */
+  .shot-row {
+    flex-direction: column;
+  }
+  .wide-shot img {
+    aspect-ratio: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tip,
+  .play {
+    transition: none;
+  }
+}

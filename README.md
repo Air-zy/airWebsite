@@ -132,9 +132,16 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   and cached in memory so renames show on old notes.
 - Older accounts still have an `email` field and `email:<address>` index docs in firestore. Nothing reads them, safe to delete.
 - `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
-- `/api/roblox-stats` is the live game count and visits in "how i started". It asks roblox at most every 6 hours, and only counts
-  my own games plus the groups i build in (`GROUPS` in `api_robloxStats.js`). The page ships with the last numbers, so a failed
-  fetch still reads fine.
+- `/api/roblox-stats` is the live game count and visits in "how i started", and every number on `/roblox`. It asks roblox at
+  most every 6 hours, and only counts my own games plus the groups i build in (`GROUPS` in `api_robloxStats.js`). `years` is
+  how many games i made each year, `?ids=` adds the visits of those games (`/roblox` sends the ones it lists). Both pages ship
+  with the last numbers, so a failed fetch still reads fine.
+- `/roblox` loads home's `css/main.css` and `js/dither.js`, its own `roblox/roblox.css` only adds what's new there. The game
+  list is written by hand in `roblox.html`, with roblox's icons saved in `roblox/icons/<universe id>.webp` (their links expire).
+  The avatar is rowa2's figure: `roblox/avatar.webp` is its first frame, and once the page is idle `ROWA/r6.js`'s turntable
+  runs in `roblox/figure.worker.js` on an OffscreenCanvas, so its ~0.8s of shader compiling never blocks the page. Its recipe
+  and files are saved in `roblox/figure/` (meshes as .bin so the boot brotlis them, images as webp, ~0.5 MB), so it never
+  asks the rig route or roblox. A new avatar means saving those again and a new still.
 - No test framework. A few files have a self check you run directly:
   `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js`, `routes/api/notes.js`,
   `routes/auth/google.js` and `modules/account/accountsManager.js`,

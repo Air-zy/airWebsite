@@ -56,14 +56,20 @@ export const POSES = [
   { az: 0, head: [-0.42, -0.95, 0.01], torso: [0.87, 0.86, -0.74], rightArm: [-0.58, 0.4, 1.79, 0.2, 0.3, 0.38], leftArm: [1.7, 0.48, 0.97, -0.24, -0.15, 0.17], rightLeg: [-0.77, -0.18, 0, 0.12, 0.09, -0.55], leftLeg: [-0.74, 0, 0, 0, 0.04, -0.36] }
 ];
 
-// recipe images are mostly roblox cdn thumbnails, cors * so canvas and webgl can read them
-const loadImage = src => new Promise((ok, fail) => {
+// rowa2 runs all of this on its page. /roblox runs the turntable in a worker (roblox/figure.worker.js), where there's no
+// document or Image, so the few spots that need one take the worker's way there: OffscreenCanvas and ImageBitmap
+const DOM = typeof document !== 'undefined';
+
+// recipe images are mostly roblox cdn thumbnails, cors * so canvas and webgl can read them. a bitmap keeps its alpha
+// unpremultiplied like an img does, and flipY is off for every texture here, which a bitmap ignores anyway
+const loadImage = src => DOM ? new Promise((ok, fail) => {
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => ok(img);
   img.onerror = () => fail(new Error('image ' + src));
   img.src = src;
-});
+}) : fetch(src).then(r => r.ok ? r.blob() : Promise.reject(new Error('image ' + src)))
+  .then(b => createImageBitmap(b, { premultiplyAlpha: 'none' }));
 
 // three ships the draco decoder, so it comes off the same cdn as three itself
 let draco;
@@ -93,7 +99,8 @@ const cframe = (T, c) => new T.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7],
 
 // roblox mesh uvs start at the top of the image, hence no flip
 function texture(T, source) {
-  const t = source instanceof HTMLCanvasElement ? new T.CanvasTexture(source) : new T.Texture(source);
+  // a canvas on the page or an OffscreenCanvas in a worker, both have getContext
+  const t = source.getContext ? new T.CanvasTexture(source) : new T.Texture(source);
   t.colorSpace = T.SRGBColorSpace;
   t.flipY = false;
   t.anisotropy = 4;
@@ -102,6 +109,7 @@ function texture(T, source) {
 }
 
 function canvas(w, h) {
+  if (!DOM) return new OffscreenCanvas(w, h);
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -140,9 +148,13 @@ export function dispose(root) {
 
 // everything a rig needs, loaded once per player and shared by every pose
 const avatars = {};
+// a recipe saved as files on the site by user id, asked for instead of the rig route. /roblox's figure is one
+// (roblox/figure/rig.json), so showing it costs no route, no asset key and nothing from roblox
+export const rigs = {};
+
 export function loadAvatar(id) {
   return (avatars[id] ??= (async () => {
-    const r = await fetch(`/api/rowa-rig/${id}`);
+    const r = await fetch(rigs[id] || `/api/rowa-rig/${id}`);
     if (!r.ok) throw new Error('rig ' + r.status);
     const rig = await r.json();
     const img = src => (src ? loadImage(src).catch(() => null) : null);
@@ -170,7 +182,8 @@ export function loadAvatar(id) {
 // one webgl context for every figure and the clothes, so renders queue up behind each other
 let renderer;
 let queue = Promise.resolve();
-const gl = T => (renderer ??= new T.WebGLRenderer({ antialias: true, alpha: true }));
+// three makes its own canvas with document, a worker hands it one
+const gl = T => (renderer ??= new T.WebGLRenderer({ antialias: true, alpha: true, ...(!DOM && { canvas: new OffscreenCanvas(1, 1) }) }));
 
 // shirt, pants and t-shirt laid out on the 1024x512 r6 texture the way roblox does it,
 // each template drawn through a flat mesh that moves its regions to where the limbs look
@@ -450,12 +463,13 @@ export function renderR6(userId, opts = {}) {
 // the player live on canvas, turning slowly like on a microwave plate. drag spins it and a
 // flick keeps going, easing back to the slow turn. a tap moves it into the next pose. its own
 // webgl context, the shared one is busy with the stills. rim is the colour of one back light.
-// resolves to a stop() that frees the scene, rejects like renderR6
+// resolves to a stop() that frees the scene, rejects like renderR6. pose is where it starts, the player's own by
+// default, /roblox starts on the one its still was rendered in
 const spinners = new WeakMap();
-export async function turntable(userId, canvas, rim) {
+export async function turntable(userId, canvas, rim, pose = Number(userId) % POSES.length) {
   const [a, { toCreasedNormals }] = await Promise.all([loadAvatar(userId), import(THREE_CDN + 'examples/jsm/utils/BufferGeometryUtils.js/+esm')]);
   const { T } = a;
-  let at = Number(userId) % POSES.length;
+  let at = pose;
   let az = POSES[at].az, r = spinners.get(canvas);
   if (!r) {
     r = new T.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -464,6 +478,10 @@ export async function turntable(userId, canvas, rim) {
     r.shadowMap.type = T.VSMShadowMap;
     // film's rolloff, the key can run hot without skin clipping flat
     r.toneMapping = T.ACESFilmicToneMapping;
+    // three starts a renderer's clear colour opaque black and only makes it see through on its first render, and
+    // paint clears before it renders, so the first frame would be a black box. one frame is all a still turntable
+    // (reduced motion) ever draws
+    r.setClearColor(0x000000, 0);
     spinners.set(canvas, r);
   }
   const { scene, root, joints } = stage(a, POSES[at]);
