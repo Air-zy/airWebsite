@@ -17,9 +17,10 @@ const firedbSecure = mainFirestore.collection('secure');
 const addrRef = firedb.doc('adresses2');
 const airsiteRef = firedb.doc('airsite');
 const robloxRef = firedb.doc('rblx');
-// the my friends list on the home page, { list: [{ name, url, why }] } in the order they show. kept here and not in
-// the repo, which is public
-const peopleRef = firedb.doc('people');
+// the my friends section on the home page, { groups, people } as site.js describes. kept here and not in the repo,
+// which is public. people2 since groups and more than one link (2026-11-13), the old people doc is one flat
+// { list: [{ name, url, why }] } that only a server from before reads
+const peopleRef = firedb.doc('people2');
 
 async function firedbAdressGet() {
   const snap = await addrRef.get();
@@ -89,14 +90,14 @@ async function firedbAirsiteSave(projects) {
   await _safeSet(airsiteRef, projects, 'projects');
 }
 
-// an empty list when the doc isn't there yet
+// nobody and no groups when the doc isn't there yet
 async function firedbPeopleGet() {
-  const snap = await peopleRef.get();
-  return snap.data()?.list ?? [];
+  const data = (await peopleRef.get()).data();
+  return { groups: data?.groups ?? [], people: data?.people ?? [] };
 }
 
-async function firedbPeopleSave(list) {
-  await _safeSet(peopleRef, { list }, 'people');
+async function firedbPeopleSave({ groups, people }) {
+  await _safeSet(peopleRef, { groups, people }, 'people');
 }
 
 //

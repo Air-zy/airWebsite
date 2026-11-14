@@ -6,17 +6,29 @@
   <meta name="robots" content="noindex">
   <title>Edit Friends</title>
 
-  <!-- same font, theme and credits layout as the homepage, so the preview is honest -->
+  <!-- same font, theme and layout as the homepage, so the preview is honest -->
   <link rel="stylesheet" href="css/main.css" />
 
   <style>
     /* main.css sets body overflow hidden for the homepage scroll containers, undo it here */
-    body { overflow: auto; padding: 20px; }
+    body { overflow: auto; padding: 0 20px 40px; }
+    #main { max-width: 1400px; margin: 0 auto; }
 
-    #main { max-width: 1100px; margin: 0 auto; }
-    h1 { font-weight: normal; margin: 0 0 4px 0; font-size: 1.4rem; }
-    .sub { color: var(--text-grey); font-size: 0.85rem; margin: 0 0 20px 0; }
-    .sub code { color: var(--text-soft); }
+    /* the title, save and what just happened stay on screen however far down you are */
+    #bar {
+      position: sticky; top: 0; z-index: 2;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+      padding: 14px 0; background: var(--bg-col);
+    }
+    h1 { font-weight: normal; margin: 0 8px 0 0; font-size: 1.4rem; }
+    #dirty { color: var(--accent); font-size: 0.85rem; }
+    #status { color: var(--text-grey); font-size: 0.85rem; }
+    #status button {
+      padding: 0; background: none; box-shadow: none; font-size: inherit; color: var(--text-normal);
+      text-decoration: underline dotted; text-underline-offset: 0.2em;
+    }
+    .sub { color: var(--text-grey); font-size: 0.85rem; margin: 0 0 20px 0; max-width: 90ch; }
+    .sub code { color: var(--text-soft); white-space: nowrap; }
 
     #readonly-note {
       background: var(--frame-bcol); color: var(--text-grey);
@@ -25,7 +37,6 @@
     }
     #readonly-note a { color: var(--text-normal); }
 
-    #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; align-items: center; }
     button {
       font-family: inherit; font-size: 14px; padding: 8px 14px; border: none;
       background: var(--frame-bcol2); color: var(--text-normal); cursor: pointer;
@@ -34,179 +45,556 @@
     button:hover { background: #262626; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
     button.save { color: #28a745; }
-    #status { color: var(--text-grey); font-size: 0.85rem; }
 
-    /* one row per friend: name, link, why, then move and remove */
-    .head, .row {
-      display: grid;
-      /* the buttons column is a fixed width so the header row, which has none, lines up with the rows */
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 2fr) 6.5rem;
-      gap: 8px;
-      align-items: center;
-    }
-    .head { font-size: 0.8rem; color: var(--text-grey); margin-bottom: 6px; }
-    .row { margin-bottom: 8px; }
-    .row input {
+    input, textarea {
       width: 100%; box-sizing: border-box; padding: 6px;
-      border: none; background: var(--frame-bcol); color: var(--text-normal);
-      font-family: inherit; font-size: 0.85rem;
+      border: none; background: var(--bg-col); color: var(--text-normal);
+      font: inherit; font-size: 0.85rem;
       box-shadow: inset 0 1px 2px rgba(0,0,0,0.7);
     }
+    /* grows with what's in it, main.js style. field-sizing does it where it's supported, the script elsewhere */
+    textarea { display: block; resize: none; field-sizing: content; min-height: 2.25em; line-height: 1.4; overflow: hidden; }
     /* the browser's own placeholder grey is under 4.5:1 on these boxes, same fix as the guestbook's */
-    .row input::placeholder { color: var(--text-grey); opacity: 1; }
-    .tools { display: flex; justify-content: flex-end; gap: 4px; }
-    .tools button { padding: 6px 10px; }
-    .tools button[data-act="remove"] { color: #dc3545; }
+    input::placeholder, textarea::placeholder { color: var(--text-grey); opacity: 1; }
+    input[type="checkbox"] { width: auto; margin: 0 4px 0 0; box-shadow: none; accent-color: var(--text-soft); }
+    /* a link that isn't one, or a friend with no name */
+    .bad { box-shadow: inset 0 0 0 1px #dc3545; }
 
-    .preview { margin-top: 32px; padding: 16px; background: var(--frame-bcol); box-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+    /* the boxes on the left, the preview pinned on the right where there's room for both */
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) calc(var(--measure) + 32px); gap: 32px; align-items: start; }
+    .preview {
+      position: sticky; top: 70px; max-height: calc(100vh - 90px); overflow: auto;
+      padding: 16px; background: var(--frame-bcol); box-shadow: 0 2px 4px rgba(0,0,0,0.7);
+    }
     .preview-label { font-size: 0.7rem; color: var(--text-grey); margin: 0 0 14px 0; text-transform: uppercase; }
     .preview .people a { cursor: default; }
 
+    /* a group, like on the page: a dotted line, then its name and note as a comment, then its friends */
+    .g { padding-top: 12px; margin-bottom: 22px; border-top: 1px dotted var(--text-grey); }
+    .g-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-family: monospace, monospace; color: var(--text-grey); }
+    .g-head [data-f="gname"] { flex: 0 1 14rem; }
+    .g-head [data-f="gnote"] { flex: 1 1 auto; }
+    .g-title { color: var(--text-soft); }
+    .hint { font-size: 0.8rem; }
+    .friends { display: grid; gap: 8px; min-height: 44px; }
+    /* an empty group is still somewhere to drop a friend */
+    .friends:empty { outline: 1px dashed var(--text-grey); outline-offset: -1px; }
+    .friends:empty::before { content: 'drag friends here'; place-self: center; font-size: 0.8rem; color: var(--text-grey); }
+    .add { margin-top: 6px; padding: 6px 2px; background: none; box-shadow: none; color: var(--text-grey); font-size: 0.85rem; }
+    .add:hover { background: none; color: var(--text-normal); }
+
+    /* a friend: the grip, name, links and remove, then why across, then the other groups they're in */
+    .f {
+      display: grid; grid-template-columns: 18px minmax(0, 12rem) minmax(0, 1fr) 30px; gap: 6px 8px; align-items: start;
+      padding: 10px 10px 10px 6px; background: var(--frame-bcol); box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    }
+    .f .grip { grid-column: 1; grid-row: 1 / span 3; align-self: stretch; }
+    .f .x { grid-column: 4; grid-row: 1; }
+    .f [data-f="why"] { grid-column: 2 / 4; }
+    .also-in { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 0.8rem; color: var(--text-grey); }
+    .also-in:empty { display: none; }
+    .also-in label { display: inline-flex; align-items: center; cursor: pointer; }
+
+    /* six dots to grab, the whole strip down the side takes the grab. touch-action none, or a finger on it scrolls
+       the page instead of dragging */
+    .grip, .grip:hover {
+      position: relative; width: 18px; min-height: 30px; padding: 0;
+      background: none; box-shadow: none; cursor: grab; touch-action: none;
+    }
+    .grip::before {
+      content: ''; position: absolute; top: 6px; left: 3px; width: 12px; height: 18px;
+      background: radial-gradient(circle, var(--text-grey) 1.2px, transparent 1.6px) 0 0 / 6px 6px;
+    }
+    .grip:hover::before, .grip:focus-visible::before { background-image: radial-gradient(circle, var(--text-normal) 1.2px, transparent 1.6px); }
+    .x { width: 30px; height: 30px; padding: 0; background: none; box-shadow: none; color: #dc3545; }
+    .g-head .x { flex: none; }
+    .x:hover { background: var(--frame-bcol2); }
+    .dragging { outline: 1px dashed var(--text-soft); outline-offset: 2px; opacity: 0.75; }
+    body.drag { user-select: none; cursor: grabbing; }
+    /* moving a group folds every group to its heading, short things are easier to put in order */
+    body.drag-groups #board .friends, body.drag-groups #board .add { display: none; }
+
+    @media (max-width: 1200px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .preview { position: static; max-height: none; }
+    }
     @media (max-width: 700px) {
-      body { padding: 12px; }
-      .head { display: none; }
-      .row { grid-template-columns: minmax(0, 1fr); padding: 10px; background: var(--frame-bcol); }
+      body { padding: 0 12px 30px; }
+      .f { grid-template-columns: 18px minmax(0, 1fr) 30px; }
+      .f .grip { grid-row: 1 / span 4; }
+      .f .x { grid-column: 3; }
+      .f [data-f="links"], .f [data-f="why"], .also-in { grid-column: 2 / -1; }
+      .g-head { flex-wrap: wrap; }
+      .g-head [data-f="gname"] { flex: 1 1 8rem; }
+      .g-head [data-f="gnote"] { flex-basis: 100%; order: 1; }
+      .g-head .comma { display: none; }
     }
   </style>
 </head>
 <body>
+  <!--#icons-->
   <div id="main">
-    <h1>Edit Friends</h1>
-    <p class="sub">the my friends list on the homepage, top to bottom in this order. link and why are optional, why takes
-      the same marks as the about lines, like <code>{C++|tech}</code>, <code>{SAIT|name}</code> or
-      <code>{ROWA|name|https://...}</code>.</p>
+    <div id="bar">
+      <h1>Edit Friends</h1>
+      <button id="save" class="save" type="button">Save</button>
+      <span id="dirty" hidden>unsaved changes</span>
+      <span id="status" aria-live="polite"></span>
+    </div>
+    <p class="sub">the my friends section on the homepage. drag the dots to move a friend to another group or a group up
+      and down, or focus the dots and use the arrow keys. ctrl+s saves. links go one per line, the name goes to the first.
+      why takes <code>{C++|tech}</code>, <code>{SAIT|name}</code>, <code>{ROWA|name|https://...}</code> and
+      <code>[text](https://...)</code>.</p>
 
     <div id="readonly-note" hidden></div>
 
-    <div id="controls">
-      <button id="add" type="button">Add Friend</button>
-      <button id="save" class="save" type="button">Save</button>
-      <span id="status"></span>
-    </div>
-
-    <div class="head" aria-hidden="true"><span>name</span><span>link</span><span>why</span><span></span></div>
-    <div id="rows"></div>
-
-    <div class="preview">
-      <p class="preview-label">preview</p>
-      <dl class="people" id="preview"></dl>
+    <div class="layout">
+      <div>
+        <div id="board"></div>
+        <button id="add-group" class="add" type="button">+ group</button>
+      </div>
+      <div class="preview">
+        <p class="preview-label">preview</p>
+        <div class="people" id="preview"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    const rows = document.getElementById('rows');
+    const board = document.getElementById('board');
     const preview = document.getElementById('preview');
     const statusEl = document.getElementById('status');
-    const setStatus = text => { statusEl.textContent = text || ''; };
+    const dirtyEl = document.getElementById('dirty');
+    const saveBtn = document.getElementById('save');
 
-    // mirrors esc, colorize and person in src/config/site.js, so the preview is what /api/people draws. keep in sync
+    // mirrors the my friends part of src/config/site.js, so the preview is what /api/people draws. keep in sync,
+    // node src/config/site.js checks they draw the same
     const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     const colorize = l => l.replace(/\{([^|}]+)\|([^|}]+)(?:\|([^}]+))?\}/g, (_, phrase, role, url) => url
       ? `<a class="hl-${role}" href="${url}" target="_blank">${phrase}</a>`
       : `<span class="hl-${role}">${phrase}</span>`);
-    const person = p => `<div><dt>${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.name)}</a>` : esc(p.name)}</dt>`
-      + (p.why ? `<dd>${colorize(esc(p.why))}</dd>` : '') + '</div>';
+    const mdLinks = s => s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+    const SITES = {
+      'github.com': ['github', 'github'], 'youtube.com': ['youtube-play', 'youtube'], 'youtu.be': ['youtube-play', 'youtube'],
+      'instagram.com': ['instagram', 'instagram'], 'linkedin.com': ['linkedin-square', 'linkedin'], 'x.com': ['twitter', 'x'],
+      'twitter.com': ['twitter', 'x'], 'snapchat.com': ['snapchat-ghost', 'snapchat'], 'discord.com': ['comments-o', 'discord'],
+      'discord.gg': ['comments-o', 'discord'], 'leetcode.com': ['code', 'leetcode'],
+    };
+    const linkSite = url => {
+      let host = 'link';
+      try { host = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+      return SITES[host.split('.').slice(-2).join('.')] || ['external-link', host];
+    };
+    const linkIcon = url => {
+      const [name, label] = linkSite(url);
+      return `<a class="link-icon" href="${esc(url)}" target="_blank" aria-label="${esc(label)}">${icon(name)}</a>`;
+    };
+    const andList = l => l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} and ${l.at(-1)}`;
+    const person = p => '<div><dt>' + (p.links[0] ? `<a href="${esc(p.links[0])}" target="_blank">${esc(p.name)}</a>` : esc(p.name))
+      + (p.links.length ? `<span class="links">${p.links.map(linkIcon).join('')}</span>` : '') + '</dt>'
+      + (p.why ? `<dd>${colorize(mdLinks(esc(p.why)))}</dd>` : '')
+      + (p.groups.length > 1 ? `<dd class="also">also in ${andList(p.groups.slice(1).map(esc))}</dd>` : '') + '</div>';
+    const group = (g, list) => !list.length ? '' : '<div class="group">'
+      + (g ? `<h3><span aria-hidden="true">// </span>${esc(g.name)}${g.note ? `, ${esc(g.note)}` : ''}</h3>` : '')
+      + `<dl>${list.map(person).join('')}</dl></div>`;
+    const peopleList = ({ groups = [], people = [] } = {}) => {
+      const all = people.map(p => ({ ...p, links: p.links ?? [], groups: p.groups ?? [] }));
+      return group(null, all.filter(p => !p.groups.length)) + groups.map(g => group(g, all.filter(p => p.groups[0] === g.name))).join('');
+    };
+    // end of the copy
 
-    const FIELDS = [
-      ['name', 'name', 'how they show up'],
-      ['url', 'link', 'https://... (optional)'],
-      ['why', 'why', 'optional, {C++|tech} marks work'],
-    ];
-    const TOOLS = [['up', '↑', 'move up'], ['down', '↓', 'move down'], ['remove', '✕', 'remove']];
+    const field = (tag, f, value, placeholder, label) => {
+      const el = document.createElement(tag);
+      el.dataset.f = f;
+      el.value = value || '';
+      el.placeholder = placeholder;
+      el.setAttribute('aria-label', label);
+      if (tag === 'textarea') el.rows = 1;
+      return el;
+    };
+    const button = (cls, text, label, act) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = cls;
+      b.textContent = text;
+      if (label) { b.title = label; b.setAttribute('aria-label', label); }
+      if (act) b.dataset.act = act;
+      return b;
+    };
+    const span = (cls, text) => Object.assign(document.createElement('span'), { className: cls, textContent: text });
 
-    function addRow(p = {}) {
-      const row = document.createElement('div');
-      row.className = 'row';
-      for (const [f, label, placeholder] of FIELDS) {
-        const input = document.createElement('input');
-        input.dataset.f = f;
-        input.value = p[f] || '';
-        input.placeholder = placeholder;
-        input.setAttribute('aria-label', label);
-        row.append(input);
-      }
-      const tools = document.createElement('div');
-      tools.className = 'tools';
-      for (const [act, text, title] of TOOLS) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.dataset.act = act;
-        b.textContent = text;
-        b.title = title;
-        b.setAttribute('aria-label', title);
-        tools.append(b);
-      }
-      row.append(tools);
-      rows.append(row);
-      return row;
+    // the board is a section per group, like the page. the first is for people in no group and never moves.
+    // a group is known by an id while you edit, so renaming one keeps everyone who's in it
+    let nextId = 1;
+    function section(g = {}, loose = false) {
+      const s = document.createElement('section');
+      s.className = loose ? 'g loose' : 'g';
+      s.dataset.id = loose ? '' : String(nextId++);
+      const head = document.createElement('div');
+      head.className = 'g-head';
+      if (loose) head.append(span('g-title', 'no group'), span('hint', 'they show first, with no heading'));
+      else head.append(
+        button('grip', '', 'move the group, drag or use the arrow keys'), '//',
+        field('input', 'gname', g.name, 'group name', 'group name'), span('comma', ','),
+        field('input', 'gnote', g.note, 'note, optional, like our team at SAIT', 'group note'),
+        button('x', '✕', 'remove the group, its friends go to no group', 'remove-group'),
+      );
+      const list = document.createElement('div');
+      list.className = 'friends';
+      s.append(head, list, button('add', '+ friend', null, 'add-friend'));
+      return s;
     }
 
-    // the rows as the list that gets saved. fully empty rows are skipped, empty links and reasons left out
-    const readList = () => [...rows.querySelectorAll('.row')]
-      .map(r => Object.fromEntries([...r.querySelectorAll('input')].map(i => [i.dataset.f, i.value.trim()])))
-      .filter(p => p.name || p.url || p.why)
-      .map(p => ({ name: p.name, ...(p.url && { url: p.url }), ...(p.why && { why: p.why }) }));
-
-    function refresh() {
-      preview.innerHTML = readList().filter(p => p.name).map(person).join('');
+    function friend(p = {}) {
+      const r = document.createElement('div');
+      r.className = 'f';
+      const also = document.createElement('div');
+      also.className = 'also-in';
+      r.append(
+        button('grip', '', 'move, drag or use the arrow keys'),
+        field('input', 'name', p.name, 'name', 'name'),
+        field('textarea', 'links', (p.links || []).join('\n'), 'links, one per line', 'links'),
+        button('x', '✕', 'remove', 'remove'),
+        field('textarea', 'why', p.why, 'why, optional', 'why'),
+        also,
+      );
+      return r;
     }
 
-    rows.addEventListener('input', refresh);
-    rows.addEventListener('click', e => {
+    const sections = () => [...board.querySelectorAll('.g')];
+    const groupSections = () => [...board.querySelectorAll('.g:not(.loose)')];
+    const gName = s => s.querySelector('[data-f="gname"]')?.value.trim() ?? '';
+    const fName = r => r.querySelector('[data-f="name"]').value.trim() || 'a friend';
+    const checkedIds = r => [...r.querySelectorAll('.also-in input:checked')].map(c => c.value);
+
+    // the other groups a friend can also be in, every group but the one they're under. none in no group, the first of
+    // them would just become the main one
+    function alsoBoxes(r, checked = checkedIds(r)) {
+      const main = r.closest('.g').dataset.id;
+      const box = r.querySelector('.also-in');
+      box.replaceChildren();
+      const others = groupSections().filter(s => s.dataset.id !== main);
+      if (!main || !others.length) return;
+      box.append('also in');
+      for (const s of others) {
+        const c = document.createElement('input');
+        c.type = 'checkbox';
+        c.value = s.dataset.id;
+        c.checked = checked.includes(s.dataset.id);
+        const label = document.createElement('label');
+        label.append(c, gName(s) || 'unnamed');
+        box.append(label);
+      }
+    }
+    const allAlso = () => board.querySelectorAll('.f').forEach(r => alsoBoxes(r));
+
+    // what gets saved, in page order. fully empty friends are skipped and unnamed groups left out, save stops first
+    // if an unnamed one has people. the also groups go in group order after the main one
+    function readData() {
+      const secs = groupSections();
+      const nameOf = new Map(secs.map(s => [s.dataset.id, gName(s)]));
+      const groups = secs.filter(gName).map(s => {
+        const note = s.querySelector('[data-f="gnote"]').value.trim();
+        return note ? { name: gName(s), note } : { name: gName(s) };
+      });
+      const people = [...board.querySelectorAll('.f')].map(r => {
+        const v = f => r.querySelector(`[data-f="${f}"]`).value.trim();
+        const main = r.closest('.g').dataset.id;
+        const also = checkedIds(r);
+        const ids = main ? [main, ...secs.map(s => s.dataset.id).filter(id => id !== main && also.includes(id))] : [];
+        return { name: v('name'), links: v('links').split(/\s+/).filter(Boolean), why: v('why'), groups: ids.map(id => nameOf.get(id)).filter(Boolean) };
+      }).filter(p => p.name || p.links.length || p.why);
+      return { groups, people };
+    }
+
+    const autoSize = CSS.supports('field-sizing', 'content');
+    const grow = t => {
+      if (autoSize) return;
+      t.style.height = 'auto';
+      t.style.height = t.scrollHeight + 'px';
+    };
+    const isWebUrl = u => {
+      try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; }
+    };
+    // red before you save, the server says the same thing after
+    function check(r) {
+      const links = r.querySelector('[data-f="links"]');
+      const bad = links.value.split(/\s+/).filter(Boolean).filter(u => !isWebUrl(u));
+      links.classList.toggle('bad', bad.length > 0);
+      links.title = bad.length ? 'not a link: ' + bad.join(' ') : '';
+      const name = r.querySelector('[data-f="name"]');
+      name.classList.toggle('bad', !name.value.trim() && !!(links.value.trim() || r.querySelector('[data-f="why"]').value.trim()));
+    }
+
+    // the last loaded or saved data, anything else is unsaved
+    let saved = '';
+    function changed() {
+      const data = readData();
+      preview.innerHTML = peopleList({ ...data, people: data.people.filter(p => p.name) });
+      dirtyEl.hidden = JSON.stringify(data) === saved;
+    }
+
+    // a message in the bar, with an undo after it when there's something to put back
+    function say(text, undo) {
+      statusEl.replaceChildren(text);
+      if (!undo) return;
+      const b = button('', 'undo');
+      b.addEventListener('click', () => { undo(); say('put back'); changed(); }, { once: true });
+      statusEl.append(' ', b);
+    }
+    // where a friend ended up, after a drag or an arrow key
+    function sayWhere(item) {
+      if (item.matches('.g')) return say(`${gName(item) || 'the group'} is ${groupSections().indexOf(item) + 1} of ${groupSections().length}`);
+      const s = item.closest('.g');
+      const list = [...item.parentElement.children];
+      say(`${fName(item)} is in ${s.classList.contains('loose') ? 'no group' : gName(s) || 'an unnamed group'}, ${list.indexOf(item) + 1} of ${list.length}`);
+    }
+
+    function removeFriend(r) {
+      const list = r.parentElement;
+      const next = r.nextElementSibling;
+      r.remove();
+      changed();
+      say(`removed ${fName(r)}`, () => {
+        list.insertBefore(r, next?.parentElement === list ? next : null);
+        alsoBoxes(r);
+      });
+    }
+
+    // its friends go to no group rather than with it, undo brings them back along with anyone's also in it
+    function removeGroup(s) {
+      const next = s.nextElementSibling;
+      const own = [...s.querySelectorAll('.f')];
+      const alsoHere = [...board.querySelectorAll('.f')].filter(r => checkedIds(r).includes(s.dataset.id));
+      board.querySelector('.loose .friends').append(...own);
+      s.remove();
+      allAlso();
+      changed();
+      say(own.length ? `removed ${gName(s) || 'the group'}, its friends went to no group` : `removed ${gName(s) || 'the group'}`, () => {
+        board.insertBefore(s, next?.parentElement === board ? next : null);
+        s.querySelector('.friends').append(...own);
+        allAlso();
+        for (const r of alsoHere) {
+          const c = r.querySelector(`.also-in input[value="${s.dataset.id}"]`);
+          if (c) c.checked = true;
+        }
+      });
+    }
+
+    // the arrow keys on a grip. a friend at the top or bottom of its group goes on into the next one
+    function nudge(item, dir) {
+      if (item.matches('.f')) {
+        const sib = dir < 0 ? item.previousElementSibling : item.nextElementSibling;
+        if (sib) dir < 0 ? sib.before(item) : sib.after(item);
+        else {
+          const secs = sections();
+          const to = secs[secs.indexOf(item.closest('.g')) + dir];
+          if (!to) return;
+          const list = to.querySelector('.friends');
+          dir < 0 ? list.append(item) : list.prepend(item);
+          alsoBoxes(item);
+        }
+      } else {
+        const sib = dir < 0 ? item.previousElementSibling : item.nextElementSibling;
+        if (!sib || sib.classList.contains('loose')) return;
+        dir < 0 ? sib.before(item) : sib.after(item);
+        allAlso();
+      }
+      // moving it took the focus with it
+      item.querySelector('.grip').focus();
+      item.scrollIntoView({ block: 'nearest' });
+      changed();
+      sayWhere(item);
+    }
+
+    // where the dragged thing goes for a pointer at y: before the first one whose middle is below it. a friend goes in
+    // the group the pointer is over, or the next one down when it's between two
+    function place(item, y) {
+      if (item.matches('.g')) {
+        const before = groupSections().filter(s => s !== item).find(s => { const r = s.getBoundingClientRect(); return y < r.top + r.height / 2; });
+        if (before) { if (item.nextElementSibling !== before) before.before(item); }
+        else if (board.lastElementChild !== item) board.append(item);
+        return;
+      }
+      const secs = sections();
+      const list = (secs.find(s => s.getBoundingClientRect().bottom >= y) || secs.at(-1)).querySelector('.friends');
+      const before = [...list.children].filter(c => c !== item).find(c => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
+      if (before) { if (item.nextElementSibling !== before) before.before(item); }
+      else if (list.lastElementChild !== item) list.append(item);
+    }
+
+    // pointer events, not html drag and drop, so it works with a finger too. the thing itself moves as you drag, and
+    // the page scrolls when you hold it near the top or bottom. the moves and the drop are heard on the window, not
+    // the grip: moving the grip in the page drops a pointer capture, and the drop would never come
+    // it starts once the pointer has moved a few pixels, so a click on the grip only focuses it for the arrow keys
+    function drag(grip, e) {
+      const item = grip.closest('.f, .g');
+      const isGroup = item.matches('.g');
+      const from = [item.parentElement, item.nextElementSibling];
+      // folding the groups moves everything, scroll so the heading you're holding stays under the pointer
+      const keep = fn => { const top = item.getBoundingClientRect().top; fn(); scrollBy(0, item.getBoundingClientRect().top - top); };
+      const pointer = e.pointerId;
+      const startY = e.clientY;
+      let y = startY;
+      let started = false;
+      let frame = 0;
+      const tick = () => {
+        const edge = 70;
+        if (y < edge) scrollBy(0, -Math.ceil((edge - y) / 4));
+        else if (y > innerHeight - edge) scrollBy(0, Math.ceil((y - innerHeight + edge) / 4));
+        place(item, y);
+        frame = requestAnimationFrame(tick);
+      };
+      const begin = () => {
+        started = true;
+        if (isGroup) keep(() => document.body.classList.add('drag-groups'));
+        document.body.classList.add('drag');
+        item.classList.add('dragging');
+        frame = requestAnimationFrame(tick);
+      };
+      const move = ev => {
+        if (ev.pointerId !== pointer) return;
+        y = ev.clientY;
+        if (!started && Math.abs(y - startY) > 4) begin();
+      };
+      const end = ev => {
+        if (ev.pointerId !== pointer) return;
+        removeEventListener('pointermove', move);
+        removeEventListener('pointerup', end);
+        removeEventListener('pointercancel', end);
+        // a click, not a drag, is someone about to use the arrow keys
+        if (!started) return grip.focus();
+        cancelAnimationFrame(frame);
+        item.classList.remove('dragging');
+        document.body.classList.remove('drag');
+        if (isGroup) keep(() => document.body.classList.remove('drag-groups'));
+        if (item.parentElement !== from[0] || item.nextElementSibling !== from[1]) {
+          isGroup ? allAlso() : alsoBoxes(item);
+          changed();
+          sayWhere(item);
+        }
+      };
+      addEventListener('pointermove', move);
+      addEventListener('pointerup', end);
+      addEventListener('pointercancel', end);
+    }
+
+    board.addEventListener('pointerdown', e => {
+      const grip = e.target.closest('.grip');
+      if (!grip || e.button !== 0) return;
+      e.preventDefault();
+      drag(grip, e);
+    });
+    board.addEventListener('keydown', e => {
+      const grip = e.target.closest('.grip');
+      if (!grip || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+      e.preventDefault();
+      nudge(grip.closest('.f, .g'), e.key === 'ArrowUp' ? -1 : 1);
+    });
+    board.addEventListener('input', e => {
+      if (e.target.matches('textarea')) grow(e.target);
+      // a renamed group renames its also in boxes
+      if (e.target.closest('.g-head')) allAlso();
+      const r = e.target.closest('.f');
+      if (r) check(r);
+      changed();
+    });
+    board.addEventListener('change', e => { if (e.target.type === 'checkbox') changed(); });
+    board.addEventListener('click', e => {
       const b = e.target.closest('button[data-act]');
       if (!b) return;
-      const row = b.closest('.row');
-      if (b.dataset.act === 'up' && row.previousElementSibling) row.previousElementSibling.before(row);
-      if (b.dataset.act === 'down' && row.nextElementSibling) row.nextElementSibling.after(row);
-      if (b.dataset.act === 'remove') row.remove();
-      refresh();
-      if (b.isConnected) b.focus();
+      if (b.dataset.act === 'add-friend') {
+        const r = friend();
+        b.closest('.g').querySelector('.friends').append(r);
+        alsoBoxes(r, []);
+        r.querySelector('input').focus();
+        changed();
+      }
+      if (b.dataset.act === 'remove') removeFriend(b.closest('.f'));
+      if (b.dataset.act === 'remove-group') removeGroup(b.closest('.g'));
+    });
+    document.getElementById('add-group').addEventListener('click', () => {
+      const s = section();
+      board.append(s);
+      allAlso();
+      s.querySelector('input').focus();
+      s.scrollIntoView({ block: 'nearest' });
+      changed();
     });
     // the preview's links go nowhere while you edit
     preview.addEventListener('click', e => { if (e.target.closest('a')) e.preventDefault(); });
 
-    document.getElementById('add').addEventListener('click', () => {
-      addRow().querySelector('input').focus();
-      refresh();
-    });
+    // the server's { groups, people } into the board
+    function fill({ groups = [], people = [] }) {
+      board.replaceChildren(section({}, true));
+      const idOf = new Map(groups.map(g => {
+        const s = section(g);
+        board.append(s);
+        return [g.name, s.dataset.id];
+      }));
+      for (const p of people) {
+        const ids = (p.groups || []).map(n => idOf.get(n)).filter(Boolean);
+        const r = friend(p);
+        (ids.length ? board.querySelector(`.g[data-id="${ids[0]}"]`) : board.querySelector('.loose')).querySelector('.friends').append(r);
+        alsoBoxes(r, ids.slice(1));
+        check(r);
+      }
+      board.querySelectorAll('textarea').forEach(grow);
+      saved = JSON.stringify(readData());
+      changed();
+    }
+    const count = n => n + (n === 1 ? ' friend' : ' friends');
 
     async function load() {
-      setStatus('loading...');
+      say('loading...');
       const res = await fetch('/api/people/list');
       if (!res.ok) throw new Error('load failed (' + res.status + ')');
-      const { list } = await res.json();
-      rows.replaceChildren();
-      list.forEach(p => addRow(p));
-      refresh();
-      setStatus(list.length + (list.length === 1 ? ' friend' : ' friends') + ' loaded');
+      const data = await res.json();
+      fill(data);
+      say(count(data.people.length) + ' loaded');
     }
 
-    async function save(btn) {
-      btn.disabled = true;
-      setStatus('saving...');
+    async function save() {
+      const unnamed = groupSections().find(s => !gName(s) && s.querySelector('.f'));
+      if (unnamed) {
+        say('name this group first, or drag its friends out');
+        return unnamed.querySelector('[data-f="gname"]').focus();
+      }
+      saveBtn.disabled = true;
+      say('saving...');
       try {
         // the session cookie is the auth, like projectsEdit
         const res = await fetch('/api/people/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ list: readList() }),
+          body: JSON.stringify(readData()),
         });
         if (res.status === 401) return location.href = '/auth/?next=/peopleEdit.html';
-        if (res.status === 403) return setStatus('not your account');
+        if (res.status === 403) return say('not your account');
         const data = await res.json().catch(() => ({}));
-        // the server says which person is wrong
-        if (!res.ok) return setStatus(data.error || 'save failed (' + res.status + ')');
-        rows.replaceChildren();
-        data.list.forEach(p => addRow(p));
-        refresh();
-        setStatus('saved ' + data.list.length + (data.list.length === 1 ? ' friend' : ' friends'));
+        // the server says which friend is wrong
+        if (!res.ok) return say(data.error || 'save failed (' + res.status + ')');
+        const y = scrollY;
+        fill(data);
+        scrollTo(0, y);
+        say('saved ' + count(data.people.length));
       } catch (err) {
         console.error(err);
-        setStatus("couldn't save, try again");
+        say("couldn't save, try again");
       } finally {
-        btn.disabled = false;
+        saveBtn.disabled = false;
       }
     }
+
+    addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!saveBtn.disabled) save();
+      }
+    });
+    addEventListener('beforeunload', e => {
+      if (!dirtyEl.hidden) e.preventDefault();
+    });
 
     document.addEventListener('DOMContentLoaded', async () => {
       // open to anyone, but the list and saving are owner only
@@ -216,7 +604,6 @@
         if (res.ok) me = await res.json();
       } catch (err) {}
 
-      const saveBtn = document.getElementById('save');
       if (!me || !me.admin) {
         const note = document.getElementById('readonly-note');
         note.innerHTML = me
@@ -225,15 +612,15 @@
         note.hidden = false;
         saveBtn.disabled = true;
         saveBtn.title = 'owner only';
-        addRow();
+        fill({});
         return;
       }
-      saveBtn.addEventListener('click', e => save(e.currentTarget));
+      saveBtn.addEventListener('click', save);
       try {
         await load();
       } catch (err) {
         console.error(err);
-        setStatus("couldn't load the list, try refreshing");
+        say("couldn't load the list, try refreshing");
       }
     });
   </script>

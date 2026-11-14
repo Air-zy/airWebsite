@@ -11,21 +11,21 @@ router.get('/', async (req, res) => {
   res.json({ html: peopleList(await getPeople()) });
 });
 
-// peopleEdit.html loads and saves the list as data. owner only, the page itself is open like projectsEdit
+// peopleEdit.html loads and saves { groups, people } as data. owner only, the page itself is open like projectsEdit
 router.get('/list', requireAdmin, async (req, res) => {
-  res.json({ list: await getPeople() });
+  res.json(await getPeople());
 });
 
 router.post('/update', requireAdmin, async (req, res) => {
-  let list;
-  // the error handler hides 400 messages, the editor wants to show which person is wrong
+  let data;
+  // the error handler hides 400 messages, the editor wants to show which friend is wrong
   try {
-    list = clean(req.body?.list);
+    data = clean(req.body);
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
-  await savePeople(list);
-  res.json({ ok: true, list });
+  await savePeople(data);
+  res.json({ ok: true, ...data });
 });
 
 module.exports = router;

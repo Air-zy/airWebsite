@@ -54,14 +54,49 @@ const colorize = l => l.replace(/\{([^|}]+)\|([^|}]+)(?:\|([^}]+))?\}/g, (_, phr
   : `<span class="hl-${role}">${phrase}</span>`);
 const plain = l => l.replace(/\{([^|}]+)\|[^}]+\}/g, '$1');
 
-// the my friends rows. the list itself is in firestore, out of this public repo, and peopleEdit.html changes it:
-// [{ name, url?, why? }] in the order they show, why takes the same {phrase|role|url} marks as about.
+// the my friends section. the data is in firestore, out of this public repo, and peopleEdit.html changes it:
+// { groups: [{ name, note? }], people: [{ name, links: [url, ...], why?, groups: ['team bravo', ...] }] }.
+// the groups show in that order, each under a dotted line with its name and note as a // comment. someone shows
+// once, under their first group, and the others they're in go in a small "also in" under them. a group nobody has
+// first shows nothing. people in no group go first, with no heading. the name links to the first link, and every
+// link gets an icon by the site it goes to. why takes the same {phrase|role|url} marks as about, and
+// [text](https://...) links.
 // /api/people draws it with this when someone opens the section. names and reasons are typed by hand, so the few
 // characters that would break the html are escaped first
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const person = p => `<div><dt>${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.name)}</a>` : esc(p.name)}</dt>`
-  + (p.why ? `<dd>${colorize(esc(p.why))}</dd>` : '') + '</div>';
-const peopleList = list => list.map(person).join('');
+// after esc, so a quote in the url is already &quot; and can't leave the href
+const mdLinks = s => s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+// the icon for a link and what a screen reader calls it, by the site's last two labels so m.youtube.com counts.
+// discord gets the speech bubbles, the sprite has no discord logo. anything else is the external link arrow
+const SITES = {
+  'github.com': ['github', 'github'], 'youtube.com': ['youtube-play', 'youtube'], 'youtu.be': ['youtube-play', 'youtube'],
+  'instagram.com': ['instagram', 'instagram'], 'linkedin.com': ['linkedin-square', 'linkedin'], 'x.com': ['twitter', 'x'],
+  'twitter.com': ['twitter', 'x'], 'snapchat.com': ['snapchat-ghost', 'snapchat'], 'discord.com': ['comments-o', 'discord'],
+  'discord.gg': ['comments-o', 'discord'], 'leetcode.com': ['code', 'leetcode'],
+};
+const linkSite = url => {
+  let host = 'link';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+  return SITES[host.split('.').slice(-2).join('.')] || ['external-link', host];
+};
+const linkIcon = url => {
+  const [name, label] = linkSite(url);
+  return `<a class="link-icon" href="${esc(url)}" target="_blank" aria-label="${esc(label)}">${icon(name)}</a>`;
+};
+// "a", "a and b", "a, b and c"
+const andList = l => l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} and ${l.at(-1)}`;
+const person = p => '<div><dt>' + (p.links[0] ? `<a href="${esc(p.links[0])}" target="_blank">${esc(p.name)}</a>` : esc(p.name))
+  + (p.links.length ? `<span class="links">${p.links.map(linkIcon).join('')}</span>` : '') + '</dt>'
+  + (p.why ? `<dd>${colorize(mdLinks(esc(p.why)))}</dd>` : '')
+  + (p.groups.length > 1 ? `<dd class="also">also in ${andList(p.groups.slice(1).map(esc))}</dd>` : '') + '</div>';
+// g is null for the people in no group
+const group = (g, list) => !list.length ? '' : '<div class="group">'
+  + (g ? `<h3><span aria-hidden="true">// </span>${esc(g.name)}${g.note ? `, ${esc(g.note)}` : ''}</h3>` : '')
+  + `<dl>${list.map(person).join('')}</dl></div>`;
+const peopleList = ({ groups = [], people = [] } = {}) => {
+  const all = people.map(p => ({ ...p, links: p.links ?? [], groups: p.groups ?? [] }));
+  return group(null, all.filter(p => !p.groups.length)) + groups.map(g => group(g, all.filter(p => p.groups[0] === g.name))).join('');
+};
 
 const skillGroup = ([name, items]) => `<div><h3>${name}</h3><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
 
@@ -144,12 +179,53 @@ if (require.main === module) {
   a.ok(!html.includes('font-awesome'), 'the sprite replaced font awesome, the cdn link stays gone');
   a.ok(html.includes('id="adapt"'), 'main.js animates this one, it stays in the page');
 
-  // my friends: a link only when there is a url, the reason only when there is one
-  a.strictEqual(peopleList([]), '');
-  const two = peopleList([{ name: 'a<b', url: 'https://x.y/?a=1&b=2', why: 'made {this|accent}' }, { name: 'c' }]);
+  // my friends: the name links to the first link only when there is one, the reason only when there is one
+  a.strictEqual(peopleList({ groups: [], people: [] }), '');
+  a.strictEqual(peopleList(), '');
+  const two = peopleList({ groups: [], people: [
+    { name: 'a<b', links: ['https://x.y/?a=1&b=2'], why: 'made {this|accent}', groups: [] }, { name: 'c', links: [], groups: [] }] });
   a.ok(two.includes('<a href="https://x.y/?a=1&amp;b=2" target="_blank">a&lt;b</a>'), 'linked and escaped');
   a.ok(two.includes('<dd>made <span class="hl-accent">this</span></dd>'), 'the reason takes the about marks');
-  a.ok(two.includes('<dt>c</dt></div>'), 'no url is a plain name and no reason is no dd');
+  a.ok(two.includes('<div><dt>c</dt></div>'), 'no link is a plain name with no icons, and no reason is no dd');
+  a.ok(two.startsWith('<div class="group"><dl>'), 'people in no group still get a group, with no heading');
+  a.ok(!two.includes('<h3'), 'no groups, no headings');
+
+  // every link is an icon by site, markdown links work in the reason, and a quote can't leave an href
+  const links = peopleList({ groups: [], people: [{ name: 'n', links: ['https://n.dev', 'https://github.com/n', 'https://m.youtube.com/@n',
+    'https://yotta.onrender.com/"x'], why: 'a [PTCG champion](https://limitlesstcg.com/players/1?a=1&b=2) and [no](javascript:alert(1))', groups: [] }] });
+  a.ok(links.includes('<dt><a href="https://n.dev" target="_blank">n</a><span class="links"><a class="link-icon" href="https://n.dev" target="_blank" aria-label="n.dev">'));
+  a.ok(links.includes('<a class="link-icon" href="https://github.com/n" target="_blank" aria-label="github">'));
+  a.ok(links.includes('aria-label="youtube"><svg class="icon" aria-hidden="true"><use href="#i-youtube-play"/>'), 'subdomains count');
+  a.ok(links.includes('href="https://yotta.onrender.com/&quot;x" target="_blank" aria-label="yotta.onrender.com"><svg class="icon" aria-hidden="true"><use href="#i-external-link"/>'));
+  a.ok(links.includes('a <a href="https://limitlesstcg.com/players/1?a=1&amp;b=2" target="_blank">PTCG champion</a>'), 'markdown link');
+  a.ok(links.includes('[no](javascript:alert(1))'), 'only http and https become links');
+  for (const [n] of [...Object.values(SITES), linkSite('https://n.dev')]) a.ok(module.exports.html.icons.includes(`id="i-${n}"`), `sprite lost ${n}`);
+
+  // once, under the first group, with the others in an also in. loose people first with no heading, the note after
+  // the group's name, and a group nobody has first draws nothing
+  const grouped = peopleList({ groups: [{ name: 'SAIT' }, { name: 'team bravo', note: 'our <team>' }, { name: 'online' }, { name: 'empty' }], people: [
+    { name: 'nick', links: [], groups: ['SAIT'] },
+    { name: 'kate / utsanakorn', links: [], groups: ['team bravo', 'online', 'SAIT'] },
+    { name: 'loose', links: [], groups: [] },
+  ] });
+  a.ok(grouped.startsWith('<div class="group"><dl><div><dt>loose</dt></div></dl></div><div class="group"><h3><span aria-hidden="true">// </span>SAIT</h3><dl><div><dt>nick</dt></div></dl></div>'), grouped);
+  a.ok(grouped.includes('<h3><span aria-hidden="true">// </span>team bravo, our &lt;team&gt;</h3><dl><div><dt>kate / utsanakorn</dt><dd class="also">also in online and SAIT</dd></div>'), 'note and also in');
+  a.strictEqual(grouped.match(/kate \/ utsanakorn/g).length, 1, 'nobody shows twice');
+  a.ok(!grouped.includes('empty') && !grouped.includes('// </span>online'), 'a group nobody has first has no heading');
+  a.strictEqual(andList(['a', 'b', 'c']), 'a, b and c');
+  a.strictEqual(andList(['a']), 'a');
+
+  // peopleEdit.html keeps its own copy of all this for its preview, it has to draw the same html
+  const edit = fs.readFileSync(__dirname + '/../public/peopleEdit.html', 'utf8');
+  const copy = edit.slice(edit.indexOf('// mirrors the my friends part'), edit.indexOf('// end of the copy'));
+  a.ok(copy.includes('const peopleList'), 'the preview copy moved, the slice above needs new ends');
+  const editList = require('vm').runInNewContext(copy + ';peopleList', { URL });
+  const samples = [
+    { groups: [], people: [{ name: 'a<b', links: ['https://x.y/?a=1&b=2'], why: 'made {this|accent}', groups: [] }, { name: 'c', links: [], groups: [] }] },
+    { groups: [], people: [{ name: 'n', links: ['https://n.dev', 'https://github.com/n', 'https://yotta.onrender.com/"x'], why: 'a [b](https://c.d)', groups: [] }] },
+    { groups: [{ name: 'SAIT' }, { name: 'team bravo', note: 'our team' }, { name: 'empty' }], people: [{ name: 'kate / u', links: [], groups: ['team bravo', 'SAIT'] }, { name: 'loose', links: [], groups: [] }] },
+  ];
+  for (const s of samples) a.strictEqual(editList(s), peopleList(s), 'peopleEdit.html drifted from site.js');
 
   console.log('site ok');
 }

@@ -197,10 +197,11 @@
           <div class="board" id="board"></div>
         </section>
         <!-- my friends. hidden like the guestbook, opened from the footer button next to leave a note or /home#people, then
-             main.js asks /api/people for the list, so the names are not in the page. the list is in firestore, peopleEdit.html changes it -->
+             main.js asks /api/people for the groups and their lists, so the names are not in the page. the data is in
+             firestore, peopleEdit.html changes it -->
         <section class="txt-section" id="people" hidden>
           <h2>my friends</h2>
-          <dl class="people"></dl>
+          <div class="people"></div>
         </section>
         <!-- the auth page in a frame so signing in keeps your place and your note. main.js loads it on first use -->
         <dialog id="login-dialog" closedby="any">

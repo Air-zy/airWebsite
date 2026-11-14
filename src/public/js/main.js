@@ -376,7 +376,7 @@
   let peopleLoad = null;
   async function toPeople() {
     const people = document.getElementById('people');
-    const list = people.querySelector('dl');
+    const list = people.querySelector('.people');
     peopleLoad ??= fetch('/api/people')
       .then(res => { if (!res.ok) throw new Error(res.status); return res.json(); })
       .then(({ html }) => html ? (list.innerHTML = html) : list.insertAdjacentHTML('afterend', peopleNote('nobody here yet')))
