@@ -2,7 +2,8 @@ const path = require('path');
 const router = require('express').Router();
 
 const { isTerminal, isAgent, text, card, quipOfTheDay, aiQuip, C } = require('./middleware/terminal.js');
-const { getProjects, getIP } = require('./ip_utils.js');
+const { getIP } = require('./ip_utils.js');
+const { getProjects } = require('./api/projects/store.js');
 const { getLastOnline } = require('../modules/myStatus/myStatus.js');
 const serverInfo = require('./middleware/serverInfo.js');
 const site = require('../config/site.js');
@@ -49,13 +50,13 @@ const CMDS = {
   skills: () => heading('skills')
     + Object.entries(site.skills).map(([k, v]) => bullet(k.toLowerCase(), v.join(', '))).join('\n'),
 
-  projects: () => {
-    const projects = getProjects();
-    if (!projects) return 'projects are still loading, try again in a second';
+  projects: async () => {
+    const projects = await getProjects();
 
     // same ranking the homepage uses, views weighted by rank
+    const score = p => p.stats.views / (p.rank || 1);
     return heading('projects') + Object.values(projects)
-      .sort((a, b) => b.stats.views / b.rank - a.stats.views / a.rank)
+      .sort((a, b) => score(b) - score(a))
       .map(p => [
         `  ${C.bold}${p.title}${C.off} ${C.dim}${p.stats.views} views${C.off}`,
         `  ${C.cyan}${p.url}${C.off}`,

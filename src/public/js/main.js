@@ -146,7 +146,8 @@
     try {
       const res = await fetch('/api/projects');
       if (!res.ok) throw new Error(`/api/projects ${res.status}`);
-      const rank = ([, proj]) => proj.stats.views / proj.rank;
+      // a missing rank counts as 1, the same in projectsEdit and cli.js
+      const rank = ([, proj]) => proj.stats.views / (proj.rank || 1);
       const sorted = Object.entries(await res.json()).sort((a, b) => rank(b) - rank(a));
       const shown = sorted.filter(([, proj]) => !proj.hidden), folded = sorted.filter(([, proj]) => proj.hidden);
       const cards = [...shown, ...folded].map(([key, proj]) => makeProjectCard(proj, key));

@@ -263,11 +263,9 @@
         if (!res.ok) throw new Error('failed to fetch projects');
         const projects = await res.json();
 
-        // same order the homepage uses, views / rank descending
-        const entries = Object.entries(projects).sort((a, b) => {
-          const score = p => (p[1].stats && p[1].stats.views ? p[1].stats.views : 0) / (p[1].rank || 1);
-          return score(b) - score(a);
-        });
+        // same order the homepage uses, views / rank descending with the hidden ones last
+        const score = ([, p]) => (p.stats && p.stats.views ? p.stats.views : 0) / (p.rank || 1);
+        const entries = Object.entries(projects).sort((a, b) => !!a[1].hidden - !!b[1].hidden || score(b) - score(a));
 
         entries.forEach(([key, proj]) => createProjectEditCard(key, proj, false));
         setStatus(entries.length + ' projects loaded');
@@ -320,7 +318,9 @@
 
         if (res.status === 401) return location.href = '/auth/?next=/projectsEdit.html';
         if (res.status === 403) { setStatus('not your account'); return; }
-        if (!res.ok) throw new Error('save failed (' + res.status + ')');
+        // the server says which project is wrong
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'save failed (' + res.status + ')');
 
         setStatus('saved ' + Object.keys(out).length + ' projects');
         loadProjects();

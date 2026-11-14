@@ -1,12 +1,3 @@
-const { firedbAirsiteGet } = require('../firebase/firebasedb.js');
-
-let projects = null;
-
-(async () => {
-  projects = await firedbAirsiteGet();
-  console.log("[FIRE DB] all init data loaded")
-})();
-
 function getIP(req) {
   const ipList = req.headers['x-forwarded-for']
   if (ipList) {
@@ -19,14 +10,6 @@ function getIP(req) {
          req.socket?.remoteAddress ||
          req.connection?.socket?.remoteAddress ||
          null;
-}
-
-function getProjects() {
-  return projects;
-}
-
-function setProjects(newProjects) {
-  projects = newProjects;
 }
 
 let lookupTBL = {};
@@ -47,7 +30,5 @@ function referLookup(ip, req) {
 
 module.exports = {
   getIP,
-  getProjects,
-  setProjects,
   referLookup,
 };

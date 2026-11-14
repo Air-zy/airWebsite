@@ -1,6 +1,7 @@
 const zlib = require('zlib');
 const { promisify } = require('util');
 const { getFirestore, getApp } = require('./firebaseUtils');
+const { FieldPath, FieldValue } = require('firebase-admin/firestore');
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
@@ -86,8 +87,30 @@ async function firedbAdressesSave(AddrData) {
   }
 }
 
+// a save from projectsEdit. each project keeps the views firestore has now, the editor's count is from when it opened.
+// a new project keeps the count it came with. returns what was written
 async function firedbAirsiteSave(projects) {
-  await _safeSet(airsiteRef, projects, 'projects');
+  return mainFirestore.runTransaction(async t => {
+    const now = (await t.get(airsiteRef)).data() ?? {};
+    const out = {};
+    for (const [key, p] of Object.entries(projects)) {
+      const views = Object.hasOwn(now, key) ? now[key].stats?.views : undefined;
+      out[key] = { ...p, stats: { ...p.stats, views: views ?? p.stats?.views ?? 0 } };
+    }
+    t.set(airsiteRef, out);
+    return out;
+  });
+}
+
+// one more view, as a +1 so it can't write an old list back. only for a project that's still there, so a server
+// holding an old list can't bring a deleted one back as a bare { stats }
+async function firedbAirsiteView(key) {
+  return mainFirestore.runTransaction(async t => {
+    const snap = await t.get(airsiteRef);
+    if (!snap.get(new FieldPath(key))) return false;
+    t.update(airsiteRef, new FieldPath(key, 'stats', 'views'), FieldValue.increment(1));
+    return true;
+  });
 }
 
 // nobody and no groups when the doc isn't there yet
@@ -121,6 +144,7 @@ module.exports = {
 
   firedbAirsiteGet,
   firedbAirsiteSave,
+  firedbAirsiteView,
 
   firedbRobloxGet,
   firedbRobloxSave,
