@@ -87,15 +87,16 @@ function sqAt(e) {
 }
 
 // moves animate because piece elements get reused: one already in place stays, otherwise the nearest leftover of
-// the same kind slides over. new ones appear, captured ones fade out
+// the same kind slides over. new ones appear, captured ones fade out. a piece being dragged stays under the pointer
 function syncPieces(fresh, box = el.pieces, g = edit || (pres.length ? planned() : game)) {
   if (fresh) box.replaceChildren();
   const left = [...box.querySelectorAll('.piece:not(.gone)')], todo = [];
   for (const p of g.board().flat()) {
     if (!p) continue;
     const kind = p.color + p.type, i = left.findIndex(e => e.dataset.sq === p.square && e.dataset.kind === kind);
-    if (i < 0) todo.push([p.square, kind]);
-    else left.splice(i, 1)[0].style.transform = pos(p.square);
+    if (i < 0) { todo.push([p.square, kind]); continue; }
+    const e = left.splice(i, 1)[0];
+    if (!drag?.on || e !== drag.el) e.style.transform = pos(p.square);
   }
   const dist = (a, b) => { const [ax, ay] = xy(a), [bx, by] = xy(b); return Math.hypot(ax - bx, ay - by); };
   for (const [sq, kind] of todo) {
@@ -1188,8 +1189,15 @@ function goto(n, made = false) {
   if (!made) pres = [];
   cur = n;
   game = new Chess(n.fen);
-  sel = null;
-  dests = new Map();
+  const p = pres[0];
+  let next = null;
+  if (engine && p) {
+    const m = game.turn() === side && !n.children.length && !clock?.flag && game.moves({ square: p.from, verbose: true }).find(m => m.to === p.to);
+    if (m) next = p.from + p.to + (m.promotion ? 'q' : '');
+    else pres = [];
+  }
+  // a premove about to be played leaves what you hold alone, its own goto looks at it again
+  if (!next) hold(made && mode === 'fight' ? sel : null);
   syncPieces();
   drawSquares();
   analyse();
@@ -1202,12 +1210,17 @@ function goto(n, made = false) {
   drawReview();
   tick();
   history.replaceState(null, '', n.fen === START ? location.pathname : '#' + n.fen.replaceAll(' ', '_'));
-  if (engine && pres.length) {
-    const [p, ...rest] = pres;
-    const m = game.turn() === side && !n.children.length && !clock?.flag && game.moves({ square: p.from, verbose: true }).find(m => m.to === p.to);
-    if (!m) { pres = []; drawBoard(); }
-    else setTimeout(() => { if (cur === n) { pres = rest; goto(child(n, p.from + p.to + (m.promotion ? 'q' : '')), true); } });
-  }
+  if (next) setTimeout(() => { if (cur === n && pres[0] === p) { pres = pres.slice(1); goto(child(n, next), true); } });
+}
+
+// the piece you're holding or have picked when the position changes. a move landing in a fight, the engine's or a
+// premove of yours, keeps it while it's still yours where the board now shows it, like lichess: its legal moves on
+// your turn, so a premove picked up becomes a real move, or its premoves on the engine's. else it's let go
+function hold(sq) {
+  const early = engineMoves(), p = sq && (early && pres.length ? planned() : game).get(sq);
+  if (p?.color === side && (early || game.turn() === side && !clock?.flag)) return select(sq, early);
+  if (drag) { drag.el.classList.remove('drag'); drag = null; }
+  select(null);
 }
 
 // fight and edit take over the panel, the same button again goes back to analysis. leaving edit keeps the position
@@ -1491,7 +1504,6 @@ el.load.onclick = () => {
     goto(root);
   } catch { el.pgn.classList.add('bad'); }
 };
-
 el.shapes.innerHTML = `<defs>${Object.entries(BRUSH).map(([k, c]) =>
   `<marker id="h-${k}" orient="auto" markerWidth="4" markerHeight="4" refX="2.05" refY="2"><path d="M0,0V4L3,2Z" fill="${c}"/></marker>`).join('')}</defs><g></g>`;
 // the board's squares are a whole number of screen pixels, else the squares' pattern (a background the browser rounds
