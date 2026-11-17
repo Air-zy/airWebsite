@@ -302,7 +302,12 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
 #io textarea { height: 7em; resize: vertical; }
 #io .bad { border-color: var(--bad); }
 #load { justify-self: end; padding: 6px 14px; border: 0; border-radius: 3px; background: var(--blue); color: var(--hi); cursor: pointer; }
-[data-mode=edit] .pgn { display: none; }
+[data-mode=edit] #io .pgn { display: none; }
+/* nothing loaded or played yet: one box takes a FEN or a PGN, it splits in two once there's a game (analysis.js goto) */
+#io.empty .fen, #io.empty .pgn > span, #io.empty #load { display: none; }
+#io.empty .pgn { grid-template-columns: 1fr; }
+#io.empty textarea { height: auto; resize: none; overflow: hidden; white-space: nowrap; }
+[data-mode=edit] #io .fen { display: grid; }
 
 @media (max-width: 860px) {
   main { --b: calc(100vw - 50px); grid-template-columns: 8px var(--b); grid-template-areas: "gauge board" "tools tools" "io io"; }
@@ -433,8 +438,8 @@ body:not([data-mode=edit]):has(#reviewBtn[aria-pressed=true]) #review { display:
     </div>
   </aside>
   <section id="io">
-    <label>FEN <input id="fen" spellcheck="false"></label>
-    <label class="pgn">PGN <textarea id="pgn" spellcheck="false"></textarea></label>
+    <label class="fen">FEN <input id="fen" spellcheck="false"></label>
+    <label class="pgn"><span>PGN</span> <textarea id="pgn" rows="1" spellcheck="false" placeholder="paste a FEN or PGN"></textarea></label>
     <button id="load" class="pgn">import PGN</button>
   </section>
 </main>

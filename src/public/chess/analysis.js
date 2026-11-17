@@ -1202,8 +1202,11 @@ function goto(n, made = false) {
   drawSquares();
   analyse();
   drawMoves();
+  // nothing loaded or played yet: the FEN and PGN boxes are one, empty (chess.html, #io.empty)
+  const empty = root.fen === START && !root.children.length;
+  el.io.classList.toggle('empty', empty);
   el.fen.value = n.fen;
-  if (document.activeElement !== el.pgn) el.pgn.value = pgn();
+  if (document.activeElement !== el.pgn) el.pgn.value = empty ? '' : pgn();
   el.fen.classList.remove('bad');
   el.pgn.classList.remove('bad');
   if (reviewing()) review();
@@ -1492,18 +1495,32 @@ el.fen.onchange = () => {
   const fen = el.fen.value.trim();
   try { if (edit) editLoad(fen); else { newRoot(fen); goto(root); } } catch { el.fen.classList.add('bad'); }
 };
+// the PGN box loads a FEN too when it looks like one
 // avy: chess.js only keeps the main line of a pgn, so side lines don't come in (they do go out, see pgn())
-el.load.onclick = () => {
+function load(text) {
   try {
-    const g = new Chess();
-    g.loadPgn(el.pgn.value);
-    const h = g.history({ verbose: true });
-    newRoot(h.length ? h[0].before : g.fen());
-    let n = root;
-    for (const m of h) n = child(n, m.lan);
+    const t = text.trim();
+    if (/^([1-8pnbrqk]+\/){7}[1-8pnbrqk]+(\s|$)/i.test(t)) newRoot(t);
+    else {
+      const g = new Chess();
+      g.loadPgn(t);
+      const h = g.history({ verbose: true });
+      newRoot(h.length ? h[0].before : g.fen());
+      let n = root;
+      for (const m of h) n = child(n, m.lan);
+    }
     goto(root);
+    return true;
   } catch { el.pgn.classList.add('bad'); }
-};
+}
+el.load.onclick = () => load(el.pgn.value);
+// as the one box it loads what's pasted straight away, what's typed on enter (shift+enter for a new line). it lets go
+// of the focus, so once it splits the PGN shows written out and the arrow keys step through it, and a bad one shows red
+const single = () => el.io.classList.contains('empty');
+const loadOne = () => { if (el.pgn.value.trim()) { el.pgn.blur(); load(el.pgn.value); } };
+el.pgn.onpaste = () => { if (single()) setTimeout(loadOne); };
+el.pgn.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && single()) { e.preventDefault(); loadOne(); } };
+
 el.shapes.innerHTML = `<defs>${Object.entries(BRUSH).map(([k, c]) =>
   `<marker id="h-${k}" orient="auto" markerWidth="4" markerHeight="4" refX="2.05" refY="2"><path d="M0,0V4L3,2Z" fill="${c}"/></marker>`).join('')}</defs><g></g>`;
 // the board's squares are a whole number of screen pixels, else the squares' pattern (a background the browser rounds
