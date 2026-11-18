@@ -384,8 +384,8 @@ async function download(dir) {
     .catch(() => {});
   return res;
 }
-// what the panel says while an engine too big to come in at once downloads: cynical's wasm carries its human net
-const BIG = { cynical: 'loading its human net, ~40 MB the first time' };
+// what the panel says while an engine too big to come in at once downloads: cynical's wasm carries its two human nets
+const BIG = { cynical: 'loading its human nets, ~75 MB the first time' };
 
 // the options a visitor changed on an engine, name -> value. the rest stay at the engine's own defaults
 const tuned = e => { try { return JSON.parse(localStorage['chess.opts.' + e] || '{}') || {}; } catch { return {}; } };
@@ -549,7 +549,7 @@ function analyse() {
       drawEval();
       drawShapes();
     };
-    // a failed load (a dropped download of the wasm, cynical's 43 MB on a phone, or too little memory) starts again on
+    // a failed load (a dropped download of the wasm, cynical's 84 MB on a phone, or too little memory) starts again on
     // the same position, twice, a little later each time. leaving the position clears the timer and the retry with it
     w.onerror = () => {
       if (!mine()) return;
