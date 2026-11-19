@@ -2,7 +2,7 @@
   "name": "airsite",
   "version": "1.1.6",
   "description": "mywebsite",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
     "start": "node --max-old-space-size=8192 ./src/server.js",
     "dev": "node --env-file=.env --max-old-space-size=8192 ./src/server.js"
@@ -33,7 +33,7 @@
     "fast-xml-builder": "^1.2.0"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=20.6"
   },
   "license": "MIT"
 }
