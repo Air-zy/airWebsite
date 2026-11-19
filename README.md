@@ -1,6 +1,6 @@
 # airWebsite
 
-Monolith personal site on Node and Express. Portfolio, plus a bunch of tools and demos (anime relationship graph, connect 4 AI, quadtree stuff, ROWA leaderboards). Runs at [airzy.ca](https://airzy.ca).
+Monolith personal site on Node and Express. Portfolio, plus a bunch of tools and demos (chess analysis board with its own engines, roblox portfolio, anime relationship graph, connect 4 AI, ROWA leaderboards). Runs at [airzy.ca](https://airzy.ca).
 
 Firestore for most data, one postgres db for the guestbook. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with a hand written AES-128-CBC module in `src/FallbackEncryption/`.
 
@@ -28,7 +28,7 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 | `airKey` | master key for the AES module, everything else depends on it |
 | `sessionSecret` | signs session cookies. required, server wont boot without it |
 | `googleClientId`, `googleClientSecret` | optional. continue with google, see Auth below |
-| `airWebToken` | admin and roblox endpoints |
+| `airWebToken` | the cluster peer list and roblox data posts (`/api/cluster-units`, `/api/gam3DB`) |
 | `UTIL_DB` | encrypted neon postgres url, for the guestbook |
 
 `sessionSecret` is fatal on purpose. A signing key falling back to a default means forgeable cookies, so it crashes at boot instead.
@@ -38,12 +38,12 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 ```
 src/
 ├── server.js               middleware stack, five router mounts, 404, error handler
-├── config/                 site.js, the one copy of the socials, skills and nav
-├── DATABASE/               postgres
+├── config/                 site.js, the one copy of the socials, skills and nav. default.json, the log path
+├── DATABASE/               postgres, the guestbook
 ├── FallbackEncryption/     AES-128-CBC
-├── firebase/               firestore
+├── firebase/               firestore, three projects: the main one, the anime data, avy's for my status
 ├── heartSystem/            keeps external services warm
-├── modules/                account service, minifier
+├── modules/                account service, minifier, precompress, my discord status
 ├── public/                 frontend source
 └── routes/
     ├── pagesRouter.js      static pages
@@ -52,8 +52,9 @@ src/
     ├── api/apiRouter.js    /api
     ├── auth/authRouter.js  /auth
     ├── rblxapp/            roblox
-    ├── middleware/         auth, rate limit, request log, cookies
-    └── classes/            address registry, session registry, api clients
+    ├── middleware/         auth, rate limit, request log, cookies, curl and agent cards
+    ├── webhooks/           discord
+    └── classes/            address registry, api clients
 ```
 
 Every route lives in a `Router()`. `server.js` only mounts them, it declares none itself.
@@ -96,7 +97,8 @@ add a `tokenVersion` on the account doc if per device logout is ever wanted.
 | `POST /auth/username` | rename, the old name is free straight away |
 | `GET /auth/account/:uid` | public lookup, name and join date only |
 
-Machine to machine endpoints use a shared bearer token instead, see `routes/middleware/requireToken.js`.
+Machine to machine endpoints use a bearer token instead, a different env var per caller (the auth surface in
+[ARCHITECTURE.md](ARCHITECTURE.md) says which), see `routes/middleware/requireToken.js`.
 
 ## Weird bits
 
@@ -111,13 +113,15 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - `/cli` serves the same text to both. curl gets it raw, browsers get `cli.html`, a terminal that fetches `/cli/<command>`
   and paints the ansi codes as spans. `routes/cli.js` reads its page list back out of `pagesRouter.stack` so the list only exists once.
 - The `/c` fingerprint beacon is injected into every page at minify time. Self hosted analytics, no third party script.
+  No page carries its own copy, that sends it twice.
+- `/chess`, `/roblox`, `/c4`, `/journal` and `/encryption` 301 to a trailing slash. `express.static` does that
+  for any url that names a folder in `dist`, before `pagesRouter` sees it, so the sitemap lists the slash urls.
 - Socials, skills, the nav, the about text and the copyright live once, in `config/site.js`. The minifier swaps `<!--#socialLinks-->` and friends for real markup on the
   way to `dist`, so `index.html` holds tokens instead of link lists and `cli.js` reads the same array. A typo'd token kills the
   build for that page on purpose, `removeComments` would have eaten it silently.
   The about lines use `{phrase|role}` (accent, name or tech, the `.hl-` colours in `main.css`) so the page can tint a phrase and the cli can drop the braces.
   `{phrase|role|url}` makes the phrase a link too, so the lines never hold html. The "here to grow" line is not in there on purpose, `main.js` animates it by id.
 - User agents get string compressed before storage (`Mozilla` to `Mzila`) to keep the address registry small.
-- `/r` and `/dashboard` do an RSA handshake over https. Leftover admin login, not the user session system.
 - The flower on the home page is [nonflowers](https://github.com/LingDong-/nonflowers) by Lingdong Huang (MIT, the notice is
   in `js/flower/nonflowers.js`), a new plant every visit, `?seed=` brings one back. It runs in a web worker
   (`js/flower/worker.js`) because it patches `Array.prototype` and `Math.random`, which stays inside the worker.
@@ -127,9 +131,13 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - `/api/logs` is the raw request log, owner only (`ADMIN_UID` in `auth.js`).
 - The guestbook (`/api/notes`) is public to read and needs an account to sign. Anyone can write one, a 401 on send opens
   `/auth/` in a popup iframe that posts `signed-in` back instead of redirecting. Google cannot be framed so it takes the tab,
-  the note waits in sessionStorage until it lands back on `/home#guestbook`. The owner pins and deletes from the page,
+  the note waits in sessionStorage until it lands back on `/home#guestbook`. Writers can delete their own, the owner pins and deletes any from the page,
   pinning is also the sort, the last pin sits on top. Notes store the uid, names are looked up in one batched firestore read
   and cached in memory so renames show on old notes.
+- The boot brotlis every page and asset once (`modules/precompress.js`), except files over 10 MB, which `compression` skips
+  too. Cynical's 84 MB wasm only shrinks to 90%, and squeezing it was most of the boot's memory peak on a 512 MB box.
+- `/api/anime3/data` and `/api/anime3/coords` read their firestore blobs once and keep the brotlied answer (`anime3/blob.js`).
+  A new upload shows after a restart.
 - Older accounts still have an `email` field and `email:<address>` index docs in firestore. Nothing reads them, safe to delete.
 - `/api/cluster-units` needs an `Authorization` header, cluster nodes send `airWebToken`.
 - `/api/roblox-stats` is the live game count and visits in "how i started", and every number on `/roblox`. It asks roblox at
@@ -147,5 +155,6 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).
   `node src/routes/api/api_robloxStats.js` checks the visit sums, no network needed.
+  `node src/modules/myStatus/status.test.js` checks the status log and forecast, `node src/public/ugi/rec.test.js` the ugi recommender.
   `node src/config/blueNoise.js` regenerates the background dither tile (`js/dither.js`) and checks it, same png every run.
   `/js/flower/check.html` in a browser checks the flower: same seed same plant, nothing cut off, inside the time budget.

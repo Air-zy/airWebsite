@@ -9,15 +9,21 @@ flowchart TD
   REQ([request]) --> GATE["minify gate<br/>waits only until boot build finishes"]
   GATE --> LOG["reqLogger<br/>writes trafic.log, 301s old hostnames"]
   LOG --> JSON["express.json"]
-  JSON --> GZIP["compression"]
+  JSON --> GZIP["compression<br/>brotli 11 for js css svg tsv, 5 for the rest"]
   GZIP --> CK["cookieParser"]
   CK --> AU["attachUser<br/>reads signed cookie, sets req.user, no io"]
-  AU --> FA["/auth only: frame-ancestors 'self'"]
-  FA --> STATIC["express.static (src/dist)"]
+  AU --> TERM{"terminal<br/>/ and /home only"}
+  TERM -->|"curl, wget"| CARD([animated ascii card])
+  TERM -->|"ai agents, bare http libraries"| PLAIN([plain text card])
+  TERM -->|browser| FA["/auth only: frame-ancestors 'self'"]
+  FA --> BR{"precompress.serve<br/>.br written at boot?"}
+  BR -->|"yes, and the browser takes br"| FILE([static asset])
+  BR -->|not yet| STATIC["express.static (src/dist)"]
 
-  STATIC -->|no file match| RL["rate limit<br/>30 per 30s per ip"]
+  STATIC -->|file found| FILE
+  STATIC -->|"a folder with no slash, /chess"| SLASH(["301 to /chess/"])
+  STATIC -->|no file match| RL["rate limit<br/>30 per 30s per ip<br/>rowa-rig and rowa-asset have their own"]
   RL --> MOUNTS
-  STATIC -->|file found| FILE([static asset])
 
   subgraph MOUNTS["router mounts, in order"]
     direction TB
@@ -100,7 +106,7 @@ sequenceDiagram
 
   M-->>R: account
   R->>C: set session cookie
-  R-->>C: 200 {uid, name} (already logged in)
+  R-->>C: 200 {uid, name, createdAt} (already logged in)
 ```
 
 ## Continue with google, openid connect without a library
@@ -119,8 +125,10 @@ sequenceDiagram
   U->>S: callback, g_state cookie comes along (sameSite Lax)
   S->>S: state matches the cookie?
 
-  alt no match or no code
+  alt no match
     S-->>U: redirect /auth/?e=google-failed
+  else no code, they pressed cancel
+    S-->>U: redirect /auth/?e=google-cancelled
   else match
     S->>G: POST token endpoint {code, client secret}
     G-->>S: id token
@@ -147,13 +155,15 @@ flowchart TD
   PAR --> HEART["startCycler, heartbeat"]
   PAR --> ADDR["loadAddresses, firestore"]
   PAR --> PG["utilDB ensureTables"]
+  PAR --> PROJ["projects read from firestore<br/>when its router is required"]
 
   GATE --> MW["middleware stack + router mounts"]
   MW --> LISTEN["app.listen"]
   LISTEN -->|port taken| DIE["throws, a second copy dies<br/>before it can touch src/dist"]
-  LISTEN --> MIN["minify src/public into src/dist"]
+  LISTEN --> MIN["minify src/public into src/dist<br/>fills site.js tokens, injects the /c beacon"]
   MIN --> OPEN["gate opens, requests flow"]
   OPEN --> UP([serving])
+  OPEN --> PRE["precompress<br/>brotli every page and asset once, smallest first<br/>each file served from its .br once written<br/>files over 10 MB go out as they are"]
 
   SS{"sessionSecret set?"} -.-> MW
   APP --> SS
@@ -166,18 +176,37 @@ flowchart TD
 flowchart LR
   APP["airWebsite"]
 
-  APP --> FS[("firestore")]
+  APP --> FS[("firestore<br/>firebaseJsonKey")]
   FS --> A1["secure/*<br/>accounts, username + google indexes, counter"]
-  FS --> A2["projects, roblox blob"]
+  FS --> A2["tokenUsage/airsite<br/>projects, views as +1s"]
+  FS --> A3["tokenUsage/people2<br/>the friends list"]
+  FS --> A4["tokenUsage/adresses2<br/>visitor registry, gzipped"]
+  FS --> A5["tokenUsage/rblx<br/>roblox blob, /api/gam3DB"]
+
+  APP --> FS2[("firestore 2<br/>firebaseJsonKey2")]
+  FS2 --> A6["def/anime chunks<br/>the anime graph's data and coords<br/>read once, kept brotlied"]
+
+  APP --> FS3[("avy's firestore<br/>azyFirebaseJSON")]
+  FS3 --> A7["status/main<br/>my discord status, /presence and last online"]
 
   APP --> PG[("postgres UTIL_DB")]
   PG --> B1["notes<br/>the guestbook"]
 
   APP --> RBX{{"roblox open cloud"}}
   RBX --> C1["plrDataV3 datastore<br/>feeds /api/rowa/all and leaderboards"]
+  RBX --> C2["users, thumbnails, asset delivery<br/>the rowa2 figures"]
+
+  APP --> RBXP{{"roblox public apis"}}
+  RBXP --> C3["games and visits<br/>/api/roblox-stats, every 6 hours at most"]
 
   APP --> GIST{{"github gist"}}
   GIST --> D1["encrypted cluster peer urls<br/>changed without redeploying"]
+
+  APP --> GH{{"github repo"}}
+  GH --> D2["Air-zy/robloxStudio<br/>/gam3push commits files with repoPat"]
+
+  APP --> HF{{"hugging face space"}}
+  HF --> D3["/api/imggen"]
 
   APP --> GOO{{"google"}}
   GOO --> E1["continue with google<br/>token exchange only"]
@@ -195,6 +224,7 @@ flowchart TD
     P3["GET /auth/google"]
     P4["GET /auth/google/callback"]
     P5["GET /auth/account/:uid"]
+    P7["POST /auth/logout<br/>just clears the cookie"]
     P6["GET /api/notes"]
   end
 
@@ -202,23 +232,25 @@ flowchart TD
     S1["GET /auth/me"]
     S2["POST /auth/password"]
     S5["POST /auth/username"]
-    S3["POST /auth/logout"]
     S4["POST /api/notes"]
+    S6["DELETE /api/notes/:id<br/>your own note"]
   end
 
   subgraph ADMIN["owner only, ADMIN_UID in auth.js"]
     A1["GET /api/logs"]
     A2["POST /api/notes/:id/pin"]
-    A3["DELETE /api/notes/:id"]
+    A3["DELETE /api/notes/:id<br/>any note"]
     A4["POST /api/projects/update"]
+    A5["GET /api/people/list"]
+    A6["POST /api/people/update"]
   end
 
-  subgraph TOKEN["shared bearer token, machine to machine"]
-    T1["POST /webhook, /webhook2"]
-    T2["POST /nfetch"]
-    T3["POST /gam3push"]
-    T5["POST /api/gam3DB"]
-    T6["GET /api/cluster-units"]
+  subgraph TOKEN["bearer token, machine to machine, each its own env var"]
+    T1["POST /webhook, /webhook2<br/>whookPass"]
+    T2["POST /nfetch<br/>airClusterAcolyteToken, header decrypted with publicClusterKey first"]
+    T3["POST /gam3push<br/>airWebToken2"]
+    T5["POST /api/gam3DB<br/>airWebToken"]
+    T6["GET /api/cluster-units<br/>airWebToken"]
   end
 
   PUB --- RL1["rate limited per route"]
