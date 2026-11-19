@@ -14,10 +14,6 @@ async function loadAddresses() {
   console.log('[ADDRESS] Loaded', addressMap.size, 'entries');
 }
 
-function getAddressMap() {
-  return addressMap;
-}
-
 // the live instance, not a copy, so callers can flip captcha bits on it
 function getAddress(ip) {
   return addressMap.get(ip);
@@ -47,7 +43,6 @@ async function updateAddress(ip, userAgent, referer, req) {
 
 module.exports = {
   loadAddresses,
-  getAddressMap,
   getAddress,
   updateAddress,
 };

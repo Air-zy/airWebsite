@@ -31,7 +31,6 @@ async function _req(urls) {
       console.error(`[HEART] GET ${url} returned status ${res.status}`, i);
     }
   } catch (e) {
-    stats.total++;
     stats.failures++;
     stats.lastError = e.message;
     console.error(`[HEART] GET ${url} failed:`, i, e.message);
@@ -63,7 +62,7 @@ async function startCycler() {
   }
 
   cycle();
-  console.log("[HEART] started", t);
+  console.log("[HEART] started");
 }
 
 function stopCycler() {

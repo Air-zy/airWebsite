@@ -1,11 +1,9 @@
 User-agent: *
 Disallow: /api/
 Disallow: /auth/
-Disallow: /contact/
 
-# both return json, and /r mints a session on every hit
+# json, not a page
 Disallow: /info
-Disallow: /r
 
 Allow: /
 
