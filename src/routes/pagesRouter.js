@@ -16,7 +16,6 @@ router.get('/change',     page('/change.html'));
 router.get('/quad',       page('/quadratic.html'));
 router.get('/coinsort',   page('/change.html'));
 router.get('/journal',    page('/journal/journal.html'));
-router.get('/deepwoken',  page('/deepwoken.html'));
 router.get('/encryption', page('/encryption/cbc.html'));
 router.get('/trafic',     page('/api.html'));
 router.get('/rowa2',      page('/ROWA/rowa2.html'));
