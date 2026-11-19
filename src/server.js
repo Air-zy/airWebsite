@@ -35,9 +35,13 @@ app.use(express.json());
 // as cloudflare's bigger gzip
 const zlib = require('zlib');
 const compression = require('compression');
+const precompressed = require('./modules/precompress.js');
 const brotli = quality => ({ params: { [zlib.constants.BROTLI_PARAM_QUALITY]: quality } });
-const compressPage = compression({ threshold: 1024, brotli: brotli(5) });
-const compressAsset = compression({ threshold: 0, brotli: brotli(11) });
+// a file over precompress's BIG goes out as it is. squeezing cynical's 84 MB wasm on every download would cost far more
+// than the 10% it saves. static sets Content-Length before compression looks
+const notBig = (req, res) => !(Number(res.getHeader('Content-Length')) > precompressed.BIG) && compression.filter(req, res);
+const compressPage = compression({ threshold: 1024, brotli: brotli(5), filter: notBig });
+const compressAsset = compression({ threshold: 0, brotli: brotli(11), filter: notBig });
 app.use((req, res, next) => (/\.(js|css|svg|tsv)$/.test(req.path) ? compressAsset : compressPage)(req, res, next));
 
 app.use(require('./routes/middleware/cookieParser.js'));
@@ -52,7 +56,6 @@ app.use('/auth', (req, res, next) => { res.set('Content-Security-Policy', "frame
 // js, css, svg, tsv, wasm, bin and the pages only change on deploy, so they're squeezed once after the boot minify and
 // sent from their .br (modules/precompress.js), here for what static serves and in pagesRouter for the routes. until a
 // file's .br is written it goes through the compression above. compression leaves an answer that has its own encoding
-const precompressed = require('./modules/precompress.js');
 app.use(precompressed.serve);
 app.use(express.static(PRODUCTION_PUBLIC_DIRECTORY));
 
