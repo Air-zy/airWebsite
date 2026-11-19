@@ -26,8 +26,9 @@ const rowaRig = require('../rblxapp/routes/rowaRig.js');
 router.get('/rowa-rig/:userId', limiter({ windowMs: 30 * 1000, max: 120 }), rowaRig.rig);
 router.get('/rowa-asset/:assetId', limiter({ windowMs: 30 * 1000, max: 300 }), rowaRig.asset);
 
-router.get('/anime3/data',         require('./anime3/data.js')             );
-router.get('/anime3/coords',       require('./anime3/coords.js')           );
+const animeBlob = require('./anime3/blob.js');
+router.get('/anime3/data',         animeBlob(() => 'anime')                );
+router.get('/anime3/coords',       animeBlob(req => req.query.v === '2' ? 'animeCoords2' : 'animeCoords'));
 
 router.get('/rblx',                require('./api_rblx.js')                );
 // the live roblox numbers in how i started on the home page
