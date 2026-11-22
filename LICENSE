@@ -19,18 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Not covered by the license above:
-
-- src/public/chess/lib/, src/public/chess/engines/verity/rules.js
-                                         chess.js, BSD-2-Clause, see its LICENSE (and rules.js's header)
-- src/public/chess/pieces/               cburnett pieces, BSD, see its LICENSE
-- src/public/js/flower/nonflowers.js     Lingdong Huang's nonflowers, MIT, in its header
-- src/public/fonts/                      Bricolage Grotesque, SIL Open Font License, see OFL.txt
-- src/config/icons.svg                   Font Awesome 4.7 icons, SIL Open Font License
-- src/public/roblox/figure/, src/public/roblox/avatar.webp
-                                         my Roblox avatar's body, face, clothes and accessories,
-                                         which belong to Roblox and their creators
-- src/public/chess/sounds/               chess.com's move sounds, not mine to license
