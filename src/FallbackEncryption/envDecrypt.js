@@ -1,4 +1,4 @@
-const { decrypt } = require('./aes-128_cbc.js');
+const crypto = require('crypto');
 
 function getSecondStackFrame() {
   const oldPrepare = Error.prepareStackTrace;
@@ -33,15 +33,10 @@ function envDecrypt(key, ciphertext) {
     throw new Error("envDecrypt error: `ciphertext` must be a non-empty Base64 string");
   }
   
-  keyBytes = Buffer.from(key, 'base64');
+  // a 16 byte iv, then the cbc blocks, pkcs7 padded. the format /encryption makes
   const cipherBuf = Buffer.from(ciphertext, 'base64');
-
-  const plainBytes = decrypt(
-    new Uint8Array(keyBytes),
-    new Uint8Array(cipherBuf)
-  );
-
-  return Buffer.from(plainBytes).toString('utf8');
+  const decipher = crypto.createDecipheriv('aes-128-cbc', Buffer.from(key, 'base64'), cipherBuf.subarray(0, 16));
+  return Buffer.concat([decipher.update(cipherBuf.subarray(16)), decipher.final()]).toString('utf8');
 }
 
 module.exports = envDecrypt;
