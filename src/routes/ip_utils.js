@@ -1,16 +1,6 @@
-function getIP(req) {
-  const ipList = req.headers['x-forwarded-for']
-  if (ipList) {
-    const ips = ipList.split(',');
-    const firstIp = ips[0].trim();
-    return firstIp;
-  }
-
-  return req.connection?.remoteAddress ||
-         req.socket?.remoteAddress ||
-         req.connection?.socket?.remoteAddress ||
-         null;
-}
+// the visitor, as the last proxy saw it (trust proxy 1 in server.js). the first X-Forwarded-For entry is whatever the
+// client wrote there, cloudflare appends to it rather than replacing it
+const getIP = req => req.ip ?? null;
 
 let lookupTBL = {};
 function referLookup(ip, req) {
