@@ -3,28 +3,9 @@
 // a view is a +1 in firestore and a save keeps firestore's views. firestore is required on first use, so the checks
 // at the bottom run without the .env
 const db = () => require('../../../firebase/firebasedb.js');
+const cached = require('../cached.js');
 
-let data = null;
-let fetchedAt = 0;
-let reading = null;
-
-// one read at a time. when it fails the last list is still good to serve
-async function getProjects() {
-  if (!data || Date.now() - fetchedAt > 30 * 1000) {
-    reading ??= db().firedbAirsiteGet()
-      .then(d => {
-        data = d ?? {};
-        fetchedAt = Date.now();
-      })
-      .catch(err => {
-        if (!data) throw err;
-        console.error('[projects] read failed, serving the last list:', err.message);
-      })
-      .finally(() => { reading = null; });
-    await reading;
-  }
-  return data;
-}
+const getProjects = cached('projects', async () => (await db().firedbAirsiteGet()) ?? {});
 
 // false when there's no such project
 async function countView(key) {
@@ -36,9 +17,7 @@ async function countView(key) {
 }
 
 async function saveProjects(next) {
-  data = await db().firedbAirsiteSave(next);
-  fetchedAt = Date.now();
-  return data;
+  return getProjects.set(await db().firedbAirsiteSave(next));
 }
 
 // what projectsEdit sends, { key: project }, checked before it's saved. the url, the picture and the [text]("url")

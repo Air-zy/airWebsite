@@ -2,22 +2,13 @@
 // projects, and a save swaps it in straight away. firestore is required on first use, so the checks at the bottom
 // run without the .env
 const db = () => require('../../../firebase/firebasedb.js');
+const cached = require('../cached.js');
 
-let data = null;
-let fetchedAt = 0;
-
-async function getPeople() {
-  if (!data || Date.now() - fetchedAt > 30 * 1000) {
-    data = await db().firedbPeopleGet();
-    fetchedAt = Date.now();
-  }
-  return data;
-}
+const getPeople = cached('people', async () => db().firedbPeopleGet());
 
 async function savePeople(next) {
   await db().firedbPeopleSave(next);
-  data = next;
-  fetchedAt = Date.now();
+  getPeople.set(next);
 }
 
 // what peopleEdit sends, { groups, people } as site.js describes, checked before it's saved, since every field ends up
