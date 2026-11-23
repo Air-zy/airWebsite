@@ -2,7 +2,7 @@
 
 Monolith personal site on Node and Express. Portfolio, plus a bunch of tools and demos (chess analysis board with its own engines, roblox portfolio, anime relationship graph, connect 4 AI, ROWA leaderboards). Runs at [airzy.ca](https://airzy.ca).
 
-Firestore for most data, one postgres db for the guestbook. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with a hand written AES-128-CBC module in `src/FallbackEncryption/`.
+Firestore for most data, one postgres db for the guestbook. Assets get minified from `src/public` into `src/dist` at boot. Secrets are stored encrypted with AES-128-CBC, `src/FallbackEncryption/envDecrypt.js` opens them with `node:crypto`.
 
 No auth, session, validation or oauth library. All hand rolled on node builtins to keep deps down.
 
@@ -25,7 +25,7 @@ Most env values are encrypted with `airKey`, not plaintext. See `.env.example` f
 
 | var | |
 | --- | --- |
-| `airKey` | master key for the AES module, everything else depends on it |
+| `airKey` | master key the other values are encrypted with, everything else depends on it |
 | `sessionSecret` | signs session cookies. required, server wont boot without it |
 | `googleClientId`, `googleClientSecret` | optional. continue with google, see Auth below |
 | `airWebToken` | the cluster peer list and roblox data posts (`/api/cluster-units`, `/api/gam3DB`) |
@@ -40,7 +40,7 @@ src/
 ├── server.js               middleware stack, five router mounts, 404, error handler
 ├── config/                 site.js, the one copy of the socials, skills and nav. default.json, the log path
 ├── DATABASE/               postgres, the guestbook
-├── FallbackEncryption/     AES-128-CBC
+├── FallbackEncryption/     envDecrypt, AES-128-CBC through node:crypto
 ├── firebase/               firestore, three projects: the main one, the anime data, avy's for my status
 ├── heartSystem/            keeps external services warm
 ├── modules/                account service, minifier, precompress, my discord status
@@ -104,7 +104,9 @@ Machine to machine endpoints use a bearer token instead, a different env var per
 
 Things that look wrong at a glance but arent, so nobody "fixes" them:
 
-- Hand written AES instead of `node:crypto`. Its also the demo behind `/encryption`, and only touches env secrets. Sessions use hmac, passwords use argon2.
+- `/encryption` is a hand written AES-128-CBC that runs in the browser (`public/encryption`). Its output opens on the
+  server, which uses `node:crypto` with the same format, a 16 byte iv then pkcs7 padded cbc blocks, so it can encrypt env
+  values and a change to one has to match the other. Sessions use hmac, passwords use argon2.
 - `envDecrypt` reads its own stack trace and warns if the caller isnt under `src/`. Tripwire for a dependency that starts asking for secrets.
 - Build runs at server start. Free hosts redeploy from source with no build step, so minify happens at boot behind a promise gate.
 - Heartbeat pings a gist for its peer list. Keeps sleepy free containers awake, jittered 2 to 10 min with a rotating UA so it doesnt read as a bot.
@@ -158,6 +160,8 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
   `node --env-file=.env src/routes/middleware/auth.js`, same for `middleware/terminal.js`, `routes/cli.js`, `routes/api/notes.js`,
   `routes/auth/google.js` and `modules/account/accountsManager.js`,
   and `node src/config/site.js` (no env needed, it checks the tokens in index.html still line up).
+  `node src/routes/middleware/requireToken.js` checks the bearer token gate and `node src/routes/api/cached.js` the 30s
+  firestore cache, no env for either.
   `node src/routes/api/api_robloxStats.js` checks the visit sums, no network needed.
   `node src/modules/myStatus/status.test.js` checks the status log and forecast, `node src/public/ugi/rec.test.js` the ugi recommender.
   `node src/config/blueNoise.js` regenerates the background dither tile (`js/dither.js`) and checks it, same png every run.
