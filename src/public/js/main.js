@@ -34,6 +34,13 @@
     document.head.append(Object.assign(document.createElement('script'), { src: e.currentTarget.dataset.src }));
   });
 
+  // navigator.webdriver is on when a script drives the browser (playwright, puppeteer, an agent's own chrome). it gets
+  // the line the plain text card gives the agents that fetch the page (middleware/terminal.js)
+  if (navigator.webdriver) {
+    const lede = document.querySelector('.lede');
+    lede.textContent = lede.dataset.ai;
+  }
+
   // a new nonflowers plant every visit, ?seed= brings one back. js/flower/worker.js paints it off the main thread
   // and main.css grows it in. no worker or OffscreenCanvas and it just stays hidden
   (function growFlower() {

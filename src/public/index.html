@@ -19,7 +19,9 @@
     <meta property="og:url" content="https://airzy.ca/" />
 
     <!-- the hero at 1200x630 with ?seed=12345, nav cropped off. og.png is in the
-         ?v hash in site.js, so replacing it is enough for scrapers to fetch it again -->
+         ?v hash in site.js, so replacing it is enough for scrapers to fetch it again.
+         puppeteer and playwright set navigator.webdriver (--enable-automation) and main.js swaps the
+         lede for the ai quip then. chrome --headless --screenshot leaves it off -->
     <meta property="og:image" content="https://airzy.ca/og.png?v=<!--#v-->" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -39,6 +41,8 @@
 
     <title>Airzy Turqueza</title>
     <link rel="canonical" href="https://airzy.ca/" />
+    <!-- the plain text card agents get, for the ones that follow this (middleware/terminal.js) -->
+    <link rel="alternate" type="text/markdown" href="/index.md" />
     <!-- the name's weight, so the first thing on screen does not swap fonts -->
     <link rel="preload" href="/fonts/bricolage-grotesque-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin />
 
@@ -68,7 +72,7 @@
             <h1><span id="airzy">Airzy</span> Turqueza</h1>
             <!-- the breakdown: main.js loads data-src on the first click, so only people who click download it -->
             <button class="bubble" type="button" aria-label="break the site" data-src="js/breakdown.js?v=<!--#vBreak-->">🤓</button>
-            <p class="lede">hii i'm airzy a software developer</p>
+            <p class="lede" data-ai="<!--#aiQuip-->">hii i'm airzy a software developer</p>
           </div>
           <!-- main.js grows a new plant every visit with js/flower/worker.js, it stays hidden if the browser cant -->
           <div class="flower" hidden>

@@ -110,6 +110,8 @@ Things that look wrong at a glance but arent, so nobody "fixes" them:
 - Heartbeat pings a gist for its peer list. Keeps sleepy free containers awake, jittered 2 to 10 min with a rotating UA so it doesnt read as a bot.
 - `middleware/terminal.js` sits before `express.static` on purpose. It has to, or `index.html` answers `/` first.
   curl and wget get an ascii card instead of html, `Accept: text/html` opts back out.
+  Agents get a plain one: they ask for `text/markdown`, sign with `Signature-Agent`, carry an AI fetcher's name, or send
+  a modern browser's UA without the `Sec-Fetch-Mode` every such browser sends over https. The crawlers keep the homepage.
 - Cloudflare's Always Use HTTPS is off, because curl doesn't follow redirects and `curl airzy.ca` has to work on plain http.
   `httpsUnlessTerminal` in the same file sends everyone else to https, going by Cloudflare's `cf-visitor` header.
 - `/cli` serves the same text to both. curl gets it raw, browsers get `cli.html`, a terminal that fetches `/cli/<command>`

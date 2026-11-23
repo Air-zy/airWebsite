@@ -12,9 +12,9 @@ flowchart TD
   JSON --> GZIP["compression<br/>brotli 11 for js css svg tsv, 5 for the rest"]
   GZIP --> CK["cookieParser"]
   CK --> AU["attachUser<br/>reads signed cookie, sets req.user, no io"]
-  AU --> TERM{"terminal<br/>/ and /home only"}
+  AU --> TERM{"terminal<br/>/, /home and /index.md only"}
   TERM -->|"curl, wget"| CARD([animated ascii card])
-  TERM -->|"ai agents, bare http libraries"| PLAIN([plain text card])
+  TERM -->|"agents: asks for markdown, signed, an ai fetcher's name, a browser ua without sec-fetch. /index.md always"| PLAIN([plain text card])
   TERM -->|browser| FA["/auth only: frame-ancestors 'self'"]
   FA --> BR{"precompress.serve<br/>.br written at boot?"}
   BR -->|"yes, and the browser takes br"| FILE([static asset])
