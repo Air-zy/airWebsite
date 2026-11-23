@@ -12,7 +12,8 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', requireToken(airWebToken), (req, res) => {
-  commitRblxData(req.body);
+  // not awaited, the game gets its answer straight away. a body that won't gzip would otherwise stop node
+  commitRblxData(req.body).catch(err => console.error('[gam3DB] commit failed:', err.message));
   res.json({ message: 'Data received successfully' });
 });
 

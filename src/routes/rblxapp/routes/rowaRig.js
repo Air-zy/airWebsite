@@ -197,6 +197,11 @@ async function rig(req, res) {
   }
 }
 
+// asset bytes -> their gzip, made once on a libuv thread, not on the event loop. cloudflare caches nothing without an
+// extension, so every visit asks for every mesh again. goes when getAsset drops the bytes
+const gzip = require('util').promisify(zlib.gzip);
+const gzipped = new WeakMap();
+
 async function asset(req, res) {
   const id = req.params.assetId;
   if (!allowed.has(id)) return res.status(404).end();
@@ -208,7 +213,9 @@ async function asset(req, res) {
     res.set('Cache-Control', 'public, max-age=86400').type(type);
     // meshes halve under gzip but the global compression skips octet-stream
     if (type === 'application/octet-stream' && req.acceptsEncodings('gzip')) {
-      return res.set({ 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' }).send(zlib.gzipSync(buf));
+      if (!gzipped.has(buf)) gzipped.set(buf, gzip(buf));
+      const gz = await gzipped.get(buf);
+      return res.set({ 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' }).send(gz);
     }
     res.send(buf);
   } catch (err) {

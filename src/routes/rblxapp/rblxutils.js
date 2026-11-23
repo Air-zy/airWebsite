@@ -1,14 +1,18 @@
-const { rbxApiKey } = require('./rowautils.js');
+const { rbxApiKey, remember } = require('./rowautils.js');
 
-const roUNameIDcache = {};
+const roUNameIDcache = new Map(); // String(user id) -> roblox user
 
 // the open cloud key is shared with the datastore crawl in allPlrData, which already
 // spends most of the 1k/min. cap the fallback so a bad roproxy day cannot starve it.
+// a budget per minute for every request together, so a few requests at once can't spend the whole quota
 const OC_FALLBACK_CAP = 200;
+let ocLeft = 0, ocResetAt = 0;
 
 // open cloud instead of users.roblox.com, a 1k/min key quota instead of an ip throttle
 async function idtoname(userId) {
-    const cached = roUNameIDcache[userId];
+    // digits only. the router turns %2F back into /, so ..%2F.. walked this url onto any open cloud path with our key
+    if (!/^\d+$/.test(String(userId))) throw new Error(`bad user id ${userId}`);
+    const cached = roUNameIDcache.get(String(userId));
     if (cached) return cached;
 
     const response = await fetch(`https://apis.roblox.com/cloud/v2/users/${userId}`, {
@@ -21,9 +25,7 @@ async function idtoname(userId) {
     }
 
     // shape matches the old endpoint for the fields anyone uses, id name displayName
-    const data = await response.json();
-    roUNameIDcache[userId] = data;
-    return data;
+    return remember(roUNameIDcache, String(userId), await response.json());
 }
 
 async function fetchUsersByIds(ids, opts = {}) {
@@ -42,8 +44,9 @@ async function fetchUsersByIds(ids, opts = {}) {
     // Prefill with cached data if available
     const toFetch = [];
     for (const id of uniqueIds) {
-        if (roUNameIDcache[id]) {
-            out[id] = roUNameIDcache[id];
+        const hit = roUNameIDcache.get(String(id));
+        if (hit) {
+            out[id] = hit;
         } else {
             out[id] = null;
             toFetch.push(id);
@@ -101,7 +104,7 @@ async function fetchUsersByIds(ids, opts = {}) {
             for (const u of data) {
                 const uid = Number(u.id ?? u.userId ?? u.user_id);
                 if (Number.isFinite(uid)) {
-                    roUNameIDcache[uid] = u;
+                    remember(roUNameIDcache, String(uid), u);
                     out[uid] = u;
                 }
             }
@@ -115,7 +118,12 @@ async function fetchUsersByIds(ids, opts = {}) {
     // authenticated, so it still works when the shared proxy is refusing everyone.
     const missing = toFetch.filter(id => !out[id]);
     if (missing.length) {
-        const take = missing.slice(0, OC_FALLBACK_CAP);
+        if (Date.now() > ocResetAt) {
+            ocResetAt = Date.now() + 60 * 1000;
+            ocLeft = OC_FALLBACK_CAP;
+        }
+        const take = missing.slice(0, ocLeft);
+        ocLeft -= take.length;
         if (missing.length > take.length) {
             console.warn(`[names] ${missing.length} missing, only falling back for ${take.length} to protect the open cloud quota`);
         } else {

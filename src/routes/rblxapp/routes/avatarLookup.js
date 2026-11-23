@@ -1,9 +1,11 @@
 // full body renders for the rowa2 podium. open cloud only does headshots, so this is the
 // public thumbnails api through roproxy, same proxy as the username batch, no key needed
+const { remember } = require('../rowautils.js');
+
 const MAX_IDS = 100;   // what one upstream call takes
 
 // the cdn urls come back tagged 30DAY, same reasoning as the headshot cache
-const cache = {};
+const cache = new Map(); // user id -> image url
 
 // true if roblox is still rendering some of them
 async function fetchAvatars(ids) {
@@ -13,7 +15,7 @@ async function fetchAvatars(ids) {
 
   const { data = [] } = await r.json();
   for (const t of data) {
-    if (t.state === 'Completed' && t.imageUrl) cache[t.targetId] = t.imageUrl;
+    if (t.state === 'Completed' && t.imageUrl) remember(cache, t.targetId, t.imageUrl);
   }
   return data.some(t => t.state === 'Pending');
 }
@@ -23,7 +25,7 @@ module.exports = async (req, res) => {
     .filter(n => Number.isInteger(n) && n > 0);
   if (!ids.length || ids.length > MAX_IDS) return res.status(400).json({ error: `need 1 to ${MAX_IDS} ids` });
 
-  const missing = () => ids.filter(id => !cache[id]);
+  const missing = () => ids.filter(id => !cache.has(id));
   try {
     // an avatar nobody has asked for in a while comes back Pending first, one retry usually lands it
     if (missing().length && await fetchAvatars(missing())) {
@@ -35,5 +37,5 @@ module.exports = async (req, res) => {
     console.error('[avatars]', err.message);
   }
 
-  res.json(Object.fromEntries(ids.filter(id => cache[id]).map(id => [id, cache[id]])));
+  res.json(Object.fromEntries(ids.filter(id => cache.has(id)).map(id => [id, cache.get(id)])));
 };

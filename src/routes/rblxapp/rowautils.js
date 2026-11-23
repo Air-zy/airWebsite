@@ -8,6 +8,15 @@ const assetKey = process.env.rowaCloudApiLegacyAsset
     ? envDecrypt(process.env.airKey, process.env.rowaCloudApiLegacyAsset)
     : null;
 
+// a cache keyed by ids a visitor picks has to stop somewhere, past this the oldest goes. the rowa board is ~900
+// players. an open cloud user carries its bio, 180 to 580 bytes measured, so 10k of them is ~15 MB at worst
+const CACHE_MAX = 10000;
+function remember(map, key, value) {
+    map.set(key, value);
+    if (map.size > CACHE_MAX) map.delete(map.keys().next().value);
+    return value;
+}
+
 // the rowa player datastore, list it or add /<userid> for one entry
 const ENTRIES = 'https://apis.roblox.com/cloud/v2/universes/8502229770/data-stores/plrDataV3/scopes/global/entries';
 
@@ -21,10 +30,11 @@ async function getPlrData(userid) {
 
 // the cdn urls come back tagged 30DAY so they are stable for ages, and this shares
 // the same 1k/min open cloud quota as the datastore crawl. worth not refetching.
-const thumbCache = {};
+const thumbCache = new Map(); // String(user id) -> image url
 
 async function getThumb(userid) {
-    if (thumbCache[userid]) return thumbCache[userid];
+    const hit = thumbCache.get(String(userid));
+    if (hit) return hit;
 
     const url = `https://apis.roblox.com/cloud/v2/users/${userid}:generateThumbnail`;
     const rbxApiRes = await fetch(url, {
@@ -38,8 +48,7 @@ async function getThumb(userid) {
     const imageUri = data && data.response && data.response.imageUri;
     if (!imageUri) return null;
 
-    thumbCache[userid] = imageUri;
-    return imageUri;
+    return remember(thumbCache, String(userid), imageUri);
 };
 
 // raw asset bytes by id (models, meshes, images). keeps the promise so parallel asks share
@@ -77,4 +86,4 @@ function getAsset(id) {
     return job;
 }
 
-module.exports = { rbxApiKey, assetKey, ENTRIES, getPlrData, getThumb, getAsset };
+module.exports = { rbxApiKey, assetKey, ENTRIES, getPlrData, getThumb, getAsset, remember };

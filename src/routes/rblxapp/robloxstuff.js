@@ -2,9 +2,7 @@ const { firedbRobloxGet, firedbRobloxSave } = require('../../firebase/firebasedb
 const { fetchUsersByIds } = require('./rblxutils.js')
 const zlib = require('zlib');
 
-let last_gam3_comitted = {}
 async function commitRblxData(receivedData) {
-  last_gam3_comitted = receivedData
   const stringifiedData = JSON.stringify(receivedData)
   const compressedData = zlib.gzipSync(stringifiedData);
   const base64CompressedData = compressedData.toString('base64');
@@ -17,8 +15,11 @@ async function commitRblxData(receivedData) {
     return sizeInMB.toFixed(2).toLocaleString();  // Fixed to 2 decimal places and formatted with commas
   }
 
-  firedbRobloxSave(base64CompressedData)
-      
+  await firedbRobloxSave(base64CompressedData)
+  // the post with names added is what the page gets next, no firestore read for it. the raw post has ids, no names
+  cache.data = await processRblxData(receivedData);
+  cache.lastFetch = Date.now();
+
   console.log(`rblxDS | Original size: ${formatSizeToMB(originalSize)} MB`);
   console.log(`rblxDS | Compressed size: ${formatSizeToMB(compressedSize)} MB`);
 }
@@ -90,11 +91,7 @@ async function getRblxDataDecompressed() {
 
   if (cache.data && now - cache.lastFetch < cache.cacheDuration) {
     console.log("Returning cached data");
-    if (last_gam3_comitted.length != 0 && JSON.stringify(last_gam3_comitted) != '{}') {
-      return last_gam3_comitted
-    } else {
-      return cache.data;
-    }
+    return cache.data;
   }
 
   console.log("Fetching fresh data...");
