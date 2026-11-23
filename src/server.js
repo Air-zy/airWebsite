@@ -27,6 +27,7 @@ require('./DATABASE/utilDB.js').ensureTables()
 app.set('trust proxy', 1);
 
 app.use(require('./routes/middleware/reqLogger.js'));
+app.use(require('./routes/middleware/terminal.js').httpsUnlessTerminal);
 app.use(express.json());
 
 // brotli quality, by what is being sent. api answers, and pages before their .br is ready (precompressed, below), are

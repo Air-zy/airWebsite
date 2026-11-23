@@ -35,6 +35,15 @@ const CLI_HINT = `  the rest of the site runs in here too
     ${C.cyan}curl airzy.ca/cli${C.off}
 `;
 
+// cloudflare's always use https stays off, curl doesn't follow redirects and curl airzy.ca has to work on plain
+// http. browsers get sent to https here instead. cf-visitor holds the scheme the visitor used, so no header
+// (localhost) never redirects
+function httpsUnlessTerminal(req, res, next) {
+  const http = (req.headers['cf-visitor'] || '').includes('"http"');
+  if (!http || TERMINAL_UA.test(req.headers['user-agent'] || '')) return next();
+  res.redirect(301, `https://${req.hostname}${req.originalUrl}`);
+}
+
 // Accept text/html is the opt out
 function isTerminal(req) {
   return TERMINAL_UA.test(req.headers['user-agent'] || '')
@@ -75,7 +84,7 @@ const middleware = (req, res, next) => {
   next();
 };
 
-module.exports = { isTerminal, isAgent, text, card, quipOfTheDay, aiQuip, C, middleware };
+module.exports = { isTerminal, isAgent, text, card, quipOfTheDay, aiQuip, C, middleware, httpsUnlessTerminal };
 
 // ip_utils drags in firebase, so this needs the env file: node --env-file=.env src/routes/middleware/terminal.js
 if (require.main === module) {
@@ -105,6 +114,21 @@ if (require.main === module) {
   a.ok(AI_QUIPS.some(q => sent.includes(q)), 'agents get their own quip');
   a.ok(!hit('Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0 Safari/537.36', 'text/html'));  // a real browser
   a.strictEqual(plain(`${C.accent}hi${C.off}`), 'hi');
+
+  // plain http is for terminals, browsers go to https with the path and query kept
+  const sentTo = (visitor, ua) => {
+    let to = null;
+    const headers = { 'user-agent': ua };
+    if (visitor) headers['cf-visitor'] = `{"scheme":"${visitor}"}`;
+    httpsUnlessTerminal({ headers, hostname: 'airzy.ca', originalUrl: '/cli/help?a=1' },
+      { redirect: (code, url) => (to = `${code} ${url}`) }, () => {});
+    return to;
+  };
+  a.strictEqual(sentTo('http', 'Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0'), '301 https://airzy.ca/cli/help?a=1');
+  a.strictEqual(sentTo('http', 'curl/8.4.0'), null);
+  a.strictEqual(sentTo('http', 'Wget/1.21'), null);
+  a.strictEqual(sentTo('https', 'Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0'), null);
+  a.strictEqual(sentTo(undefined, 'Mozilla/5.0 (Windows NT 10.0) Chrome/151.0.0.0'), null);  // localhost
 
   // the days quip holds still, the homepage one does not
   a.strictEqual(quipOfTheDay(), quipOfTheDay());
