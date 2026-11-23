@@ -81,7 +81,8 @@ const CMDS = {
     ].join('\n');
   },
 
-  // email, discord and location sit behind the human check in validate_me.js. not leaking them to a script
+  // email, discord and location sit behind the human check in validate_me.js. it stops scrapers that only read the
+  // html, a script that posts to /c and then sends its own sessionDuration still gets them. so not printed here either
   contact: () => heading('contact') + [
     '  the real address is behind a human check, open airzy.ca in a browser for it',
     '',

@@ -11,6 +11,7 @@ async function ipLookup(ipString) {
     },
     body: null,
     method: "GET",
+    signal: AbortSignal.timeout(8000),
   });
   const htmlContent = await ipftech.text();
 

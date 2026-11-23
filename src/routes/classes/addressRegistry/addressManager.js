@@ -5,13 +5,20 @@ const Address = require('./adress.js');
 const addressMap = new Map();
 let addressesLoaded = false;
 
+// never rejects, a failed load tries again in a minute. until one works updateAddress saves nothing, so an empty list
+// never goes over the real one
 async function loadAddresses() {
-  const raw = await firedbAdressGet();
-  Object.entries(raw || {}).forEach(([ip, info]) => {
-    addressMap.set(ip, Address.fromRaw(ip, info));
-  });
-  addressesLoaded = true;
-  console.log('[ADDRESS] Loaded', addressMap.size, 'entries');
+  try {
+    const raw = await firedbAdressGet();
+    Object.entries(raw || {}).forEach(([ip, info]) => {
+      addressMap.set(ip, Address.fromRaw(ip, info));
+    });
+    addressesLoaded = true;
+    console.log('[ADDRESS] Loaded', addressMap.size, 'entries');
+  } catch (err) {
+    console.error('[ADDRESS] load failed, trying again in a minute:', err.message);
+    setTimeout(loadAddresses, 60 * 1000);
+  }
 }
 
 // the live instance, not a copy, so callers can flip captcha bits on it
@@ -31,7 +38,10 @@ async function updateAddress(ip, userAgent, referer, req) {
     addressMap.set(ip, addr);
   }
 
-  const lookupData = await ipLookup(ip);
+  // a returning visitor keeps their place, so check-host is asked once per ip and a block page from it can't write
+  // over a good city. 'null ~' is what ipLookup gives when it found nothing, that one gets another try
+  const known = addr.city && addr.city !== 'null ~';
+  const lookupData = known ? { city: addr.city, region: addr.region, ISP: addr.isp } : await ipLookup(ip);
   addr.touch(userAgent, lookupData, referer);
 
   const plain = {};

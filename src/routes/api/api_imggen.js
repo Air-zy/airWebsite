@@ -2,6 +2,7 @@ const HF_API = require('../classes/HF_API.js');
 
 module.exports = async (req, res) => {
     const data = req.body;
+    if (!data || typeof data !== 'object') return res.status(400).json({ error: 'bad-request' });
     console.log("[HF API] requesting draw...", data);
     
     const resX = Math.min(Math.max(data[4] || 1024, 256), 2048);

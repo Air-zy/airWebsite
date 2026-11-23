@@ -12,9 +12,8 @@ const trustedDataToSend = {
 
 module.exports = (req, res) => {
   const ipDecimal = getIP(req)
-  const behaviorData = req.body;
-
-  const { sessionDuration } = behaviorData;
+  // sessionDuration is the page's own count, so this only stops scrapers that never run the js. see cli.js contact
+  const { sessionDuration } = req.body ?? {};
   
   const addr = getAddress(ipDecimal);
   if (sessionDuration > 500 && addr) {

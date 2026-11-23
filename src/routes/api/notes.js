@@ -23,6 +23,9 @@ function clean(body) {
   return { text: t };
 }
 
+// a note id is a serial, anything else would reach postgres as NaN or past int and come back a 500
+router.param('id', (req, res, next, id) => /^\d{1,9}$/.test(id) ? next() : res.status(404).json({ error: 'no such note' }));
+
 router.get('/', async (req, res) => {
   const uid = req.user?.uid ?? null;
   // pinned first with the latest pin on top, then newest. mine lets the page mark your own notes without handing out uids
