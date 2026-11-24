@@ -33,7 +33,7 @@
   --text-soft: color-mix(in oklab,var(--text-grey),var(--text-normal) 45%);
   /* the only colours in the text, taken from the plant. gold for the name, numbers, years and the odd word that
      matters, the petals' rose for schools, places and brands, the leaves' sage for languages and tools */
-  --accent: gold;
+  --accent: #f0aa41;
   --hl-name: #e7a6b9;
   --hl-tech: #8cc9b5;
   /* the page background dither, see #bg. lift is read once by js/dither.js */
