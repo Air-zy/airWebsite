@@ -324,7 +324,7 @@ function drawEval() {
   } else if (best) {
     white = (1 + chance(best)) / 2;
     score = fmt(best);
-    info = `depth ${best.depth}` + (best.sel ? '/' + best.sel : '') + (best.nps ? ` · ${Math.round(best.nps / 1000).toLocaleString()} kn/s` : '');
+    info = (best.book ? 'book · ' : '') + `depth ${best.depth}` + (best.sel ? '/' + best.sel : '') + (best.nps ? ` · ${Math.round(best.nps / 1000).toLocaleString()} kn/s` : '');
   }
   if (!quiet) el.score.textContent = score;
   el.info.textContent = info;
@@ -508,6 +508,27 @@ const parse = (line, n) => {
     pv: m[7].split(' ').filter(Boolean) };
 };
 
+// an engine's opening book, engines/<engine>/book.tsv. cynical's is C:\cynbook's version 2: every position of the first
+// 8 plies from the start where it moves and a ~1400's game gets to at least 1 in 5,000 times (or by one of stockfish's
+// top 2 replies), searched to depth 20 for 3 lines given the game's moves so far, as the page gives them (its opponent
+// model reads them). a line per position: "<uci moves from the start>", then a tab and "<depth> <cp|mate> <score> <pv>"
+// for each of its lines, best first, scores for the side to move. on a game from the start, a fight plays line 1's move
+// at once instead of a search, at any strength, and analysis shows the lines instead of searching (up to 3 lines picked).
+// fetched the first time it's needed, empty if that fails. engine -> a Map of moves -> lines once in, a promise till then
+const BOOKS = ['cynical'], shelf = {};
+const opening = e => shelf[e] ??= fetch(`/chess/engines/${e}/book.tsv` + V).then(r => r.ok ? r.text() : '').catch(() => '')
+  .then(t => shelf[e] = new Map(t.split('\n').filter(Boolean).map(l => { const [k, ...ls] = l.split('\t'); return [k, ls]; })));
+// the book's lines at n as parse gives them, best first, undefined when n is out of the book, a promise while it comes in
+function booked(n) {
+  if (!BOOKS.includes(el.engine.value) || root.fen !== START) return;
+  const b = opening(el.engine.value);
+  if (b instanceof Promise) return b;
+  return b.get(path(n).join(' '))?.map((l, i) => {
+    const [d, unit, s, ...pv] = l.split(' ');
+    return { depth: +d, sel: 0, k: i + 1, [unit]: s * (n.ply % 2 ? -1 : 1), nps: 0, pv, book: true };
+  });
+}
+
 // avy: the wasm build can't take a stop mid search, so a new position kills the worker and starts a fresh one and the
 // hash goes with it (keeper aside). a pthreads build with stop would keep one worker. the wait lets arrow keys skim
 // through moves without spinning one up for each
@@ -526,9 +547,21 @@ function analyse() {
   if (edit || game.isGameOver() || !plays && (!el.on.checked || blind() && game.turn() === side)) return;
   timer = setTimeout(function start(tries = 0) {
     if (plays && hunting()) return ask(cur);
-    const n = cur, keep = plays && keeps();
+    const n = cur, keep = plays && keeps(), engine = el.engine.value, lines = want(), b = booked(n);
+    // the book's lines once the book is in, if the position is still up. they show like a search's, and the engine
+    // starts loading meanwhile, so it's there when the game leaves the book
+    if (b instanceof Promise) return void b.then(() => n === cur && el.engine.value === engine && analyse());
+    if (b?.length >= lines) {
+      const dir = `/chess/engines/${engine}/`;
+      compiled(dir).catch(() => delete wasm[dir]);
+      pvs = b.slice(0, lines);
+      drawEval();
+      drawShapes();
+      if (plays) goto(child(n, b[0].pv[0]), true);
+      return;
+    }
     if (keep && keeper?.busy === n) return;
-    const w = keep ? keeper ??= spawn() : worker = spawn(), lines = want(), side = n.ply % 2 ? -1 : 1;
+    const w = keep ? keeper ??= spawn() : worker = spawn(), side = n.ply % 2 ? -1 : 1;
     const mine = () => keep ? w === keeper && w.busy === n : w === worker;
     const drop = () => { if (keep) keeper = null; else worker = null; w.terminate(); };
     let got = [];

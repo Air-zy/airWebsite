@@ -144,11 +144,11 @@ module.exports = {
     vBreak: version(['js/breakdown.js']),
     // /roblox's own css and js. the page loads home's main.css and dither.js too, with v
     vRoblox: version(['roblox/roblox.css', 'roblox/roblox.js', 'roblox/figure.worker.js', 'roblox/figure/rig.json']),
-    // the chess page's (chess.html loads analysis.js with it, analysis.js passes it on to the workers, the opening book
+    // the chess page's (chess.html loads analysis.js with it, analysis.js passes it on to the workers, the opening books
     // and the sounds). the engines' wasm stays out, a new cynical would make everyone download its 43 MB with a new
     // page, and the files the workers load by name (chess.js, rules.js, verityb.js) can't carry it
     vChess: version(['chess/analysis.js', 'chess/engines/engine.worker.js', 'chess/engines/verity/verityb.worker.js', 'chess/openings.tsv',
-      ...fs.readdirSync(__dirname + '/../public/chess/sounds').sort().map(f => 'chess/sounds/' + f)]),
+      'chess/engines/cynical/book.tsv', ...fs.readdirSync(__dirname + '/../public/chess/sounds').sort().map(f => 'chess/sounds/' + f)]),
     // each engine's build, folder:hash with a space between, on the chess page's engine picker. the page keeps a wasm
     // in its cache storage under its hash, so a new build is the only download (analysis.js)
     vWasm: fs.readdirSync(__dirname + '/../public/chess/engines', { withFileTypes: true })
