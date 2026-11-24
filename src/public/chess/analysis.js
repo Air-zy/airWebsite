@@ -517,7 +517,7 @@ const parse = (line, n) => {
 // fetched the first time it's needed, empty if that fails. engine -> a Map of moves -> lines once in, a promise till then
 const BOOKS = ['cynical'], shelf = {};
 const opening = e => shelf[e] ??= fetch(`/chess/engines/${e}/book.tsv` + V).then(r => r.ok ? r.text() : '').catch(() => '')
-  .then(t => shelf[e] = new Map(t.split('\n').filter(Boolean).map(l => { const [k, ...ls] = l.split('\t'); return [k, ls]; })));
+  .then(t => shelf[e] = new Map(t.split(/\r?\n/).filter(Boolean).map(l => { const [k, ...ls] = l.split('\t'); return [k, ls]; })));
 // the book's lines at n as parse gives them, best first, undefined when n is out of the book, a promise while it comes in
 function booked(n) {
   if (!BOOKS.includes(el.engine.value) || root.fen !== START) return;
